@@ -272,6 +272,12 @@ If you have ideas for new skills, providers, or agent workflows, feel free to co
 
 ---
 
+## Update Log
+
+Recent updates and development notes are available in the [Update Log](./docs/changelog/README.md).
+
+---
+
 ## Author
 
 ChrisWang
