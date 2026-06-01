@@ -18,6 +18,7 @@ export async function POST(request: Request) {
   const history = Array.isArray(body.history) ? body.history : [];
   const budget = Number(body.budget || 4000);
   const mode = body.mode || "safe";
+  const policy = body.policy || "balanced";
 
   if (!providerId || !prompt.trim()) {
     return NextResponse.json({ error: "providerId and prompt are required" }, { status: 400 });
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
     const saved = findSavedProvider(providerId);
     const intent = analyzeIntent(prompt);
     const skills = await collectSkillContexts(intent);
-    const guard = guardPrompt(prompt, { budget, question: body.question, mode, intent, skills });
+    const guard = guardPrompt(prompt, { budget, question: body.question, mode, policy, intent, skills, providerId, model: model || saved?.model });
     saveRedactionMap(guard.mapping, { providerId, model: model || saved?.model || "" });
 
     const messages: ChatMessage[] = [];

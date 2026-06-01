@@ -12,6 +12,7 @@ export async function POST(request: Request) {
   return NextResponse.json(guardPrompt(text, {
     question: body.question,
     budget: Number(body.budget || 4000),
-    mode: body.mode || "safe"
+    mode: body.mode || "safe",
+    policy: body.policy || "balanced"
   }));
 }

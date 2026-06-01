@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import type { GuardMode, PolicyId } from "@/lib/types";
 import { Badge, Field, Panel, buttonClass, ghostButtonClass, inputClass } from "./ui";
 
 type GuardResponse = {
   safePrompt?: string;
+  finalPrompt?: string;
   redacted?: string;
   compressed?: string;
   tokensBefore?: number;
@@ -13,6 +15,10 @@ type GuardResponse = {
   detections?: Array<{ label: string; value: string; severity: string }>;
   riskBefore?: { label: string; score: number };
   riskAfter?: { label: string; score: number };
+  policy?: string;
+  effectiveMode?: string;
+  action?: { label: string; reason: string; requiresConfirmation?: boolean };
+  routing?: { label: string; providerId?: string; model?: string; reason: string; localPreferred?: boolean };
   error?: string;
 };
 
@@ -20,7 +26,8 @@ export function GuardDesk() {
   const [text, setText] = useState(sample);
   const [question, setQuestion] = useState("turn this into a clean prompt for a coding agent");
   const [budget, setBudget] = useState(3000);
-  const [mode, setMode] = useState("safe");
+  const [mode, setMode] = useState<GuardMode>("safe");
+  const [policy, setPolicy] = useState<PolicyId>("balanced");
   const [result, setResult] = useState<GuardResponse | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -29,7 +36,7 @@ export function GuardDesk() {
     const res = await fetch("/api/guard", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text, question, budget, mode })
+      body: JSON.stringify({ text, question, budget, mode, policy })
     });
     setResult(await res.json());
     setBusy(false);
@@ -45,9 +52,17 @@ export function GuardDesk() {
           <Field label="Question / task">
             <input className={inputClass} value={question} onChange={(event) => setQuestion(event.target.value)} />
           </Field>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-3">
+            <Field label="Policy">
+              <select className={inputClass} value={policy} onChange={(event) => setPolicy(event.target.value as PolicyId)}>
+                <option value="strict">strict privacy</option>
+                <option value="balanced">balanced</option>
+                <option value="fast">fast</option>
+                <option value="developer">developer debug</option>
+              </select>
+            </Field>
             <Field label="Mode">
-              <select className={inputClass} value={mode} onChange={(event) => setMode(event.target.value)}>
+              <select className={inputClass} value={mode} onChange={(event) => setMode(event.target.value as GuardMode)}>
                 <option value="safe">redact + compress</option>
                 <option value="redact-only">redact only</option>
                 <option value="compress-only">compress only</option>
@@ -70,7 +85,27 @@ export function GuardDesk() {
                 <Badge tone="blue">{result.tokensBefore} → {result.tokensAfter} tokens</Badge>
                 <Badge tone="green">saved {result.savedPercent}%</Badge>
                 <Badge tone={result.riskBefore?.label === "low" ? "green" : "red"}>risk {result.riskBefore?.label} → {result.riskAfter?.label}</Badge>
+                {result.policy ? <Badge tone="amber">{result.policy}</Badge> : null}
+                {result.effectiveMode ? <Badge tone="blue">{result.effectiveMode}</Badge> : null}
               </div>
+              {result.action ? (
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <div className="mb-1 font-medium">Action</div>
+                  <div className="font-semibold text-slate-800">{result.action.label}</div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{result.action.reason}</p>
+                </div>
+              ) : null}
+              {result.routing ? (
+                <div className="rounded-xl bg-slate-50 p-3">
+                  <div className="mb-1 font-medium">Routing</div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <Badge tone={result.routing.localPreferred ? "amber" : "blue"}>{result.routing.label}</Badge>
+                    {result.routing.providerId ? <Badge>{result.routing.providerId}</Badge> : null}
+                    {result.routing.model ? <Badge>{result.routing.model}</Badge> : null}
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">{result.routing.reason}</p>
+                </div>
+              ) : null}
               <div className="rounded-xl bg-slate-50 p-3">
                 <div className="mb-2 font-medium">Findings</div>
                 {result.detections?.length ? result.detections.map((item, index) => (
@@ -81,8 +116,8 @@ export function GuardDesk() {
           ) : <p className="text-sm text-slate-500">Run the guard to see the report.</p>}
         </Panel>
 
-        <Panel title="Safe prompt" right={result?.safePrompt ? <button className={ghostButtonClass} onClick={() => navigator.clipboard.writeText(result.safePrompt || "")}>Copy</button> : null}>
-          <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-xl bg-slate-950 p-4 text-sm leading-6 text-slate-50 scrollbar-thin">{result?.safePrompt || "Safe prompt will show here."}</pre>
+        <Panel title="Safe prompt" right={result?.safePrompt ? <button className={ghostButtonClass} onClick={() => navigator.clipboard.writeText(result.finalPrompt || result.safePrompt || "")}>Copy</button> : null}>
+          <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-xl bg-slate-950 p-4 text-sm leading-6 text-slate-50 scrollbar-thin">{result?.finalPrompt || result?.safePrompt || "Safe prompt will show here."}</pre>
         </Panel>
       </div>
     </div>

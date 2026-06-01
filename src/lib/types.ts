@@ -76,11 +76,39 @@ export type SkillContext = {
   directAnswer?: string;
 };
 
+export type GuardMode = "safe" | "compress-only" | "redact-only";
+export type PolicyId = "strict" | "balanced" | "fast" | "developer";
+
+export type RoutingDecision = {
+  label: string;
+  providerId?: string;
+  model?: string;
+  reason: string;
+  localPreferred: boolean;
+  confidence: number;
+};
+
+export type GuardAction = {
+  label: string;
+  reason: string;
+  blocked: boolean;
+  requiresConfirmation: boolean;
+};
+
+export type CompressionReport = {
+  originalTokens: number;
+  finalTokens: number;
+  savedPercent: number;
+  budget: number;
+  applied: boolean;
+};
+
 export type GuardResult = {
   original: string;
   redacted: string;
   compressed: string;
   safePrompt: string;
+  finalPrompt: string;
   detections: Detection[];
   mapping: Record<string, string>;
   riskBefore: RiskScore;
@@ -90,6 +118,12 @@ export type GuardResult = {
   savedPercent: number;
   intent?: IntentReport;
   skills?: SkillContext[];
+  policy: PolicyId;
+  mode: GuardMode;
+  effectiveMode: GuardMode;
+  routing: RoutingDecision;
+  action: GuardAction;
+  compression: CompressionReport;
 };
 
 export type RiskScore = {

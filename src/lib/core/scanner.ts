@@ -25,10 +25,46 @@ const patterns: Array<{
     regex: /\bsk-[A-Za-z0-9][A-Za-z0-9_-]{20,}\b/g
   },
   {
+    kind: "google_api_key",
+    label: "Google API key",
+    severity: "critical",
+    regex: /\bAIza[0-9A-Za-z_-]{20,}\b/g
+  },
+  {
+    kind: "anthropic_key",
+    label: "Anthropic API key",
+    severity: "critical",
+    regex: /\bsk-ant-[A-Za-z0-9_-]{20,}\b/g
+  },
+  {
+    kind: "aws_access_key",
+    label: "AWS access key id",
+    severity: "high",
+    regex: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g
+  },
+  {
+    kind: "stripe_key",
+    label: "Stripe API key",
+    severity: "critical",
+    regex: /\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{20,}\b/g
+  },
+  {
+    kind: "slack_token",
+    label: "Slack token",
+    severity: "critical",
+    regex: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g
+  },
+  {
+    kind: "vercel_token",
+    label: "Vercel token",
+    severity: "critical",
+    regex: /\bvercel_[A-Za-z0-9]{24,}\b/g
+  },
+  {
     kind: "generic_secret",
     label: "Secret assignment",
     severity: "high",
-    regex: /\b(?:api[_-]?key|secret|access[_-]?token|auth[_-]?token|password|passwd)\s*[:=]\s*["']?[^\s"']{12,}/gi
+    regex: /\b(?:api[_-]?key|secret|client[_-]?secret|access[_-]?token|auth[_-]?token|bearer[_-]?token|password|passwd|private[_-]?key)\s*[:=]\s*["']?[^\s"']{12,}/gi
   },
   {
     kind: "database_url",

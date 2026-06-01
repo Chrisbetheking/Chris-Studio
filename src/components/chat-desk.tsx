@@ -18,6 +18,9 @@ import {
   UploadCloud,
   X
 } from "lucide-react";
+import { analyzeIntent } from "@/lib/core/intent";
+import { guardPrompt } from "@/lib/core/guard";
+import type { GuardMode, GuardResult, PolicyId } from "@/lib/types";
 import { ProviderPicker } from "./provider-picker";
 import { Badge, Field, buttonClass, ghostButtonClass, inputClass } from "./ui";
 
@@ -40,17 +43,7 @@ type ChatResponse = {
     content: string;
     source?: string;
   }>;
-  guard?: {
-    tokensBefore: number;
-    tokensAfter: number;
-    savedPercent: number;
-    riskBefore: { label: string; score: number };
-    riskAfter: { label: string; score: number };
-    detections: Array<{ label: string; severity: string }>;
-    safePrompt: string;
-    intent?: { intent: string; confidence: number; language: string; needsRealtime: boolean; entities?: Record<string, string> };
-    skills?: Array<{ name: string; status: string; title: string; content: string; source?: string }>;
-  };
+  guard?: GuardResult;
   usage?: { input?: number; output?: number; total?: number };
   durationMs?: number;
   archiveId?: string;
@@ -93,10 +86,20 @@ const copy = {
     settings: "Settings",
     system: "System prompt",
     mode: "Guard mode",
+    policy: "Policy profile",
     budget: "Token budget",
     safe: "redact + compress",
     redact: "redact only",
     compress: "compress only",
+    policyStrict: "Strict privacy",
+    policyBalanced: "Balanced",
+    policyFast: "Fast",
+    policyDeveloper: "Developer debug",
+    finalPrompt: "Final prompt preview",
+    route: "Routing",
+    action: "Action",
+    effectiveMode: "Effective mode",
+    beforeSend: "Pre-flight check",
     placeholder: "Message TokenFence. Paste code, logs, notes, or drop files here...",
     send: "Send",
     sending: "Sending",
@@ -143,10 +146,20 @@ const copy = {
     settings: "设置",
     system: "系统提示词",
     mode: "安全模式",
+    policy: "策略模式",
     budget: "Token 预算",
     safe: "脱敏 + 压缩",
     redact: "只脱敏",
     compress: "只压缩",
+    policyStrict: "严格隐私",
+    policyBalanced: "平衡模式",
+    policyFast: "快速模式",
+    policyDeveloper: "开发调试",
+    finalPrompt: "最终 Prompt 预览",
+    route: "路由建议",
+    action: "处理建议",
+    effectiveMode: "实际模式",
+    beforeSend: "发送前检查",
     placeholder: "直接提问。可以粘贴代码、日志、笔记，也可以拖入文件...",
     send: "发送",
     sending: "发送中",
@@ -196,7 +209,8 @@ export function ChatDesk({ readyKey = 0, lang = "en" }: { readyKey?: number; lan
   const [input, setInput] = useState("");
   const [system, setSystem] = useState("You are practical, careful with privacy, and you preserve the user's original intent. Use collected tool context when it is available.");
   const [budget, setBudget] = useState(4000);
-  const [mode, setMode] = useState("safe");
+  const [mode, setMode] = useState<GuardMode>("safe");
+  const [policy, setPolicy] = useState<PolicyId>("balanced");
   const [busy, setBusy] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentId, setCurrentId] = useState("");
@@ -264,6 +278,9 @@ export function ChatDesk({ readyKey = 0, lang = "en" }: { readyKey?: number; lan
 
     const prompt = `${clean || "Please review the attached context."}${attachmentText}`;
     const userText = clean || attachments.map((file) => `[${file.name}]`).join("\n");
+    const previewIntent = analyzeIntent(prompt);
+    const previewGuard = guardPrompt(prompt, { budget, mode, policy, intent: previewIntent, providerId, model });
+    setLastRun({ guard: previewGuard, intent: previewIntent, durationMs: 0 });
     const userMessage: Message = { id: id(), role: "user", content: userText, createdAt: new Date().toISOString() };
     const optimistic = [...messages, userMessage];
     const nextTitle = shouldRename(current?.title) ? titleFromPrompt(clean || attachments[0]?.name || "New chat") : current?.title;
@@ -284,6 +301,7 @@ export function ChatDesk({ readyKey = 0, lang = "en" }: { readyKey?: number; lan
           system,
           budget,
           mode,
+          policy,
           history: messages
             .filter((item) => item.id !== "welcome")
             .slice(-8)
@@ -391,7 +409,7 @@ export function ChatDesk({ readyKey = 0, lang = "en" }: { readyKey?: number; lan
   }
 
   async function copySafePrompt() {
-    const text = lastRun?.guard?.safePrompt;
+    const text = lastRun?.guard?.finalPrompt || lastRun?.guard?.safePrompt;
     if (!text) return;
     await navigator.clipboard.writeText(text);
     setCopied(true);
@@ -492,12 +510,20 @@ export function ChatDesk({ readyKey = 0, lang = "en" }: { readyKey?: number; lan
           </div>
 
           {showSettings ? (
-            <div className="mt-3 grid gap-3 rounded-2xl bg-slate-50 p-3 lg:grid-cols-[1.5fr_1fr_1fr]">
+            <div className="mt-3 grid gap-3 rounded-2xl bg-slate-50 p-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
               <Field label={t.system}>
                 <input className={inputClass} value={system} onChange={(event) => setSystem(event.target.value)} />
               </Field>
+              <Field label={t.policy}>
+                <select className={inputClass} value={policy} onChange={(event) => setPolicy(event.target.value as PolicyId)}>
+                  <option value="strict">{t.policyStrict}</option>
+                  <option value="balanced">{t.policyBalanced}</option>
+                  <option value="fast">{t.policyFast}</option>
+                  <option value="developer">{t.policyDeveloper}</option>
+                </select>
+              </Field>
               <Field label={t.mode}>
-                <select className={inputClass} value={mode} onChange={(event) => setMode(event.target.value)}>
+                <select className={inputClass} value={mode} onChange={(event) => setMode(event.target.value as GuardMode)}>
                   <option value="safe">{t.safe}</option>
                   <option value="redact-only">{t.redact}</option>
                   <option value="compress-only">{t.compress}</option>
@@ -604,6 +630,23 @@ export function ChatDesk({ readyKey = 0, lang = "en" }: { readyKey?: number; lan
                 <Badge tone={toneForRisk(lastRun.guard.riskAfter.label)}>Risk {lastRun.guard.riskBefore.label} → {lastRun.guard.riskAfter.label}</Badge>
                 <Badge tone="blue">{lastRun.guard.tokensBefore} → {lastRun.guard.tokensAfter}</Badge>
                 <Badge tone="green">saved {lastRun.guard.savedPercent}%</Badge>
+                <Badge tone="amber">{lastRun.guard.policy}</Badge>
+                <Badge tone="blue">{t.effectiveMode}: {lastRun.guard.effectiveMode}</Badge>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-3">
+                <div className="mb-2 font-medium text-slate-800">{t.action}</div>
+                <div className="text-sm font-semibold text-slate-900">{lastRun.guard.action.label}</div>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{lastRun.guard.action.reason}</p>
+                {lastRun.guard.action.requiresConfirmation ? <Badge tone="amber">review recommended</Badge> : null}
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-3">
+                <div className="mb-2 font-medium text-slate-800">{t.route}</div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <Badge tone={lastRun.guard.routing.localPreferred ? "amber" : "blue"}>{lastRun.guard.routing.label}</Badge>
+                  {lastRun.guard.routing.providerId ? <Badge>{lastRun.guard.routing.providerId}</Badge> : null}
+                  {lastRun.guard.routing.model ? <Badge>{lastRun.guard.routing.model}</Badge> : null}
+                </div>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{lastRun.guard.routing.reason}</p>
               </div>
               <div className="rounded-2xl bg-slate-50 p-3">
                 <div className="mb-2 font-medium text-slate-800">{t.intent}</div>
@@ -644,12 +687,12 @@ export function ChatDesk({ readyKey = 0, lang = "en" }: { readyKey?: number; lan
               </div>
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-900">{t.safePrompt}</h3>
+                  <h3 className="font-semibold text-slate-900">{t.finalPrompt}</h3>
                   <button className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50" onClick={copySafePrompt}>
                     <Copy size={12} /> {copied ? t.copied : "Copy"}
                   </button>
                 </div>
-                <pre className="max-h-[42vh] overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 p-3 text-xs leading-5 text-slate-100 scrollbar-thin">{lastRun.guard.safePrompt}</pre>
+                <pre className="max-h-[42vh] overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 p-3 text-xs leading-5 text-slate-100 scrollbar-thin">{lastRun.guard.finalPrompt || lastRun.guard.safePrompt}</pre>
               </div>
             </div>
           ) : null}
@@ -664,6 +707,7 @@ function MiniReport({ result }: { result: ChatResponse }) {
   return (
     <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200/30 pt-3">
       <Badge tone={toneForRisk(result.guard.riskAfter.label)}>risk {result.guard.riskAfter.label}</Badge>
+      <Badge tone="blue">{result.guard.effectiveMode}</Badge>
       <Badge tone="blue">{result.guard.tokensAfter} tokens</Badge>
       <Badge tone="green">saved {result.guard.savedPercent}%</Badge>
       {(result.skills?.length || result.guard.skills?.length) ? <Badge tone="amber">skill {(result.skills || result.guard.skills || [])[0]?.name}</Badge> : null}
