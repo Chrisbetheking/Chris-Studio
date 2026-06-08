@@ -3,6 +3,14 @@ import type { DocumentSource } from "@/lib/document/pipeline";
 import { inferDocumentKind, runDocumentPipeline } from "@/lib/document/pipeline";
 import { parseUploadedFile } from "@/lib/document/server-parsers";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+type ReadOptions = {
+  enableOcr: boolean;
+  ocrLanguage: string;
+};
+
 export async function POST(request: Request) {
   try {
     const sources = await readSources(request);
@@ -24,7 +32,8 @@ async function readSources(request: Request): Promise<DocumentSource[]> {
   if (contentType.includes("multipart/form-data")) {
     const form = await request.formData();
     const files = form.getAll("files").filter((item): item is File => item instanceof File);
-    const parsed = await Promise.all(files.map((file) => parseUploadedFile(file)));
+    const options = readOptionsFromForm(form);
+    const parsed = await Promise.all(files.map((file) => parseUploadedFile(file, options)));
 
     const textItems = form.getAll("documents");
     const manual = textItems.flatMap((item) => parseManualDocumentItem(item));
@@ -46,6 +55,16 @@ async function readSources(request: Request): Promise<DocumentSource[]> {
       };
     })
     .filter((source) => source.content.trim());
+}
+
+function readOptionsFromForm(form: FormData): ReadOptions {
+  const enableOcrRaw = String(form.get("enableOcr") ?? "true");
+  const language = String(form.get("ocrLanguage") || "eng").trim();
+
+  return {
+    enableOcr: enableOcrRaw !== "false",
+    ocrLanguage: language || "eng"
+  };
 }
 
 function parseManualDocumentItem(value: FormDataEntryValue): DocumentSource[] {

@@ -41,7 +41,7 @@ const starterFiles: DraftFile[] = [
   {
     id: "sample-notes",
     path: "docs/INTERVIEW_NOTES.md",
-    content: `# Interview Notes\n\nClient: Acme Pay CN\nContact: chris@example.com / 13900001111\nInternal DB: postgres://root:secret@localhost:5432/tokenfence\n\nPage 1 of 3\nTokenFence should not just upload files. It should parse documents, clean repeated headers, scan sensitive values, create RAG-ready chunks, and route each file to a suitable model.\n\nPage 2 of 3\nDocument Intelligence Pipeline should support PDF, DOCX, image OCR placeholders, logs, Markdown, and code files. Secret files should prefer local models.\n\nPage 3 of 3\nThe output should include clean Markdown, chunks.json, risk metadata, and suggested model routing.`
+    content: `# Interview Notes\n\nClient: Acme Pay CN\nContact: chris@example.com / 13900001111\nInternal DB: postgres://root:secret@localhost:5432/tokenfence\n\nPage 1 of 3\nTokenFence should not just upload files. It should parse documents, clean repeated headers, scan sensitive values, create RAG-ready chunks, and route each file to a suitable model.\n\nPage 2 of 3\nDocument Intelligence Pipeline should support PDF, DOCX, image OCR, logs, Markdown, and code files. Secret files should prefer local models.\n\nPage 3 of 3\nThe output should include clean Markdown, chunks.json, risk metadata, and suggested model routing.`
   }
 ];
 
@@ -52,6 +52,8 @@ export function DocumentPipelineDesk() {
   const [view, setView] = useState<"markdown" | "chunks" | "before" | "after">("markdown");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [enableOcr, setEnableOcr] = useState(true);
+  const [ocrLanguage, setOcrLanguage] = useState("eng");
 
   const runnableDrafts = useMemo(() => drafts.filter((file) => file.content.trim()), [drafts]);
   const canRun = uploadedFiles.length > 0 || runnableDrafts.length > 0;
@@ -78,6 +80,8 @@ export function DocumentPipelineDesk() {
       if (uploadedFiles.length) {
         const form = new FormData();
         for (const file of uploadedFiles) form.append("files", file);
+        form.append("enableOcr", String(enableOcr));
+        form.append("ocrLanguage", ocrLanguage);
         form.append("documents", JSON.stringify(runnableDrafts.map(({ path, content }) => ({ path, content }))));
         res = await fetch("/api/documents", { method: "POST", body: form });
       } else {
@@ -107,17 +111,33 @@ export function DocumentPipelineDesk() {
         <Panel title="Document Intelligence Pipeline" right={<Badge tone="blue">parse · clean · scan · chunk · route</Badge>}>
           <div className="space-y-4">
             <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 text-sm leading-6 text-blue-950">
-              Upload files or paste document text. TokenFence cleans noisy content, scans risk, creates RAG-ready chunks, and suggests a model route before anything is sent to an LLM.
+              Upload files or paste document text. TokenFence now extracts text from PDF and DOCX files, runs local OCR for image uploads, cleans noisy content, scans risk, creates RAG-ready chunks, and suggests a model route before anything is sent to an LLM.
             </div>
 
-            <Field label="Upload files" hint="Text files work directly. PDF and DOCX are parsed with built-in best-effort extractors. Image OCR is kept as a placeholder until you connect an OCR provider.">
+            <Field label="Upload files" hint="PDF and DOCX are parsed on the server. Image files use built-in local OCR through Tesseract.js. Scanned PDF page OCR is still marked separately because it needs PDF-to-image rendering.">
               <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 hover:bg-white">
                 <UploadCloud className="mb-2 text-slate-400" size={28} />
                 <span className="font-medium text-slate-700">Choose PDF, DOCX, image, log, markdown, or code files</span>
-                <span className="mt-1 text-xs">The parser runs locally through the Next.js API route.</span>
+                <span className="mt-1 text-xs">The parser runs through the local Next.js API route. Uploaded files are parsed before they are sent to any LLM.</span>
                 <input className="hidden" type="file" multiple onChange={(event) => setUploadedFiles(Array.from(event.target.files || []))} />
               </label>
             </Field>
+
+
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
+              <Field label="OCR language" hint="Use eng for English. Use chi_sim+eng after the language data is available locally or downloadable by Tesseract.js.">
+                <input className={inputClass} value={ocrLanguage} onChange={(event) => setOcrLanguage(event.target.value)} placeholder="eng" />
+              </Field>
+              <Field label="Image OCR">
+                <button
+                  className={enableOcr ? buttonClass : ghostButtonClass}
+                  onClick={() => setEnableOcr((value) => !value)}
+                  type="button"
+                >
+                  {enableOcr ? "OCR enabled" : "OCR disabled"}
+                </button>
+              </Field>
+            </div>
 
             {uploadedFiles.length ? (
               <div className="rounded-2xl border border-slate-200 bg-white p-3 text-sm">

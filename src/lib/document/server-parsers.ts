@@ -6,7 +6,12 @@ const textExtensions = new Set([
   ".txt", ".md", ".mdx", ".markdown", ".log", ".json", ".jsonl", ".csv", ".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".go", ".rs", ".cpp", ".c", ".cs", ".php", ".rb", ".swift", ".kt", ".sql", ".css", ".scss", ".html", ".vue", ".svelte", ".yaml", ".yml", ".toml", ".ini", ".env", ".conf", ".config"
 ]);
 
-export async function parseUploadedFile(file: File): Promise<DocumentSource> {
+type ParseOptions = {
+  enableOcr?: boolean;
+  ocrLanguage?: string;
+};
+
+export async function parseUploadedFile(file: File, options: ParseOptions = {}): Promise<DocumentSource> {
   const bytes = Buffer.from(await file.arrayBuffer());
   const path = file.name || "uploaded-file";
   const ext = extensionOf(path);
@@ -17,16 +22,28 @@ export async function parseUploadedFile(file: File): Promise<DocumentSource> {
   try {
     if (ext === ".docx") {
       kind = "docx";
-      content = extractDocxText(bytes);
-      if (!content.trim()) warnings.push("DOCX text extraction returned empty content.");
+      const parsed = await extractDocxText(bytes);
+      content = parsed.text;
+      warnings.push(...parsed.warnings);
+      if (!content.trim()) warnings.push("DOCX parser returned empty text. The file may contain only images, charts, or unsupported embedded objects.");
     } else if (ext === ".pdf") {
       kind = "pdf";
-      content = extractPdfText(bytes);
-      if (!content.trim()) warnings.push("PDF text extraction is best-effort and may miss scanned pages.");
+      const parsed = await extractPdfText(bytes);
+      content = parsed.text;
+      warnings.push(...parsed.warnings);
+      if (!content.trim()) {
+        warnings.push("PDF text extraction returned empty content. This is likely a scanned/image-only PDF. Image OCR is built in for image files; scanned-PDF page OCR needs a PDF-to-image renderer in a later update.");
+      }
     } else if (isImageExtension(ext)) {
       kind = "image";
-      content = buildImagePlaceholder(path, bytes.length);
-      warnings.push("OCR is not bundled in this prototype. Add an OCR provider later or paste recognized text manually.");
+      if (options.enableOcr !== false) {
+        const parsed = await extractImageTextWithOcr(bytes, options.ocrLanguage || "eng");
+        content = parsed.text;
+        warnings.push(...parsed.warnings);
+        if (!content.trim()) warnings.push("OCR returned empty text. Try a clearer image or a different OCR language.");
+      } else {
+        content = buildImageRecord(path, bytes.length, "OCR disabled for this request.");
+      }
     } else if (textExtensions.has(ext) || looksTextLike(bytes)) {
       content = bytes.toString("utf8");
       kind = inferDocumentKind(path, content);
@@ -43,23 +60,80 @@ export async function parseUploadedFile(file: File): Promise<DocumentSource> {
   return { path, content, kind, warnings };
 }
 
-export function extractDocxText(buffer: Buffer): string {
+export async function extractDocxText(buffer: Buffer): Promise<{ text: string; warnings: string[] }> {
+  try {
+    const mammoth = await import("mammoth");
+    const result = await mammoth.extractRawText({ buffer });
+    const warnings = result.messages
+      ?.map((item) => item.message)
+      .filter((item): item is string => Boolean(item)) || [];
+
+    return { text: normalizeExtractedText(result.value || ""), warnings };
+  } catch (error) {
+    const fallback = extractDocxTextFallback(buffer);
+    const message = error instanceof Error ? error.message : "mammoth DOCX parser failed";
+    const warnings = [`DOCX parser fallback used: ${message}`];
+    return { text: normalizeExtractedText(fallback), warnings };
+  }
+}
+
+export async function extractPdfText(buffer: Buffer): Promise<{ text: string; warnings: string[] }> {
+  const warnings: string[] = [];
+
+  try {
+    const mod = await import("pdf-parse");
+    const pdfParse = (mod.default || mod) as unknown as (input: Buffer) => Promise<{ text?: string; numpages?: number }>;
+    const result = await pdfParse(buffer);
+    const text = normalizeExtractedText(result.text || "");
+    if (result.numpages) warnings.push(`PDF pages detected: ${result.numpages}.`);
+    return { text, warnings };
+  } catch (error) {
+    const fallback = extractPdfTextFallback(buffer);
+    const message = error instanceof Error ? error.message : "pdf-parse failed";
+    warnings.push(`PDF parser fallback used: ${message}`);
+    return { text: normalizeExtractedText(fallback), warnings };
+  }
+}
+
+export async function extractImageTextWithOcr(buffer: Buffer, language = "eng"): Promise<{ text: string; warnings: string[] }> {
+  const warnings: string[] = [];
+
+  try {
+    const tesseract = await import("tesseract.js");
+    const worker = await tesseract.createWorker(language);
+
+    try {
+      const result = await worker.recognize(buffer);
+      const text = normalizeExtractedText(result.data?.text || "");
+      warnings.push(`OCR engine: Tesseract.js (${language}).`);
+      return { text, warnings };
+    } finally {
+      await worker.terminate();
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "OCR failed";
+    return {
+      text: buildImageRecord("uploaded-image", buffer.length, `OCR failed: ${message}`),
+      warnings: [`OCR failed: ${message}`]
+    };
+  }
+}
+
+function extractDocxTextFallback(buffer: Buffer): string {
   const xml = readZipEntry(buffer, "word/document.xml");
   if (!xml) return "";
 
   return xml
     .replace(/<w:tab\s*\/>/g, "\t")
     .replace(/<w:br\s*\/>/g, "\n")
-    .replace(/<\/?w:tr[^>]*>/g, "\n")
-    .replace(/<\/?w:p[^>]*>/g, "\n")
+    .replace(/<\/w:tr[^>]*>/g, "\n")
+    .replace(/<\/w:p[^>]*>/g, "\n")
     .replace(/<[^>]+>/g, "")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+    .replace(/&apos;/g, "'");
 }
 
 function readZipEntry(buffer: Buffer, targetName: string) {
@@ -94,7 +168,7 @@ function readZipEntry(buffer: Buffer, targetName: string) {
   return "";
 }
 
-export function extractPdfText(buffer: Buffer): string {
+function extractPdfTextFallback(buffer: Buffer): string {
   const latin = buffer.toString("latin1");
   const collected: string[] = [];
 
@@ -113,16 +187,11 @@ export function extractPdfText(buffer: Buffer): string {
       const inflated = inflateSync(raw).toString("latin1");
       collectPdfTextFromString(inflated, collected);
     } catch {
-      // Ignore streams that cannot be decoded. PDF text extraction remains best-effort here.
+      // Keep PDF fallback best-effort. The main parser above handles normal text PDFs.
     }
   }
 
-  return collected
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return collected.join("\n");
 }
 
 function collectPdfTextFromString(input: string, output: string[]) {
@@ -195,14 +264,23 @@ function unescapePdfString(value: string) {
     .replace(/\\([0-7]{1,3})/g, (_, octal) => String.fromCharCode(parseInt(octal, 8)));
 }
 
-function buildImagePlaceholder(path: string, size: number) {
+function buildImageRecord(path: string, size: number, status: string) {
   return [
     `Image file: ${path}`,
     `Size: ${size} bytes`,
-    "OCR status: not extracted by the local prototype.",
-    "Next step: connect a local OCR engine, a vision model, or paste OCR text into the Document Pipeline panel.",
-    "This placeholder still lets TokenFence create metadata, routing decisions, and a safe processing record."
+    `OCR status: ${status}`
   ].join("\n");
+}
+
+function normalizeExtractedText(input: string) {
+  return input
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/\n{4,}/g, "\n\n\n")
+    .trim();
 }
 
 function extensionOf(path: string) {
@@ -211,7 +289,7 @@ function extensionOf(path: string) {
 }
 
 function isImageExtension(ext: string) {
-  return [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff"].includes(ext);
+  return [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff", ".tif"].includes(ext);
 }
 
 function looksTextLike(buffer: Buffer) {

@@ -108,7 +108,7 @@ TokenFence 现在加入了第一版文档处理工作流。
 ```text
 文件上传
   → PDF / DOCX / 图片 / 日志 / Markdown / 代码解析
-  → 正文提取或 OCR 占位
+  → PDF / DOCX 正文提取或图片 OCR
   → 噪声清洗
   → 敏感信息扫描
   → 风险报告
@@ -120,9 +120,9 @@ TokenFence 现在加入了第一版文档处理工作流。
 当前原型能力包括：
 
 - 支持文本类文件、日志、Markdown、JSON 和代码文件的正文读取。
-- 对 PDF 做轻量级 best-effort 文本提取，不额外引入重依赖。
-- 对 DOCX 从 `word/document.xml` 中提取正文。
-- 图片文件先保留 OCR 占位，后续可接本地 OCR 或视觉模型。
+- 通过服务端解析器提取文本型 PDF 正文。
+- 通过 DOCX 解析器提取 Word 正文。
+- 图片文件通过 Tesseract.js 做本地 OCR，再进入清洗、扫描和切片流程。
 - 清理空行、页码、重复页眉、重复页脚、重复段落等常见噪声。
 - 生成带 metadata 的 `chunks.json`，包含文件名、section、chunk id、风险等级、token 估算和推荐模型。
 - 导出清洗后的 Markdown，方便 RAG、Agent 工作流或人工检查。
@@ -151,7 +151,7 @@ TokenFence 现在加入了第一版文档处理工作流。
 | `error.log` | 长上下文模型 |
 | `.env` 或私密配置 | 本地模型优先 |
 | `report.pdf` | 清洗切片后交给长上下文模型 |
-| `sample-image.png` | 后续接 OCR / 视觉模型 |
+| `sample-image.png` | 先本地 OCR，再路由提取后的文本 |
 
 ### 多 Provider 支持
 
@@ -374,8 +374,11 @@ examples/
 
 ### 计划中
 
-- [ ] 更强的 PDF 提取与版面解析
-- [ ] 图片 OCR / 视觉模型适配
+- [x] 文本型 PDF 正文提取
+- [x] DOCX 正文提取
+- [x] 基于 Tesseract.js 的图片本地 OCR
+- [ ] 扫描版 PDF 的逐页渲染 + OCR
+- [ ] 复杂 PDF / 表格的版面感知解析
 - [ ] Search Grounding 联网搜索路由
 - [ ] Judge Model 合并多模型输出
 - [ ] Provider 自动兜底链路
@@ -402,7 +405,7 @@ examples/
 目前比较需要的贡献方向：
 
 - 更好的文档解析器
-- OCR / 视觉模型集成
+- 扫描版 PDF OCR 与视觉模型集成
 - 新 Provider 适配
 - 更好的敏感信息检测规则
 - Search Grounding 集成

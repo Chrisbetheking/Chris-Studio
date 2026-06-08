@@ -1,8 +1,8 @@
 {
   "name": "tokenfence-studio",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
-  "description": "Local-first AI workspace with prompt safety, document intelligence, model routing, local archive, and agent bridges.",
+  "description": "Local-first AI workspace with prompt safety, built-in document parsing, OCR, model routing, local archive, and agent bridges.",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -20,9 +20,12 @@
     "@types/react-dom": "^18.3.5",
     "commander": "^12.1.0",
     "lucide-react": "^0.468.0",
+    "mammoth": "^1.8.0",
     "next": "^14.2.24",
+    "pdf-parse": "^1.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "tesseract.js": "^5.1.1",
     "typescript": "^5.7.3",
     "zod": "^3.24.2"
   },

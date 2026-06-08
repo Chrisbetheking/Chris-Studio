@@ -104,7 +104,7 @@ It is designed to turn uploaded or pasted files into clean, safe, model-ready co
 ```text
 File Upload
   → PDF / DOCX / Image / Log / Markdown / Code parsing
-  → Text extraction or OCR placeholder
+  → PDF / DOCX text extraction or image OCR
   → Noise cleaning
   → Sensitive data scanning
   → Redaction-aware risk report
@@ -116,9 +116,9 @@ File Upload
 Current prototype capabilities:
 
 - Extract text from text-like files, logs, Markdown, JSON, and code files.
-- Best-effort PDF text extraction without adding heavy dependencies.
-- Basic DOCX text extraction from `word/document.xml`.
-- Image upload placeholder for future OCR / vision model integration.
+- PDF text extraction through a dedicated server-side parser.
+- DOCX text extraction through a dedicated DOCX parser.
+- Local image OCR through Tesseract.js before model execution.
 - Remove common noise such as blank lines, page numbers, repeated page headers, repeated footers, and duplicated paragraphs.
 - Generate `chunks.json` with file name, section, chunk id, risk level, token estimate, and suggested route.
 - Export cleaned Markdown for RAG, agent workflows, or manual review.
@@ -147,7 +147,7 @@ Different files may need different routes.
 | `error.log` | Long-context model |
 | `.env` or secret config | Local model only |
 | `report.pdf` | Long-context model after cleaning/chunking |
-| `sample-image.png` | OCR / vision-capable route later |
+| `sample-image.png` | Local OCR first, then route extracted text |
 
 ### Multi-provider Support
 
@@ -363,8 +363,11 @@ examples/
 
 ### Planned
 
-- [ ] Stronger PDF extraction and layout-aware parsing
-- [ ] Real OCR / vision model adapter for images
+- [x] PDF text extraction for text-based PDFs
+- [x] DOCX raw text extraction
+- [x] Local image OCR through Tesseract.js
+- [ ] Scanned-PDF page OCR with PDF-to-image rendering
+- [ ] Layout-aware parsing for complex PDFs and tables
 - [ ] Search Grounding router
 - [ ] Judge model for merging multi-model outputs
 - [ ] Provider fallback chains
@@ -391,7 +394,7 @@ Issues and pull requests are welcome.
 Ideas that are especially helpful:
 
 - Better document parsers
-- OCR / vision model integrations
+- Scanned-PDF OCR and vision model integrations
 - New provider adapters
 - Better detection rules
 - Search grounding integrations
