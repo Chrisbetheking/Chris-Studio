@@ -1,0 +1,22 @@
+TokenFence Studio Internal Notes
+Page 1 of 3
+
+Client: Acme Pay CN
+Contact: chris@example.com / 13900001111
+Database: postgres://root:secret@localhost:5432/tokenfence
+
+TokenFence should not just upload files. It should parse documents, clean repeated headers, scan sensitive values, create RAG-ready chunks, and route each file to a suitable model.
+
+TokenFence Studio Internal Notes
+Page 2 of 3
+
+Document Intelligence Pipeline should support PDF, DOCX, image OCR placeholders, logs, Markdown, and code files.
+
+Secret-like files should prefer local models or redacted cloud requests.
+
+TokenFence Studio Internal Notes
+Page 3 of 3
+
+The output should include clean Markdown, chunks.json, risk metadata, and suggested model routing.
+
+TokenFence Studio Internal Notes

@@ -1,0 +1,38 @@
+[
+  {
+    "chunkId": "before-cleaning-txt-001",
+    "fileName": "before-cleaning.txt",
+    "fileKind": "text",
+    "section": "Document",
+    "chunkIndex": 1,
+    "tokens": 71,
+    "risk": {
+      "label": "critical",
+      "score": 33
+    },
+    "detections": [
+      {
+        "kind": "email",
+        "label": "Email",
+        "severity": "medium"
+      },
+      {
+        "kind": "phone_cn",
+        "label": "CN mobile number",
+        "severity": "medium"
+      },
+      {
+        "kind": "database_url",
+        "label": "Database URL",
+        "severity": "critical"
+      }
+    ],
+    "suggestedRoute": {
+      "providerId": "ollama",
+      "model": "llama3.1",
+      "localPreferred": true,
+      "reason": "This file contains high-risk or secret-like content. Prefer a local model or a redacted cloud request."
+    },
+    "text": "Client: Acme Pay CN\nContact: [EMAIL_1] / [PHONE_CN_1]\nDatabase: [DATABASE_URL_1]\n\nTokenFence should not just upload files. It should parse documents, clean repeated headers, scan sensitive values, create RAG-ready chunks, and route each file to a suitable model.\n\nDocument Intelligence Pipeline should support PDF, DOCX, image OCR placeholders, logs, Markdown, and code files.\n\nSecret-like files should prefer local models or redacted cloud requests.\n\nThe output should include clean Markdown, chunks.json, risk metadata, and suggested model routing."
+  }
+]

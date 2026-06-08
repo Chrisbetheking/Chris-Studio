@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <strong>Local-first prompt safety, model routing, and multi-model orchestration workspace for LLMs.</strong>
+  <strong>Local-first prompt safety, document intelligence, and multi-model orchestration workspace for LLMs.</strong>
 </p>
 
 <p align="center">
-  Prompt Guard · Model Matrix · File-level routing · Context compression · Agent-ready workflows
+  Prompt Guard · Document Pipeline · Model Matrix · File-level routing · Agent-ready workflows
 </p>
 
 <p align="center">
@@ -22,62 +22,59 @@
 
 ## Overview
 
-**TokenFence Studio** is an early-stage, local-first AI workspace that sits between users and large language models.
+**TokenFence Studio** is an early-stage local-first AI workspace that sits between users and large language models.
 
-Instead of sending raw prompts directly to an LLM, TokenFence Studio runs a pre-flight layer first:
+It is not trying to be just another chat UI. The main idea is to build a small pre-LLM layer that can inspect, clean, protect, chunk, and route user input before it reaches a model.
 
 ```text
-Raw prompt / files
+Raw prompt / uploaded files
    ↓
-Prompt Guard
+Document Intelligence Pipeline
    ↓
-Sensitive data redaction
+Prompt Guard + Redaction
    ↓
 Intent detection
    ↓
 Context compression
    ↓
-Model / file router
+Model Matrix / file-level routing
    ↓
 Final prompt preview
    ↓
 LLM provider or local model
 ```
 
-The goal is to help developers and power users use LLMs in a safer, more transparent, and more controllable way.
+The goal is to make LLM usage a bit safer, cleaner, and easier to debug.
 
 ---
 
-## What makes it different?
+## Why TokenFence?
 
-Most AI tools focus on the chat interface or model access.
+Most AI tools focus on model access.
 
-TokenFence Studio focuses on what happens **before** a prompt reaches a model:
+TokenFence Studio focuses on what happens **before** model access:
 
-- Is the prompt safe to send?
-- Does it contain secrets or private data?
-- Can the context be compressed?
-- Which model is best for this task?
-- Should this file go to a cloud model, a local model, or a different specialist model?
-- Can multiple models be compared side by side?
+- Does this prompt contain secrets or private data?
+- Can this PDF, DOCX, log, or Markdown file be cleaned first?
+- Can noisy headers, page numbers, and repeated text be removed?
+- Can the document be turned into RAG-ready chunks?
+- Which model should handle this task or file?
+- Should this file go to a cloud model, a local model, or a safer redacted workflow?
+- Can several models be compared side by side?
 
-This makes TokenFence Studio closer to a **pre-LLM safety and orchestration layer** than a normal ChatGPT-style UI.
+That makes TokenFence closer to a **pre-LLM safety and orchestration layer** than a normal ChatGPT-style interface.
 
 ---
 
-## Screenshots
+## Screenshots to add
 
-### Chat Workspace
+The project is still moving quickly. Recommended screenshots for the README / LinkedIn:
 
-![Chat Workspace](./docs/images/chat.png)
-
-### Provider Management
-
-![Providers](./docs/images/providers.png)
-
-### Prompt Guard
-
-![Prompt Guard](./docs/images/guard.png)
+1. `docs/images/chat.png` - Chat workspace with pre-flight safety report.
+2. `docs/images/guard.png` - Prompt Guard and final prompt preview.
+3. `docs/images/model-matrix.png` - Model Matrix with multiple models and file-level routing.
+4. `docs/images/document-pipeline.png` - Document Pipeline report and chunks export.
+5. `docs/images/providers.png` - Provider settings with global, China-based, router, and local models.
 
 ---
 
@@ -87,16 +84,7 @@ This makes TokenFence Studio closer to a **pre-LLM safety and orchestration laye
 
 Scan prompts locally before they are sent to a model.
 
-TokenFence Studio can detect common sensitive data patterns such as:
-
-- API keys
-- Emails
-- Phone numbers
-- Database URLs
-- Access tokens
-- Secret assignments
-- Chinese personal identifiers
-- Common credential leaks
+Current detection rules cover common sensitive data patterns such as API keys, emails, phone numbers, database URLs, access tokens, secret assignments, Chinese personal identifiers, and credential-like leaks.
 
 ### Redaction Engine
 
@@ -107,14 +95,33 @@ john@example.com → [EMAIL_1]
 sk-xxxxxxx       → [OPENAI_KEY_1]
 ```
 
-### Policy Profiles
+### Document Intelligence Pipeline
 
-Choose how strictly TokenFence should process a prompt:
+TokenFence now has a first document-processing workflow.
 
-- **Strict privacy** — prefer safe, redacted, or local-only handling
-- **Balanced** — protect risky content while keeping the workflow smooth
-- **Fast** — minimal processing for low-risk prompts
-- **Developer** — expose more details for debugging and inspection
+It is designed to turn uploaded or pasted files into clean, safe, model-ready context:
+
+```text
+File Upload
+  → PDF / DOCX / Image / Log / Markdown / Code parsing
+  → Text extraction or OCR placeholder
+  → Noise cleaning
+  → Sensitive data scanning
+  → Redaction-aware risk report
+  → RAG-ready chunk generation
+  → File-level model routing
+  → Export as Markdown / JSON
+```
+
+Current prototype capabilities:
+
+- Extract text from text-like files, logs, Markdown, JSON, and code files.
+- Best-effort PDF text extraction without adding heavy dependencies.
+- Basic DOCX text extraction from `word/document.xml`.
+- Image upload placeholder for future OCR / vision model integration.
+- Remove common noise such as blank lines, page numbers, repeated page headers, repeated footers, and duplicated paragraphs.
+- Generate `chunks.json` with file name, section, chunk id, risk level, token estimate, and suggested route.
+- Export cleaned Markdown for RAG, agent workflows, or manual review.
 
 ### Model Matrix
 
@@ -122,18 +129,16 @@ Run one task across multiple models, or assign different files to different mode
 
 Current capabilities include:
 
-- Send the same prompt to multiple selected models
-- Compare responses, latency, token usage, and risk status
-- Paste multiple file contents and route each file separately
-- Choose a model per file
-- Mark files as public, private, or secret
-- Route high-risk or secret files toward local models
+- Send the same prompt to multiple selected models.
+- Compare responses, latency, token usage, and risk status.
+- Paste or process multiple files and route each file separately.
+- Choose a model per file.
+- Mark files as public, private, or secret.
+- Route high-risk or secret-like files toward local models.
 
 ### File-level Model Routing
 
-Different files may need different models.
-
-Examples:
+Different files may need different routes.
 
 | File | Recommended route |
 |---|---|
@@ -141,10 +146,12 @@ Examples:
 | `README.md` | Writing / documentation model |
 | `error.log` | Long-context model |
 | `.env` or secret config | Local model only |
+| `report.pdf` | Long-context model after cleaning/chunking |
+| `sample-image.png` | OCR / vision-capable route later |
 
 ### Multi-provider Support
 
-TokenFence Studio supports multiple global, China-based, router, and local providers through native or OpenAI-compatible adapters.
+TokenFence Studio supports global, China-based, router, and local providers through native or OpenAI-compatible adapters.
 
 Current presets include:
 
@@ -172,7 +179,7 @@ Bring your own API key. No vendor lock-in.
 
 ### Context Compression
 
-Compress long prompts or context while preserving key intent, constraints, and useful details.
+Compress long prompts or document context while keeping the user goal, constraints, file structure, and important details.
 
 ### Local Archive
 
@@ -181,6 +188,25 @@ Store sanitized runs locally. No cloud database is required by default.
 ### Agent Context Packs
 
 Prepare reusable context bundles for AI coding and agent workflows such as Claude Code, Codex, MCP-based agents, and OpenHands-style workflows.
+
+---
+
+## Examples
+
+Example assets are included under:
+
+```text
+examples/document-intelligence/
+├── README.md
+├── sample.pdf
+├── sample.docx
+├── sample-image.png
+├── before-cleaning.txt
+├── after-cleaning.md
+└── chunks.json
+```
+
+These are intentionally small. They are meant to show the expected input/output shape rather than act as benchmark data.
 
 ---
 
@@ -214,7 +240,11 @@ Search will be controlled by the same safety layer:
 User input / uploaded files
         │
         ▼
-Intent Engine
+Document Intelligence Pipeline
+        ├── Parser
+        ├── Cleaner
+        ├── Chunker
+        └── Metadata builder
         │
         ▼
 Prompt Guard
@@ -228,7 +258,7 @@ Model Matrix / Router
         ├── Prompt-level multi-model run
         ├── File-level model routing
         ├── Local model preference for sensitive files
-        └── Provider fallback / future judge model
+        └── Future judge model / fallback chain
         │
         ▼
 Provider Layer
@@ -238,7 +268,7 @@ Provider Layer
         └── Local providers
         │
         ▼
-Response / comparison / archive
+Response / comparison / archive / exported context
 ```
 
 ---
@@ -261,8 +291,6 @@ http://localhost:3000
 ### API Keys
 
 Create a `.env.local` file or save keys in the Provider settings page.
-
-Common environment variables:
 
 ```env
 OPENAI_API_KEY=
@@ -292,13 +320,22 @@ If you only use Ollama or LM Studio, cloud API keys are optional.
 ```text
 src/
  ├── app/
+ │   └── api/
+ │       ├── chat/
+ │       ├── compare/
+ │       ├── documents/
+ │       └── guard/
  ├── components/
- ├── lib/
- │   ├── core/
- │   ├── providers/
- │   ├── skills/
- │   └── vault/
- └── api/
+ │   ├── chat-desk.tsx
+ │   ├── compare-desk.tsx
+ │   ├── document-pipeline-desk.tsx
+ │   └── guard-desk.tsx
+ └── lib/
+     ├── core/
+     ├── document/
+     ├── providers/
+     ├── skills/
+     └── vault/
 
 mcp/
 cli/
@@ -320,16 +357,18 @@ examples/
 - [x] Policy profiles
 - [x] Model Matrix for multi-model comparison
 - [x] File-level model routing prototype
+- [x] Document Intelligence Pipeline prototype
 - [x] Local archive
 - [x] Agent context pack prototype
 
 ### Planned
 
+- [ ] Stronger PDF extraction and layout-aware parsing
+- [ ] Real OCR / vision model adapter for images
 - [ ] Search Grounding router
 - [ ] Judge model for merging multi-model outputs
 - [ ] Provider fallback chains
 - [ ] Cost and latency budget router
-- [ ] Real file upload parser for Model Matrix
 - [ ] Source citation panel
 - [ ] MCP marketplace
 - [ ] VS Code extension
@@ -351,6 +390,8 @@ Issues and pull requests are welcome.
 
 Ideas that are especially helpful:
 
+- Better document parsers
+- OCR / vision model integrations
 - New provider adapters
 - Better detection rules
 - Search grounding integrations

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Archive, Bot, Boxes, FolderClock, KeyRound, Languages, ShieldCheck, SplitSquareHorizontal } from "lucide-react";
+import { Archive, Bot, Boxes, FileSearch, FolderClock, KeyRound, Languages, ShieldCheck, SplitSquareHorizontal } from "lucide-react";
 import { Badge } from "./ui";
 import { ProviderSettings } from "./provider-settings";
 import { ChatDesk } from "./chat-desk";
@@ -9,8 +9,9 @@ import { GuardDesk } from "./guard-desk";
 import { CompareDesk } from "./compare-desk";
 import { ArchiveView } from "./archive-view";
 import { ContextPackView } from "./context-pack-view";
+import { DocumentPipelineDesk } from "./document-pipeline-desk";
 
-type Tab = "chat" | "providers" | "guard" | "compare" | "archive" | "context";
+type Tab = "chat" | "providers" | "guard" | "compare" | "documents" | "archive" | "context";
 type Lang = "en" | "zh";
 
 function makeTabs(lang: Lang): Array<{ id: Tab; label: string; icon: React.ReactNode }> {
@@ -19,6 +20,7 @@ function makeTabs(lang: Lang): Array<{ id: Tab; label: string; icon: React.React
     { id: "providers", label: lang === "en" ? "Providers" : "模型", icon: <KeyRound size={17} /> },
     { id: "guard", label: "Guard", icon: <ShieldCheck size={17} /> },
     { id: "compare", label: lang === "en" ? "Matrix" : "矩阵", icon: <SplitSquareHorizontal size={17} /> },
+    { id: "documents", label: lang === "en" ? "Docs" : "文档", icon: <FileSearch size={17} /> },
     { id: "archive", label: lang === "en" ? "Archive" : "存档", icon: <FolderClock size={17} /> },
     { id: "context", label: lang === "en" ? "Agent Pack" : "Agent 包", icon: <Boxes size={17} /> }
   ];
@@ -45,6 +47,7 @@ export function Studio() {
     if (tab === "providers") return <ProviderSettings onSaved={() => setProvidersReady((n) => n + 1)} />;
     if (tab === "guard") return <GuardDesk />;
     if (tab === "compare") return <CompareDesk readyKey={providersReady} />;
+    if (tab === "documents") return <DocumentPipelineDesk />;
     if (tab === "archive") return <ArchiveView />;
     if (tab === "context") return <ContextPackView />;
     return <ChatDesk readyKey={providersReady} lang={lang} />;
@@ -68,7 +71,7 @@ export function Studio() {
             <div className="flex flex-wrap items-end gap-x-3 gap-y-1">
               <h1 className="text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">TokenFence Studio</h1>
               <p className="max-w-4xl text-sm leading-6 text-slate-600">
-                {lang === "en" ? "A local AI workspace for prompt safety, model routing, Model Matrix, archives, and agent context packs." : "一个本地优先的 AI 工作台，支持 Prompt 安全、模型路由、Model Matrix、本地存档和 Agent 上下文包。"}
+                {lang === "en" ? "A local AI workspace for prompt safety, document intelligence, Model Matrix, archives, and agent context packs." : "一个本地优先的 AI 工作台，支持 Prompt 安全、文档智能处理、Model Matrix、本地存档和 Agent 上下文包。"}
               </p>
             </div>
           </div>

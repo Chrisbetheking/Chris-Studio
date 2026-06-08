@@ -1,0 +1,68 @@
+import { NextResponse } from "next/server";
+import type { DocumentSource } from "@/lib/document/pipeline";
+import { inferDocumentKind, runDocumentPipeline } from "@/lib/document/pipeline";
+import { parseUploadedFile } from "@/lib/document/server-parsers";
+
+export async function POST(request: Request) {
+  try {
+    const sources = await readSources(request);
+
+    if (!sources.length) {
+      return NextResponse.json({ error: "At least one document is required." }, { status: 400 });
+    }
+
+    const result = runDocumentPipeline(sources);
+    return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Document pipeline failed." }, { status: 500 });
+  }
+}
+
+async function readSources(request: Request): Promise<DocumentSource[]> {
+  const contentType = request.headers.get("content-type") || "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const form = await request.formData();
+    const files = form.getAll("files").filter((item): item is File => item instanceof File);
+    const parsed = await Promise.all(files.map((file) => parseUploadedFile(file)));
+
+    const textItems = form.getAll("documents");
+    const manual = textItems.flatMap((item) => parseManualDocumentItem(item));
+    return [...parsed, ...manual].filter((source) => source.content.trim());
+  }
+
+  const body = await request.json();
+  const files = Array.isArray(body.files) ? body.files : [];
+
+  return files
+    .map((item, index) => {
+      const record = item as { path?: unknown; content?: unknown; kind?: unknown };
+      const path = String(record.path || `document-${index + 1}.txt`).trim();
+      const content = String(record.content || "");
+      return {
+        path,
+        content,
+        kind: typeof record.kind === "string" ? inferDocumentKind(path, content) : inferDocumentKind(path, content)
+      };
+    })
+    .filter((source) => source.content.trim());
+}
+
+function parseManualDocumentItem(value: FormDataEntryValue): DocumentSource[] {
+  if (typeof value !== "string" || !value.trim()) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item, index) => {
+        const record = item as { path?: unknown; content?: unknown };
+        const path = String(record.path || `document-${index + 1}.txt`);
+        const content = String(record.content || "");
+        return { path, content, kind: inferDocumentKind(path, content) };
+      })
+      .filter((source) => source.content.trim());
+  } catch {
+    return [];
+  }
+}

@@ -1,8 +1,8 @@
 {
   "name": "tokenfence-studio",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Local-first AI workspace with multi-provider routing, prompt safety, local archive, and agent bridges.",
+  "description": "Local-first AI workspace with prompt safety, document intelligence, model routing, local archive, and agent bridges.",
   "type": "module",
   "scripts": {
     "dev": "next dev",
