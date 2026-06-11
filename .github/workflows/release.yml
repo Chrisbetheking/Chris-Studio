@@ -23,16 +23,22 @@ jobs:
           path: apps/web/out
 
   desktop-windows:
-    needs: web-build
+    needs: [web-build]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: npm ci --legacy-peer-deps
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: apps/web/out
       - name: Build Tauri
+        shell: bash
         run: |
           cd apps/desktop
           npm install
@@ -43,16 +49,22 @@ jobs:
           path: apps/desktop/src-tauri/target/release/bundle/
 
   desktop-macos:
-    needs: web-build
+    needs: [web-build]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: npm ci --legacy-peer-deps
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: apps/web/out
       - name: Build Tauri
+        shell: bash
         run: |
           cd apps/desktop
           npm install
@@ -63,6 +75,7 @@ jobs:
           path: apps/desktop/src-tauri/target/release/bundle/
 
   android-apk:
+    needs: [web-build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,7 +89,7 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - name: Build Android APK
         working-directory: apps/android
-        run: npx eas build --platform android --profile preview-apk --non-interactive
+        run: npx eas build --platform android --profile preview-apk --non-interactive --no-wait
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk
