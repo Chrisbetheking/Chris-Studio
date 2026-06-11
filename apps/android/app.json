@@ -18,10 +18,10 @@
     "plugins": [
       "expo-clipboard"
     ],
-    "owner": "Chrisbetheking",
+    "owner": "kevin_wong0712",
     "extra": {
       "eas": {
-        "projectId": "PLACEHOLDER_RUN_eas_init"
+        "projectId": "41637c30-61e1-4e33-9672-b23743550ddb"
       }
     },
     "ios": {

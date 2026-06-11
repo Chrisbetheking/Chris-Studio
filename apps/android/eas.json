@@ -26,11 +26,6 @@
     "production": {
       "android": {
         "track": "internal"
-      },
-      "ios": {
-        "appleId": null,
-        "ascAppId": null,
-        "appleTeamId": null
       }
     }
   }
