@@ -1,13 +1,13 @@
 {
   "$schema": "https://raw.githubusercontent.com/nickkuk/tauri-docs/v2/references/config-schema.json",
   "productName": "TokenFence Studio",
-  "version": "0.3.7",
+  "version": "0.4.0-dev",
   "identifier": "com.tokenfence.studio",
   "build": {
-    "frontendDist": "../../web/out",
-    "devUrl": "http://localhost:3000",
-    "beforeBuildCommand": "cd ../web && npm run build",
-    "beforeDevCommand": "cd ../web && npm run dev"
+    "frontendDist": "../ui/dist",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "cd ../ui && npm install && npm run build",
+    "beforeDevCommand": "cd ../ui && npm run dev"
   },
   "app": {
     "windows": [

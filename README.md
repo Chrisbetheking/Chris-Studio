@@ -238,7 +238,7 @@ tokenfence-studio/
 - Source Citation Panel (prototype)
 - Desktop Storage Path Selection
 - File-type Model Routing Rules
-- Desktop static renderer packaging
+- Desktop static renderer packaging (in progress on feature/agent-workspace-v050)
 
 ### Planned
 
@@ -299,7 +299,7 @@ Response / comparison / archive / exported context
 
 - **v0.3.11** is the current stable release -- includes Android APK in GitHub Release Assets
 - **Android APK** is available from GitHub Releases starting from v0.3.11
-- **Windows/macOS** desktop packages are experimental and being separated into a dedicated desktop renderer
+- **Windows/macOS** desktop packages are experimental; a dedicated Vite+React desktop renderer is being built on feature/agent-workspace-v050
 - **iOS** is self-build/self-signing only
 
 See [docs/RELEASES.md](./docs/RELEASES.md) for current release status and troubleshooting.

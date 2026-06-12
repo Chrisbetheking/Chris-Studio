@@ -29,3 +29,7 @@ export {
 } from './citation';
 export type { CitationSource, CitationPanel } from './citation';
 export type { ArchiveEntry, GuardResult, StoragePaths } from './types';
+
+export * from './agent-runtime';
+
+export * from './plugins';

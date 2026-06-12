@@ -8,19 +8,19 @@ import { spacing } from '../theme/spacing';
 export function ModelRulesScreen() {
   const rules = getDefaultFileRoutingRules();
   return (
-    <ScrollView style={s.c}>
-      <Text style={s.title}>Model Rules</Text>
-      <Text style={s.sub}>File-type based model routing configuration</Text>
+    <ScrollView style={styles.c}>
+      <Text style={styles.title}>Model Rules</Text>
+      <Text style={styles.sub}>File-type based model routing configuration</Text>
       <SectionCard title="Active Rules">
         {rules.filter(r=>r.enabled).map((r)=>(
-          <View key={r.id} style={s.rule}>
-            <View style={s.ruleLeft}>
-              <Text style={s.ruleCat}>{r.fileCategory.toUpperCase()}</Text>
-              <Text style={s.ruleDesc}>{r.description}</Text>
+          <View key={r.id} style={styles.rule}>
+            <View style={styles.ruleLeft}>
+              <Text style={styles.ruleCat}>{r.fileCategory.toUpperCase()}</Text>
+              <Text style={styles.ruleDesc}>{r.description}</Text>
             </View>
-            <View style={s.ruleRight}>
-              <Text style={s.ruleProvider}>{r.provider}</Text>
-              <Text style={s.ruleModel}>{r.model}</Text>
+            <View style={styles.ruleRight}>
+              <Text style={styles.ruleProvider}>{r.provider}</Text>
+              <Text style={styles.ruleModel}>{r.model}</Text>
             </View>
           </View>
         ))}
@@ -28,7 +28,7 @@ export function ModelRulesScreen() {
     </ScrollView>
   );
 }
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   c:{flex:1,backgroundColor:colors.background,padding:spacing.lg},
   title:{fontSize:24,fontWeight:'700',color:colors.text,marginBottom:4},
   sub:{fontSize:14,color:colors.textSecondary,marginBottom:spacing.lg},

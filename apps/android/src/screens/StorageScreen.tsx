@@ -11,9 +11,9 @@ export function StorageScreen() {
   const handleReset = () => Alert.alert('Reset', 'Storage paths reset to defaults.');
 
   return (
-    <ScrollView style={s.c}>
-      <Text style={s.title}>Storage</Text>
-      <Text style={s.sub}>Configure local storage and workspace paths</Text>
+    <ScrollView style={styles.c}>
+      <Text style={styles.title}>Storage</Text>
+      <Text style={styles.sub}>Configure local storage and workspace paths</Text>
       <SectionCard title="Workspace Paths">
         {([
           { key: 'workspacePath' as const, label: 'Workspace' },
@@ -21,18 +21,18 @@ export function StorageScreen() {
           { key: 'exportPath' as const, label: 'Export' },
           { key: 'contextPacksPath' as const, label: 'Context Packs' },
         ] as const).map((item) => (
-          <TouchableOpacity key={item.key} style={s.row} onPress={()=>handleSelect(item.label)}>
-            <Text style={s.rowLabel}>{item.label} Path</Text>
-            <Text style={s.rowVal} numberOfLines={1}>{paths[item.key] || 'Default'}</Text>
+          <TouchableOpacity key={item.key} style={styles.row} onPress={()=>handleSelect(item.label)}>
+            <Text style={styles.rowLabel}>{item.label} Path</Text>
+            <Text style={styles.rowVal} numberOfLines={1}>{paths[item.key] || 'Default'}</Text>
           </TouchableOpacity>
         ))}
       </SectionCard>
-      <TouchableOpacity style={s.resetBtn} onPress={handleReset}><Text style={s.resetBtnT}>Reset to Default</Text></TouchableOpacity>
-      <Text style={s.note}>Note: Full storage path selection is available on the desktop app with file dialog support.</Text>
+      <TouchableOpacity style={styles.resetBtn} onPress={handleReset}><Text style={styles.resetBtnT}>Reset to Default</Text></TouchableOpacity>
+      <Text style={styles.note}>Note: Full storage path selection is available on the desktop app with file dialog support.</Text>
     </ScrollView>
   );
 }
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   c:{flex:1,backgroundColor:colors.background,padding:spacing.lg},
   title:{fontSize:24,fontWeight:'700',color:colors.text,marginBottom:4},
   sub:{fontSize:14,color:colors.textSecondary,marginBottom:spacing.lg},

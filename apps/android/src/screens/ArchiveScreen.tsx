@@ -25,18 +25,18 @@ export function ArchiveScreen() {
 
   const fmt = (ts:number)=>new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
 
-  if(!entries.length) return <View style={s.empty}><Text style={s.emptyT}>No archived runs yet</Text><Text style={s.emptyS}>Scanned prompts will appear here</Text></View>;
+  if(!entries.length) return <View style={styles.empty}><Text style={styles.emptyT}>No archived runs yet</Text><Text style={styles.emptyS}>Scanned prompts will appear here</Text></View>;
 
-  return <FlatList data={entries} keyExtractor={i=>i.id} refreshing={refreshing} onRefresh={refresh} contentContainerStyle={s.list}
+  return <FlatList data={entries} keyExtractor={i=>i.id} refreshing={refreshing} onRefresh={refresh} contentContainerStyle={styles.list}
     renderItem={({item})=>(
-      <TouchableOpacity style={s.card} onPress={()=>navigation.navigate('ArchiveDetail',{id:item.id})} onLongPress={()=>handleDelete(item.id)}>
-        <View style={s.h}><RiskBadge level={item.guardResult.riskLevel} count={item.guardResult.findings.length} compact /><Text style={s.d}>{fmt(item.savedAt)}</Text></View>
-        <Text style={s.p} numberOfLines={2}>{item.guardResult.original||item.guardResult.redacted}</Text>
+      <TouchableOpacity style={styles.card} onPress={()=>navigation.navigate('ArchiveDetail',{id:item.id})} onLongPress={()=>handleDelete(item.id)}>
+        <View style={styles.h}><RiskBadge level={item.guardResult.riskLevel} count={item.guardResult.findings.length} compact /><Text style={styles.d}>{fmt(item.savedAt)}</Text></View>
+        <Text style={styles.p} numberOfLines={2}>{item.guardResult.original||item.guardResult.redacted}</Text>
       </TouchableOpacity>
     )} />;
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   list:{padding:spacing.lg,backgroundColor:colors.background},
   card:{backgroundColor:colors.surface,borderRadius:radius.md,padding:spacing.lg,marginBottom:8,borderWidth:1,borderColor:colors.border},
   h:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:8},

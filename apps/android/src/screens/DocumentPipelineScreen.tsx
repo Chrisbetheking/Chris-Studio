@@ -13,28 +13,28 @@ const STEPS = [
 
 export function DocumentPipelineScreen() {
   return (
-    <ScrollView style={s.c}>
-      <Text style={s.title}>Document Pipeline</Text>
-      <Text style={s.sub}>Process documents through redaction before AI analysis</Text>
+    <ScrollView style={styles.c}>
+      <Text style={styles.title}>Document Pipeline</Text>
+      <Text style={styles.sub}>Process documents through redaction before AI analysis</Text>
       <SectionCard title="Pipeline Steps">
         {STEPS.map((step, i) => (
-          <View key={i} style={s.step}>
-            <Text style={s.stepIcon}>{step.icon}</Text>
-            <View style={s.stepText}>
-              <Text style={s.stepLabel}>{step.label}</Text>
-              <Text style={s.stepDesc}>{step.desc}</Text>
+          <View key={i} style={styles.step}>
+            <Text style={styles.stepIcon}>{step.icon}</Text>
+            <View style={styles.stepText}>
+              <Text style={styles.stepLabel}>{step.label}</Text>
+              <Text style={styles.stepDesc}>{step.desc}</Text>
             </View>
-            {i < STEPS.length - 1 && <View style={s.connector} />}
+            {i < STEPS.length - 1 && <View style={styles.connector} />}
           </View>
         ))}
       </SectionCard>
       <SectionCard title="Supported Formats">
-        <Text style={s.fmt}>TXT, MD, CSV, JSON, PDF, DOCX</Text>
+        <Text style={styles.fmt}>TXT, MD, CSV, JSON, PDF, DOCX</Text>
       </SectionCard>
     </ScrollView>
   );
 }
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   c:{flex:1,backgroundColor:colors.background,padding:spacing.lg},
   title:{fontSize:24,fontWeight:'700',color:colors.text,marginBottom:4},
   sub:{fontSize:14,color:colors.textSecondary,marginBottom:spacing.lg},

@@ -12,20 +12,20 @@ export function ModelsScreen() {
   const [filter, setFilter] = useState<RiskLevel|'all'>('all');
   const models = filter === 'all' ? PROVIDERS : recommendModel(filter);
   return (
-    <ScrollView style={s.c}>
-      <Text style={s.title}>Model Router</Text>
-      <Text style={s.sub}>Compare provider models and routing recommendations</Text>
-      <View style={s.fRow}>{FILTERS.map(l=>(
-        <TouchableOpacity key={l} style={[s.chip,filter===l&&s.chipA]} onPress={()=>setFilter(l)}>
-          <Text style={[s.chipT,filter===l&&s.chipTA]}>{l==='all'?'All':l.charAt(0).toUpperCase()+l.slice(1)}</Text>
+    <ScrollView style={styles.c}>
+      <Text style={styles.title}>Model Router</Text>
+      <Text style={styles.sub}>Compare provider models and routing recommendations</Text>
+      <View style={styles.fRow}>{FILTERS.map(l=>(
+        <TouchableOpacity key={l} style={[styles.chip,filter===l&&styles.chipA]} onPress={()=>setFilter(l)}>
+          <Text style={[styles.chipT,filter===l&&styles.chipTA]}>{l==='all'?'All':l.charAt(0).toUpperCase()+l.slice(1)}</Text>
         </TouchableOpacity>
       ))}</View>
-      <View style={s.grid}>{models.map((m,i)=><ProviderCard key={m.provider+'-'+i} model={m} />)}</View>
+      <View style={styles.grid}>{models.map((m,i)=><ProviderCard key={m.provider+'-'+i} model={m} />)}</View>
     </ScrollView>
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   c:{flex:1,backgroundColor:colors.background,padding:spacing.lg},
   title:{fontSize:24,fontWeight:'700',color:colors.text,marginBottom:4},
   sub:{fontSize:14,color:colors.textSecondary,marginBottom:spacing.lg},

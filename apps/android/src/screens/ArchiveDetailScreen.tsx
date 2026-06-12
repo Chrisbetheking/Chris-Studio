@@ -16,20 +16,20 @@ export function ArchiveDetailScreen() {
   const route = useRoute<Route>();
   const [entry, setEntry] = useState<ArchiveEntry|null>(null);
   useEffect(()=>{loadArchive().then(e=>setEntry(e.find(x=>x.id===route.params.id)||null));},[route.params.id]);
-  if(!entry) return <View style={s.empty}><Text style={s.emptyT}>Entry not found</Text></View>;
+  if(!entry) return <View style={styles.empty}><Text style={styles.emptyT}>Entry not found</Text></View>;
   const {guardResult}=entry;
   return (
-    <ScrollView style={s.c}>
+    <ScrollView style={styles.c}>
       <RiskBadge level={guardResult.riskLevel} count={guardResult.findings.length} />
-      <Text style={s.d}>{new Date(entry.savedAt).toLocaleString()}</Text>
-      {guardResult.findings.length>0&&<View style={s.sec}>{guardResult.findings.map((f,i)=><View key={i} style={s.f}><Text style={s.ft}>{SENSITIVE_TYPE_LABELS[f.type]}</Text><Text style={s.fm}>{f.match}</Text></View>)}</View>}
-      <Text style={s.st}>Redacted Prompt</Text><SafeTextBox text={guardResult.redacted} />
-      {guardResult.original?<><Text style={s.st}>Original Prompt</Text><SafeTextBox text={guardResult.original} /></>:<Text style={s.note}>Original prompt not stored (sanitized-only mode)</Text>}
+      <Text style={styles.d}>{new Date(entry.savedAt).toLocaleString()}</Text>
+      {guardResult.findings.length>0&&<View style={styles.sec}>{guardResult.findings.map((f,i)=><View key={i} style={styles.f}><Text style={styles.ft}>{SENSITIVE_TYPE_LABELS[f.type]}</Text><Text style={styles.fm}>{f.match}</Text></View>)}</View>}
+      <Text style={styles.st}>Redacted Prompt</Text><SafeTextBox text={guardResult.redacted} />
+      {guardResult.original?<><Text style={styles.st}>Original Prompt</Text><SafeTextBox text={guardResult.original} /></>:<Text style={styles.note}>Original prompt not stored (sanitized-only mode)</Text>}
     </ScrollView>
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   c:{flex:1,backgroundColor:colors.background,padding:spacing.lg},
   empty:{flex:1,justifyContent:'center',alignItems:'center'},
   emptyT:{fontSize:17,color:colors.textSecondary},
