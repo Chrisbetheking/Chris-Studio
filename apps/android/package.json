@@ -1,6 +1,6 @@
 {
   "name": "tokenfence-mobile",
-  "version": "0.3.7",
+  "version": "0.5.1",
   "private": true,
   "main": "App.tsx",
   "scripts": {

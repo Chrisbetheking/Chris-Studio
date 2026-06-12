@@ -8,6 +8,9 @@
         "buildType": "apk"
       },
       "distribution": "internal",
+      "cache": {
+        "disabled": true
+      },
       "env": {
         "EAS_BUILD_DISABLE_NPM_CACHE": "1",
         "EAS_BUILD_DISABLE_MAVEN_CACHE": "1"

@@ -2,7 +2,7 @@
   "expo": {
     "name": "TokenFence Mobile Lite",
     "slug": "tokenfence-mobile",
-    "version": "0.3.7",
+    "version": "0.5.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
