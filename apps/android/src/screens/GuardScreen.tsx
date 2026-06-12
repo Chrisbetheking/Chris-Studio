@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Share } from 'react-native';
-import { Clipboard } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { scanPrompt } from '@shared/guard';
@@ -21,7 +21,7 @@ export function GuardScreen() {
   const result = useMemo(() => scanPrompt(route.params.prompt), [route.params.prompt]);
 
   const handleCopy = async () => {
-    Clipboard.setString(result.redacted);
+    Clipboard.setStringAsync(result.redacted);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
