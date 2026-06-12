@@ -13,7 +13,8 @@
       },
       "env": {
         "EAS_BUILD_DISABLE_NPM_CACHE": "1",
-        "EAS_BUILD_DISABLE_MAVEN_CACHE": "1"
+        "EAS_BUILD_DISABLE_MAVEN_CACHE": "1",
+        "EXPO_USE_METRO_WORKSPACE_ROOT": "1"
       }
     },
     "production-aab": {
