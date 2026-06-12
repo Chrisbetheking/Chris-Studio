@@ -6,8 +6,8 @@ TokenFence Studio ships via GitHub Releases.
 
 - **v0.3.6** release page exists on GitHub
 - **Web** build is available and stable
-- **Desktop binaries** (Windows/macOS) are experimental -- Tauri packaging is still being fixed
-- **Android APK** automation via EAS is being fixed
+- **Desktop binaries** (Windows/macOS) are experimental -- Tauri packaging is experimental
+- **Android APK is built via Expo EAS and available from GitHub Releases
 - **iOS** is self-build/self-signing only
 
 ## Release Assets
@@ -16,7 +16,7 @@ TokenFence Studio ships via GitHub Releases.
 |---|---|---|---|
 | Windows | TokenFence-Studio-Windows | .exe / .msi | Experimental |
 | macOS | TokenFence-Studio-macOS | .dmg / .app | Experimental |
-| Android | TokenFence-Mobile-Lite-Android | .apk | Being fixed |
+| Android | TokenFence-Mobile-Lite-Android | .apk | Available |
 
 ## How Releases Are Built
 

@@ -111,7 +111,7 @@ Cross-platform logic in `packages/shared` -- guard scanning, provider presets, f
 | Platform | Status | Notes |
 |---|---|---|
 | Web | Available now | Full Next.js workspace |
-| Android | Available now | Expo React Native Mobile Lite. APK release automation being fixed. |
+| Android | Available now | Expo React Native Mobile Lite. APK available from GitHub Releases. |
 | Windows Desktop | Experimental | Tauri wrapper, packaging in progress |
 | macOS Desktop | Experimental | Tauri wrapper, packaging in progress |
 | iOS | Self-build only | Users sign with their own Apple Developer account |
@@ -238,8 +238,7 @@ tokenfence-studio/
 - Source Citation Panel (prototype)
 - Desktop Storage Path Selection
 - File-type Model Routing Rules
-- Android Storage / Export Workflow
-- Release Artifact Automation
+- Desktop static renderer packaging
 
 ### Planned
 
@@ -295,12 +294,13 @@ Response / comparison / archive / exported context
 
 ---
 
+
 ## Releases
 
-- **v0.3.6** release page exists on GitHub
-- **Desktop binaries** (Windows/macOS) are experimental -- Tauri packaging is still being fixed
-- **Android APK** automation via EAS is being fixed -- APK not yet downloadable from GitHub Releases
-- **Stable public release** will follow after the next tag once builds are verified
+- **v0.3.11** is the current stable release -- includes Android APK in GitHub Release Assets
+- **Android APK** is available from GitHub Releases starting from v0.3.11
+- **Windows/macOS** desktop packages are experimental and being separated into a dedicated desktop renderer
+- **iOS** is self-build/self-signing only
 
 See [docs/RELEASES.md](./docs/RELEASES.md) for current release status and troubleshooting.
 

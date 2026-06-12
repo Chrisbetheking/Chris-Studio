@@ -9,199 +9,125 @@
 </p>
 
 <p align="center">
-  Prompt Guard · Document Pipeline · Model Matrix · 文件级路由 · Agent-ready 工作流
-</p>
-
-<p align="center">
-  <a href="./README.md">English</a> ·
-  <a href="./docs/changelog/README.md">更新日志</a> ·
-  <a href="https://github.com/Chrisbetheking/tokenfence-studio">GitHub</a>
+  <a href="./README.md">English</a> | <strong>中文</strong>
 </p>
 
 ---
 
 ## 项目简介
 
-**TokenFence Studio** 是一个本地优先的 AI 工作台，定位在用户与大语言模型之间。
+TokenFence Studio 是一个面向大语言模型（LLM）的本地优先安全编排工作台，提供 Prompt 安全扫描、文档智能处理、模型矩阵对比和上下文包管理等功能。
 
-在 Prompt 或文件内容被发送给模型之前，TokenFence Studio 会先进行本地预处理：扫描敏感信息、清洗文档噪声、检测意图、压缩上下文，然后根据风险和文件类型选择合适的模型路由。
+## 为什么做这个项目
 
-项目目标：让 LLM 使用过程更安全、更干净、更容易调试。
-
----
-
-## 为什么做 TokenFence？
-
-大多数 AI 工具关注的是"怎么调用模型"。TokenFence Studio 更关注的是：**内容到达模型之前应该发生什么**。
-
-它尝试回答这些问题：
-- 这个 Prompt 能不能安全发送？
-- PDF、DOCX、日志或 Markdown 能不能先清洗？
-- 页眉、页脚、页码、重复段落这些噪声能不能去掉？
-- 文件能不能切成 RAG-ready chunks？
-- 这个任务更适合哪个模型？
-- 敏感文件应该给本地模型，还是脱敏后的安全流程？
-
-所以它更像是一个 **Pre-LLM Safety & Orchestration Layer**，而不是普通聊天界面。
-
----
-
-## 预览
-
-UI 截图将在下一个稳定版本后补充。
-
----
+随着 LLM 在企业环境中的广泛应用，对提示词安全、数据隐私和多模型管理的需求日益增长。TokenFence Studio 旨在提供一个开源的、本地优先的解决方案。
 
 ## 核心功能
 
-- **Prompt Guard** — 在 Prompt 发送给模型之前进行本地安全扫描
-- **Redaction Engine** — 将敏感内容替换成结构化占位符
-- **Document Intelligence Pipeline** — PDF/DOCX/图片解析、噪声清洗、敏感扫描、RAG Chunk 生成
-- **Model Matrix** — 一键使用多个模型，对比回答
-- **文件级模型路由** — 不同文件自动选择不同模型
-- **多 Provider 支持** — 支持海外、国内和本地模型，自带 API Key
-- **上下文压缩** — 压缩长 Prompt，保留关键信息
-- **本地归档** — 脱敏后的运行记录保存在本地
-- **Agent Context Packs** — 为 AI 编程和 Agent 工作流准备可复用的上下文包
-- **公用 TypeScript 包** — `packages/shared` 跨平台共享逻辑
-
----
+- **Prompt Guard**：提示词安全扫描、脱敏处理、风险评分
+- **Document Pipeline**：文档解析、OCR 支持、智能分块
+- **Model Matrix**：多模型响应对比、延迟/成本评估
+- **Provider Settings**：支持全球、中国区、路由和本地模型提供商
+- **Archive**：可搜索的历史记录、风险过滤
+- **Agent Context Pack**：上下文包管理原型
 
 ## 平台支持
 
 | 平台 | 状态 | 说明 |
 |---|---|---|
-| Web | 已可用 | 完整 Next.js 工作台 |
-| Android | 已可用 / 发布自动化修复中 | Expo React Native 轻量版 |
-| Windows 桌面 | 实验中 | Tauri 壳子，发布打包进行中 |
-| macOS 桌面 | 实验中 | Tauri 壳子，发布打包进行中 |
-| iOS | 仅自助构建 | 用户使用自己的 Apple Developer 账号签名 |
-
----
+| Web | 可用 | 完整 Next.js 工作台 |
+| Android | 可用 | Expo React Native Mobile Lite。APK 可从 GitHub Releases 下载 |
+| Windows Desktop | 实验性 | Tauri 封装 |
+| macOS Desktop | 实验性 | Tauri 封装 |
+| iOS | 仅源码 | 用户需自行签名 |
 
 ## 快速开始
 
 ### Web 工作台
 
-```bash
-git clone https://github.com/Chrisbetheking/tokenfence-studio.git
-cd tokenfence-studio
-npm install --legacy-peer-deps
+\\\ash
+cd apps/web
+npm install
 npm run dev
-```
+\\\
 
 打开 http://localhost:3000。
 
-### 安卓轻量版
+### Android Mobile Lite
 
-```bash
+\\\ash
 cd apps/android
 npm install
 npm run start
-```
+\\\
 
-使用 Expo Go 扫描 QR 码。
+使用 Expo Go 扫描二维码，或连接 Android 设备/模拟器。
 
 ### 桌面应用
 
-```bash
-cd apps/desktop
-npm install
-npm run dev
-```
+需要 Rust 和 Tauri CLI。详见 [docs/RELEASES.md](./docs/RELEASES.md)。
 
-需要 Rust 和 Tauri CLI。
+### API 密钥
 
----
+在设置中配置 API 密钥。支持的提供商包括 OpenAI、Anthropic Claude、Google Gemini、DeepSeek、阿里云/通义千问、百度千帆、Kimi/Moonshot、智谱 GLM、MiniMax、SiliconFlow 等。
 
 ## 项目结构
 
-```
-tokenfence-studio/
-  apps/
-    web/          Next.js 完整 Web 工作台
-    android/      Expo React Native 安卓轻量版
-    desktop/      Tauri 桌面壳子 (Windows + macOS)
-  packages/
-    shared/       跨平台公用 TypeScript 逻辑
-  docs/
-    changelog/    每次更新的开发日志
-    images/       Banner 和截图
-  examples/       测试用示例文档
-  cli/            CLI 工具 (规划中)
-  mcp/            MCP 集成 (规划中)
-  .github/
-    workflows/    CI/CD 流程
-```
+\\\
+apps/
+  web/          Next.js web 工作台
+  android/      Expo React Native Android Mobile Lite
+  desktop/      Tauri 桌面封装 (Windows + macOS)
+packages/
+  shared/       跨平台共享 TypeScript 逻辑
+.github/
+  workflows/    CI/CD
+\\\
 
----
+## 当前状态
 
-## 项目状态
+### 已完成
 
-### 已可用
-
-- 响应式 Web 工作台 (Chat、Guard、Document Pipeline、Model Matrix、Provider 设置、Archive、Agent Packs)
-- 安卓轻量版应用 (Prompt 扫描、模型路由、脱敏本地归档)
-- Tauri 桌面壳子 (Windows + macOS)
-- 多 Provider 支持 (海外、国内、聚合、本地模型)
-- Prompt Guard 敏感信息扫描
-- Redaction Engine 结构化脱敏
-- Document Intelligence Pipeline (PDF/DOCX/OCR/清洗/切片)
-- Model Matrix 多模型对比
-- 文件级模型路由
-- 本地脱敏归档
+- 响应式 Web 工作台（Chat、Guard、Document Pipeline、Model Matrix、Provider Settings、Archive、Agent Packs）
+- Android Mobile Lite 应用（提示词扫描、模型路由、本地存档）
+- Tauri 桌面封装（实验性）
+- 多提供商设置（全球、中国区、路由和本地模型）
 - Agent Context Pack 原型
-- 公用 TypeScript 逻辑包
-- GitHub Releases CI/CD 流程
+- 共享 TypeScript 逻辑包 (packages/shared)
+- GitHub Releases CI/CD 工作流
 
-### 实验中
+### 实验性/进行中
 
-- Provider 备用链 (Fallback Chains)
-- 成本/延迟预算路由器 (Budget Router)
-- 来源引用面板原型 (Citation Panel)
 - 桌面存储路径选择
+- 文件类型模型路由规则
+- 桌面静态渲染器打包
 
-### 规划中
+### 计划中
 
-- 扫描版 PDF OCR
-- 复杂 PDF 布局解析
-- Search Grounding 路由器
-- Judge 模型
-- MCP 市场
-- VS Code 插件
-- 浏览器插件
-- 本地向量检索
-- 团队工作区
+- MCP 集成
+- 高级 OCR 流水线
+- 桌面自动更新
 
----
+## 发布说明
 
-## 发布
+- **v0.3.11** 是当前稳定版本 -- Android APK 已包含在 GitHub Release Assets 中
+- **Android APK** 可从 GitHub Releases 下载（v0.3.11 起）
+- **Windows/macOS** 桌面安装包仍处于实验阶段
+- **iOS** 仅提供源码和自签名构建路径
 
-- v0.3.6 发布页面已存在
-- 桌面二进制文件仍在修复中
-- Android APK 自动化仍在修复中
-- 稳定公开版本将在修复完成后的下一个 tag 发布
+详见 [docs/RELEASES.md](./docs/RELEASES.md)。
 
----
+## 后续计划
 
-## 更新日志
+- [ ] 桌面安装包完善
+- [ ] MCP 集成
+- [ ] 移动端增强
+- [ ] 多语言支持改进
 
-参见 [更新日志](./docs/changelog/README.md)。
+## 作者
 
----
+TokenFence Studio 由 **Chrisbetheking** 创建并维护。
 
-## 贡献方式
+## 许可证
 
-欢迎提交 Issue 和 Pull Request。
-
----
-
-## Author
-
-Created by **ChrisWang**.
-
----
-
-## License
-
-MIT License
+本项目采用 MIT 许可证。详见 [LICENSE](./LICENSE)。
