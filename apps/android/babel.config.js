@@ -8,7 +8,7 @@ module.exports = function (api) {
         {
           root: ['./'],
           alias: {
-            '@shared': '../../packages/shared/src',
+            '@shared': './src/shared',
             '@': './src',
           },
           extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],

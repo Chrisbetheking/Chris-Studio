@@ -16,7 +16,7 @@
     "jsx": "react-native",
     "paths": {
       "@shared/*": [
-        "../../packages/shared/src/*"
+        "./src/shared/*"
       ],
       "@/*": [
         "./src/*"
