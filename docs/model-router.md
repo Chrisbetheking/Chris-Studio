@@ -25,4 +25,4 @@ Auto-routing by task category with automatic fallback chains.
 
 ## Status
 
-**Experimental**. Routing logic is defined and functional in-memory. Full integration with the provider system and real health checks is planned.
+**Experimental**. Routing logic is defined and functional in-memory (MVP routing policy and fallback chain foundation). Full integration with the provider system and real health checks is planned.

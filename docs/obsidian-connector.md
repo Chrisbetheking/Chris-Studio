@@ -6,7 +6,7 @@ Read and write notes to a local Obsidian vault from within TokenFence Studio.
 
 ## Current Support
 
-**Local vault path mode only**. Configure your Obsidian vault path in settings, and TokenFence can read/write/search notes.
+**Local vault path mode only**. Configure your Obsidian vault path in settings, and TokenFence provides an interface for reading/writing/searching notes (actual filesystem access requires desktop Tauri app or local agent runtime).
 
 ## Limitations
 

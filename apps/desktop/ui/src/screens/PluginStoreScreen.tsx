@@ -12,7 +12,7 @@ export function PluginStoreScreen() {
         <div className="card-header"><div><div className="card-title">Plugin Categories</div><div className="card-subtitle">Output, Knowledge, Media, API, Computer Use</div></div><span className="badge badge-amber">MVP</span></div>
         <div className="section-list">
           <div className="section-item"><div className="section-item-title">Obsidian Vault Writer</div><div className="section-item-desc">Read/write notes to local Obsidian vault (node runtime, approval required)</div></div>
-          <div className="section-item"><div className="section-item-title">Markdown to PDF</div><div className="section-item-desc">Convert agent output to PDF (node runtime, installed)</div></div>
+          <div className="section-item"><div className="section-item-title">Markdown to PDF</div><div className="section-item-desc">Convert agent output to PDF (node runtime, stub)</div></div>
           <div className="section-item"><div className="section-item-title">Mind Map Generator</div><div className="section-item-desc">Generate Mermaid mind maps from agent output</div></div>
           <div className="section-item"><div className="section-item-title">API Request Builder</div><div className="section-item-desc">Build and execute API calls to third-party services</div></div>
           <div className="section-item"><div className="section-item-title">MP4 Import</div><div className="section-item-desc">Import MP4 files for analysis (requires approval)</div></div>
