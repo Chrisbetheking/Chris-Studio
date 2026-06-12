@@ -14,7 +14,13 @@
       }
     },
     "plugins": [
-      "expo-build-properties"
+      "expo-build-properties",
+      [
+        "react-native-safe-area-context",
+        {
+          "enableAndroidWindowInsets": true
+        }
+      ]
     ],
     "owner": "kevin_wong0712",
     "extra": {

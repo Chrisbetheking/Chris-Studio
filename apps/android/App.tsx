@@ -1,22 +1,24 @@
 import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
+
+const Tab = createBottomTabNavigator();
+
+function Home() { return <View style={s.c}><Text style={s.t}>Home</Text></View>; }
+function Guard() { return <View style={s.c}><Text style={s.t}>Guard</Text></View>; }
+
+const s = StyleSheet.create({ c: { flex:1, alignItems:'center', justifyContent:'center', backgroundColor:'#fff' }, t: { fontSize:24, fontWeight:'700', color:'#3b82f6' } });
 
 export default function App() {
   return (
     <NavigationContainer>
       <StatusBar style="dark" />
-      <View style={s.c}>
-        <Text style={s.t}>SafeArea 4.8.2 Test</Text>
-        <Text style={s.sub}>If you see this, fix works</Text>
-      </View>
+      <Tab.Navigator>
+        <Tab.Screen name="Home" component={Home} />
+        <Tab.Screen name="Guard" component={Guard} />
+      </Tab.Navigator>
     </NavigationContainer>
   );
 }
-
-const s = StyleSheet.create({
-  c: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  t: { fontSize: 24, fontWeight: '700', color: '#3b82f6' },
-  sub: { fontSize: 14, color: '#666', marginTop: 8 },
-});
