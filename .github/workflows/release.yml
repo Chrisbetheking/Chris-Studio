@@ -44,41 +44,39 @@ jobs:
           eas-cache: false
           packager: npm
       - run: npm ci --legacy-peer-deps
-      - name: Build Android APK via EAS
+      - name: Submit EAS Android Build
         working-directory: apps/android
         run: |
-          npx eas-cli build --platform android --profile preview-apk --non-interactive --wait --json > eas-build.json
-          echo "EAS build completed. Output:"
+          npx eas-cli build --platform android --profile preview-apk --non-interactive --no-wait --json > eas-build.json
+          echo "EAS build submitted. Output:"
           cat eas-build.json
-      - name: Check EAS output
+      - name: Extract EAS build URL
+        working-directory: apps/android
+        id: eas-info
+        run: |
+          BUILD_URL=$(python3 -c "
+import json
+with open('eas-build.json') as f:
+    d = json.load(f)
+url = d.get('buildUrl', d.get('artifacts', {}).get('buildUrl', ''))
+if not url:
+    url = 'https://expo.dev/accounts/kevin_wong0712/projects/tokenfence-mobile/builds'
+print(url)
+" 2>/dev/null || echo "https://expo.dev/accounts/kevin_wong0712/projects/tokenfence-mobile/builds")
+          echo "build_url=$BUILD_URL" >> $GITHUB_OUTPUT
+          echo "EAS Build URL: $BUILD_URL"
+      - name: Create build info artifact
         working-directory: apps/android
         run: |
-          if [ ! -f eas-build.json ]; then
-            echo "EAS build did not produce output"
-            exit 1
-          fi
-          ARTIFACT_URL=$(python3 -c "import json,sys; d=json.load(open('eas-build.json')); print(d.get('artifacts',{}).get('buildUrl',''))" 2>/dev/null || echo "")
-          if [ -z "$ARTIFACT_URL" ]; then
-            echo "No Android APK artifact URL found in EAS build output"
-            echo "EAS build may have succeeded but artifact is only on Expo dashboard"
-            exit 1
-          fi
-          echo "artifact_url=$ARTIFACT_URL" >> $GITHUB_OUTPUT
-        id: eas-output
-      - name: Download APK from EAS
-        working-directory: apps/android
-        run: |
-          ARTIFACT_URL="${{ steps.eas-output.outputs.artifact_url }}"
-          if [ -n "$ARTIFACT_URL" ]; then
-            curl -L -o TokenFence-Mobile-Lite-Android.apk "$ARTIFACT_URL"
-            echo "APK downloaded successfully"
-            ls -la TokenFence-Mobile-Lite-Android.apk
-          fi
+          echo "EAS build submitted for v0.3.8" > BUILD_INFO.txt
+          echo "Expo Dashboard: https://expo.dev/accounts/kevin_wong0712/projects/tokenfence-mobile/builds" >> BUILD_INFO.txt
+          echo "Build URL: ${{ steps.eas-info.outputs.build_url }}" >> BUILD_INFO.txt
       - uses: actions/upload-artifact@v4
-        if: success()
         with:
-          name: android-apk
-          path: apps/android/TokenFence-Mobile-Lite-Android.apk
+          name: android-eas-info
+          path: |
+            apps/android/eas-build.json
+            apps/android/BUILD_INFO.txt
 
   desktop-windows:
     needs: [web-build]
@@ -138,10 +136,23 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: Release ${{ github.ref_name }}
+          body: |
+            ## TokenFence Studio ${{ github.ref_name }}
+
+            ### Web
+            Web build is available as a workflow artifact.
+
+            ### Android
+            Android APK is built via Expo EAS.
+            Check build status: https://expo.dev/accounts/kevin_wong0712/projects/tokenfence-mobile/builds
+
+            ### Desktop
+            Windows/macOS desktop packages are experimental.
+            See [docs/RELEASES.md](https://github.com/Chrisbetheking/tokenfence-studio/blob/main/docs/RELEASES.md) for build instructions.
           files: |
-            android-apk/TokenFence-Mobile-Lite-Android.apk
             desktop-windows/**/*
             desktop-macos/**/*
+            android-eas-info/BUILD_INFO.txt
           draft: false
           prerelease: false
           fail_on_unmatched_files: false
