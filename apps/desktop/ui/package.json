@@ -1,0 +1,23 @@
+{
+  "name": "@tokenfence/desktop-ui",
+  "private": true,
+  "version": "0.4.0-dev",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "@tokenfence/shared": "file:../../../packages/shared"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "typescript": "~5.5.0",
+    "vite": "^6.3.5"
+  }
+}

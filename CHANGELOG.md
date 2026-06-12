@@ -5,6 +5,7 @@ TokenFence Studio keeps detailed update notes in the project update log.
 See: [docs/changelog/README.md](./docs/changelog/README.md)
 
 ## Recent Updates
+- **2026-06-12 (v0.4.0-dev)**: Product UI redesign in progress -- new sidebar+inspector web layout, dark mode, shadcn-style cards, Android screen polish, dedicated Vite+React desktop renderer. On branch feature/product-ui-desktop.
 - **2026-06-12 (v0.3.11)**: Android APK release asset upload fixed. EAS build with --wait, artifact URL parsing, APK download, and GitHub Release attachment all working.
 - **2026-06-12 (v0.3.10)**: Expo SDK 52 dependency fixes. expo-clipboard downgraded from v56 to v7.0.1, eas-cli removed from devDependencies.
 - **2026-06-12 (v0.3.8)**: Release workflow fixes -- YAML formatting, Android APK via EAS.

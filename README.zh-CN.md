@@ -5,54 +5,43 @@
 </p>
 
 <p align="center">
-  <strong>面向大语言模型的本地优先 Prompt 安全、文档智能处理与多模型编排工作台</strong>
+  <strong>闈㈠悜澶ц瑷€妯″瀷鐨勬湰鍦颁紭鍏?Prompt 瀹夊叏銆佹枃妗ｆ櫤鑳藉鐞嗕笌澶氭ā鍨嬬紪鎺掑伐浣滃彴</strong>
 </p>
 
 <p align="center">
-  <a href="./README.md">English</a> | <strong>中文</strong>
+  <a href="./README.md">English</a> | <strong>涓枃</strong>
 </p>
 
 ---
 
-## 项目简介
+## 椤圭洰绠€浠?
+TokenFence Studio 鏄竴涓潰鍚戝ぇ璇█妯″瀷锛圠LM锛夌殑鏈湴浼樺厛瀹夊叏缂栨帓宸ヤ綔鍙帮紝鎻愪緵 Prompt 瀹夊叏鎵弿銆佹枃妗ｆ櫤鑳藉鐞嗐€佹ā鍨嬬煩闃靛姣斿拰涓婁笅鏂囧寘绠＄悊绛夊姛鑳姐€?
+## 涓轰粈涔堝仛杩欎釜椤圭洰
 
-TokenFence Studio 是一个面向大语言模型（LLM）的本地优先安全编排工作台，提供 Prompt 安全扫描、文档智能处理、模型矩阵对比和上下文包管理等功能。
+闅忕潃 LLM 鍦ㄤ紒涓氱幆澧冧腑鐨勫箍娉涘簲鐢紝瀵规彁绀鸿瘝瀹夊叏銆佹暟鎹殣绉佸拰澶氭ā鍨嬬鐞嗙殑闇€姹傛棩鐩婂闀裤€俆okenFence Studio 鏃ㄥ湪鎻愪緵涓€涓紑婧愮殑銆佹湰鍦颁紭鍏堢殑瑙ｅ喅鏂规銆?
+## 鏍稿績鍔熻兘
 
-## 为什么做这个项目
+- **Prompt Guard**锛氭彁绀鸿瘝瀹夊叏鎵弿銆佽劚鏁忓鐞嗐€侀闄╄瘎鍒?- **Document Pipeline**锛氭枃妗ｈВ鏋愩€丱CR 鏀寔銆佹櫤鑳藉垎鍧?- **Model Matrix**锛氬妯″瀷鍝嶅簲瀵规瘮銆佸欢杩?鎴愭湰璇勪及
+- **Provider Settings**锛氭敮鎸佸叏鐞冦€佷腑鍥藉尯銆佽矾鐢卞拰鏈湴妯″瀷鎻愪緵鍟?- **Archive**锛氬彲鎼滅储鐨勫巻鍙茶褰曘€侀闄╄繃婊?- **Agent Context Pack**锛氫笂涓嬫枃鍖呯鐞嗗師鍨?
+## 骞冲彴鏀寔
 
-随着 LLM 在企业环境中的广泛应用，对提示词安全、数据隐私和多模型管理的需求日益增长。TokenFence Studio 旨在提供一个开源的、本地优先的解决方案。
-
-## 核心功能
-
-- **Prompt Guard**：提示词安全扫描、脱敏处理、风险评分
-- **Document Pipeline**：文档解析、OCR 支持、智能分块
-- **Model Matrix**：多模型响应对比、延迟/成本评估
-- **Provider Settings**：支持全球、中国区、路由和本地模型提供商
-- **Archive**：可搜索的历史记录、风险过滤
-- **Agent Context Pack**：上下文包管理原型
-
-## 平台支持
-
-| 平台 | 状态 | 说明 |
+| 骞冲彴 | 鐘舵€?| 璇存槑 |
 |---|---|---|
-| Web | 可用 | 完整 Next.js 工作台 |
-| Android | 可用 | Expo React Native Mobile Lite。APK 可从 GitHub Releases 下载 |
-| Windows Desktop | 实验性 | Tauri 封装 |
-| macOS Desktop | 实验性 | Tauri 封装 |
-| iOS | 仅源码 | 用户需自行签名 |
+| Web | 鍙敤 | 瀹屾暣 Next.js 宸ヤ綔鍙?|
+| Android | 鍙敤 | Expo React Native Mobile Lite銆侫PK 鍙粠 GitHub Releases 涓嬭浇 |
+| Windows Desktop | 瀹為獙鎬?| Tauri 灏佽 |
+| macOS Desktop | 瀹為獙鎬?| Tauri 灏佽 |
+| iOS | 浠呮簮鐮?| 鐢ㄦ埛闇€鑷绛惧悕 |
 
-## 快速开始
-
-### Web 工作台
-
+## 蹇€熷紑濮?
+### Web 宸ヤ綔鍙?
 \\\ash
 cd apps/web
 npm install
 npm run dev
 \\\
 
-打开 http://localhost:3000。
-
+鎵撳紑 http://localhost:3000銆?
 ### Android Mobile Lite
 
 \\\ash
@@ -61,73 +50,53 @@ npm install
 npm run start
 \\\
 
-使用 Expo Go 扫描二维码，或连接 Android 设备/模拟器。
+浣跨敤 Expo Go 鎵弿浜岀淮鐮侊紝鎴栬繛鎺?Android 璁惧/妯℃嫙鍣ㄣ€?
+### 妗岄潰搴旂敤
 
-### 桌面应用
+闇€瑕?Rust 鍜?Tauri CLI銆傝瑙?[docs/RELEASES.md](./docs/RELEASES.md)銆?
+### API 瀵嗛挜
 
-需要 Rust 和 Tauri CLI。详见 [docs/RELEASES.md](./docs/RELEASES.md)。
-
-### API 密钥
-
-在设置中配置 API 密钥。支持的提供商包括 OpenAI、Anthropic Claude、Google Gemini、DeepSeek、阿里云/通义千问、百度千帆、Kimi/Moonshot、智谱 GLM、MiniMax、SiliconFlow 等。
-
-## 项目结构
+鍦ㄨ缃腑閰嶇疆 API 瀵嗛挜銆傛敮鎸佺殑鎻愪緵鍟嗗寘鎷?OpenAI銆丄nthropic Claude銆丟oogle Gemini銆丏eepSeek銆侀樋閲屼簯/閫氫箟鍗冮棶銆佺櫨搴﹀崈甯嗐€並imi/Moonshot銆佹櫤璋?GLM銆丮iniMax銆丼iliconFlow 绛夈€?
+## 椤圭洰缁撴瀯
 
 \\\
 apps/
-  web/          Next.js web 工作台
-  android/      Expo React Native Android Mobile Lite
-  desktop/      Tauri 桌面封装 (Windows + macOS)
+  web/          Next.js web 宸ヤ綔鍙?  android/      Expo React Native Android Mobile Lite
+  desktop/      Tauri 妗岄潰灏佽 (Windows + macOS)
 packages/
-  shared/       跨平台共享 TypeScript 逻辑
+  shared/       璺ㄥ钩鍙板叡浜?TypeScript 閫昏緫
 .github/
   workflows/    CI/CD
 \\\
 
-## 当前状态
+## 褰撳墠鐘舵€?
+### 宸插畬鎴?
+- 鍝嶅簲寮?Web 宸ヤ綔鍙帮紙Chat銆丟uard銆丏ocument Pipeline銆丮odel Matrix銆丳rovider Settings銆丄rchive銆丄gent Packs锛?- Android Mobile Lite 搴旂敤锛堟彁绀鸿瘝鎵弿銆佹ā鍨嬭矾鐢便€佹湰鍦板瓨妗ｏ級
+- Tauri 妗岄潰灏佽锛堝疄楠屾€э級
+- 澶氭彁渚涘晢璁剧疆锛堝叏鐞冦€佷腑鍥藉尯銆佽矾鐢卞拰鏈湴妯″瀷锛?- Agent Context Pack 鍘熷瀷
+- 鍏变韩 TypeScript 閫昏緫鍖?(packages/shared)
+- GitHub Releases CI/CD 宸ヤ綔娴?
+### 瀹為獙鎬?杩涜涓?
+- 妗岄潰瀛樺偍璺緞閫夋嫨
+- 鏂囦欢绫诲瀷妯″瀷璺敱瑙勫垯
+- 妗岄潰闈欐€佹覆鏌撳櫒鎵撳寘
 
-### 已完成
+### 璁″垝涓?
+- MCP 闆嗘垚
+- 楂樼骇 OCR 娴佹按绾?- 妗岄潰鑷姩鏇存柊
 
-- 响应式 Web 工作台（Chat、Guard、Document Pipeline、Model Matrix、Provider Settings、Archive、Agent Packs）
-- Android Mobile Lite 应用（提示词扫描、模型路由、本地存档）
-- Tauri 桌面封装（实验性）
-- 多提供商设置（全球、中国区、路由和本地模型）
-- Agent Context Pack 原型
-- 共享 TypeScript 逻辑包 (packages/shared)
-- GitHub Releases CI/CD 工作流
+## 鍙戝竷璇存槑
 
-### 实验性/进行中
+- **v0.3.11** 鏄綋鍓嶇ǔ瀹氱増鏈?-- Android APK 宸插寘鍚湪 GitHub Release Assets 涓?- **Android APK** 鍙粠 GitHub Releases 涓嬭浇锛坴0.3.11 璧凤級
+- **Windows/macOS** 妗岄潰瀹夎鍖呬粛澶勪簬瀹為獙闃舵
+- **iOS** 浠呮彁渚涙簮鐮佸拰鑷鍚嶆瀯寤鸿矾寰?
+璇﹁ [docs/RELEASES.md](./docs/RELEASES.md)銆?
+## 鍚庣画璁″垝
 
-- 桌面存储路径选择
-- 文件类型模型路由规则
-- 桌面静态渲染器打包
+- [ ] 妗岄潰瀹夎鍖呭畬鍠?- [ ] MCP 闆嗘垚
+- [ ] 绉诲姩绔寮?- [ ] 澶氳瑷€鏀寔鏀硅繘
 
-### 计划中
-
-- MCP 集成
-- 高级 OCR 流水线
-- 桌面自动更新
-
-## 发布说明
-
-- **v0.3.11** 是当前稳定版本 -- Android APK 已包含在 GitHub Release Assets 中
-- **Android APK** 可从 GitHub Releases 下载（v0.3.11 起）
-- **Windows/macOS** 桌面安装包仍处于实验阶段
-- **iOS** 仅提供源码和自签名构建路径
-
-详见 [docs/RELEASES.md](./docs/RELEASES.md)。
-
-## 后续计划
-
-- [ ] 桌面安装包完善
-- [ ] MCP 集成
-- [ ] 移动端增强
-- [ ] 多语言支持改进
-
-## 作者
-
-TokenFence Studio 由 **Chrisbetheking** 创建并维护。
-
-## 许可证
-
-本项目采用 MIT 许可证。详见 [LICENSE](./LICENSE)。
+## 浣滆€?
+TokenFence Studio 鐢?**Chrisbetheking** 鍒涘缓骞剁淮鎶ゃ€?
+## 璁稿彲璇?
+鏈」鐩噰鐢?MIT 璁稿彲璇併€傝瑙?[LICENSE](./LICENSE)銆

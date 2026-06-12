@@ -40,29 +40,29 @@ export function GuardScreen() {
   const handleShare = async () => { try { await Share.share({ message: result.redacted }); } catch {} };
 
   return (
-    <ScrollView style={s.c}>
+    <ScrollView style={styles.c}>
       <RiskBadge level={result.riskLevel} count={result.findings.length} />
       {result.findings.length > 0 && (
         <SectionCard title="Detected Sensitive Data">
           {result.findings.map((f,i) => (
-            <View key={i} style={s.fItem}>
-              <Text style={s.fType}>{SENSITIVE_TYPE_LABELS[f.type]}</Text>
-              <Text style={s.fMatch} numberOfLines={1}>{f.match}</Text>
+            <View key={i} style={styles.fItem}>
+              <Text style={styles.fType}>{SENSITIVE_TYPE_LABELS[f.type]}</Text>
+              <Text style={styles.fMatch} numberOfLines={1}>{f.match}</Text>
             </View>
           ))}
         </SectionCard>
       )}
       <SectionCard title="Redacted Prompt"><SafeTextBox text={result.redacted} /></SectionCard>
-      <View style={s.actions}>
-        <TouchableOpacity style={s.aBtn} onPress={handleCopy}><Text style={s.aBtnT}>{copied?'Copied!':'Copy Safe Prompt'}</Text></TouchableOpacity>
-        <TouchableOpacity style={s.aBtn} onPress={handleSave}><Text style={s.aBtnT}>Save to Archive</Text></TouchableOpacity>
-        <TouchableOpacity style={s.aBtn} onPress={handleShare}><Text style={s.aBtnT}>Share</Text></TouchableOpacity>
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.aBtn} onPress={handleCopy}><Text style={styles.aBtnT}>{copied?'Copied!':'Copy Safe Prompt'}</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.aBtn} onPress={handleSave}><Text style={styles.aBtnT}>Save to Archive</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.aBtn} onPress={handleShare}><Text style={styles.aBtnT}>Share</Text></TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   c:{flex:1,backgroundColor:colors.background,padding:spacing.lg},
   fItem:{paddingVertical:8,borderBottomWidth:1,borderBottomColor:colors.border},
   fType:{fontSize:14,fontWeight:'600',color:colors.text,marginBottom:2},

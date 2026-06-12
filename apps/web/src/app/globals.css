@@ -2,8 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
+@layer base {
+  :root {
+    --color-bg: #f6f7fb;
+    --color-surface: #ffffff;
+    --color-surface-alt: #f1f5f9;
+    --color-border: #e2e8f0;
+    --color-text: #0f172a;
+    --color-text-secondary: #475569;
+    --color-text-muted: #94a3b8;
+    color-scheme: light;
+  }
+
+  .dark {
+    --color-bg: #0f1117;
+    --color-surface: #1a1d27;
+    --color-surface-alt: #222530;
+    --color-border: #2d3148;
+    --color-text: #e2e8f0;
+    --color-text-secondary: #94a3b8;
+    --color-text-muted: #64748b;
+    color-scheme: dark;
+  }
 }
 
 * {
@@ -16,16 +36,50 @@ body {
   color: #111827;
 }
 
+.dark body {
+  background: #0f1117;
+  color: #e2e8f0;
+}
+
 textarea, input, select, button {
   font: inherit;
 }
 
-.scrollbar-thin::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 99px;
+  }
+
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #334155;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
 }
 
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 99px;
+/* Subtle gradient backgrounds for cards */
+.card-gradient-light {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.dark .card-gradient-light {
+  background: linear-gradient(135deg, #1e2130 0%, #1a1d27 100%);
+}
+
+/* Status dot animation */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.status-dot {
+  animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

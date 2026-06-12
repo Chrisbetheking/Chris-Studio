@@ -13,12 +13,12 @@ export function CompareScreen() {
     setSelected(prev => prev.includes(key) ? prev.filter(k=>k!==key) : [...prev,key].slice(-2));
   };
   return (
-    <ScrollView style={s.c}>
-      <Text style={s.title}>Compare Models</Text>
-      <Text style={s.sub}>Select up to 2 models to compare side by side</Text>
-      <View style={s.grid}>
+    <ScrollView style={styles.c}>
+      <Text style={styles.title}>Compare Models</Text>
+      <Text style={styles.sub}>Select up to 2 models to compare side by side</Text>
+      <View style={styles.grid}>
         {PROVIDERS.map((m,i)=>(
-          <TouchableOpacity key={i} style={[s.card,selected.includes(m.provider+':'+m.model)&&s.cardSel]} onPress={()=>toggle(m)}>
+          <TouchableOpacity key={i} style={[styles.card,selected.includes(m.provider+':'+m.model)&&styles.cardSel]} onPress={()=>toggle(m)}>
             <ProviderCard model={m} />
           </TouchableOpacity>
         ))}
@@ -26,7 +26,7 @@ export function CompareScreen() {
     </ScrollView>
   );
 }
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   c:{flex:1,backgroundColor:colors.background,padding:spacing.lg},
   title:{fontSize:24,fontWeight:'700',color:colors.text,marginBottom:4},
   sub:{fontSize:14,color:colors.textSecondary,marginBottom:spacing.lg},

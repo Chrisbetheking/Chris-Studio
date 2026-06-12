@@ -22,34 +22,34 @@ export function FileRouterScreen() {
   };
 
   return (
-    <ScrollView style={s.c}>
-      <Text style={s.title}>File Router</Text>
-      <Text style={s.sub}>Detect file type and get model routing recommendation</Text>
-      <View style={s.inputRow}>
-        <TextInput style={s.input} value={fileName} onChangeText={setFileName}
+    <ScrollView style={styles.c}>
+      <Text style={styles.title}>File Router</Text>
+      <Text style={styles.sub}>Detect file type and get model routing recommendation</Text>
+      <View style={styles.inputRow}>
+        <TextInput style={styles.input} value={fileName} onChangeText={setFileName}
           placeholder="Enter filename (e.g. report.pdf)" placeholderTextColor={colors.textMuted} />
-        <TouchableOpacity style={s.btn} onPress={handleDetect}><Text style={s.btnT}>Detect</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.btn} onPress={handleDetect}><Text style={styles.btnT}>Detect</Text></TouchableOpacity>
       </View>
       {fileInfo && (
         <SectionCard title="Detection Result">
-          <Text style={s.result}><Text style={s.bold}>Category:</Text> {fileInfo.label}</Text>
-          <Text style={s.result}><Text style={s.bold}>Type:</Text> {fileInfo.category}</Text>
-          <Text style={s.result}><Text style={s.bold}>Recommended Model:</Text> {fileInfo.recommendedModel}</Text>
+          <Text style={styles.result}><Text style={styles.bold}>Category:</Text> {fileInfo.label}</Text>
+          <Text style={styles.result}><Text style={styles.bold}>Type:</Text> {fileInfo.category}</Text>
+          <Text style={styles.result}><Text style={styles.bold}>Recommended Model:</Text> {fileInfo.recommendedModel}</Text>
         </SectionCard>
       )}
       {recommendation && <ProviderCard model={recommendation} />}
       <SectionCard title="Default Routing Rules">
         {getDefaultFileRoutingRules().slice(0,5).map((r)=>(
-          <View key={r.id} style={s.rule}>
-            <Text style={s.ruleLabel}>{r.fileCategory}</Text>
-            <Text style={s.ruleDesc}>{r.provider} / {r.model}</Text>
+          <View key={r.id} style={styles.rule}>
+            <Text style={styles.ruleLabel}>{r.fileCategory}</Text>
+            <Text style={styles.ruleDesc}>{r.provider} / {r.model}</Text>
           </View>
         ))}
       </SectionCard>
     </ScrollView>
   );
 }
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   c:{flex:1,backgroundColor:colors.background,padding:spacing.lg},
   title:{fontSize:24,fontWeight:'700',color:colors.text,marginBottom:4},
   sub:{fontSize:14,color:colors.textSecondary,marginBottom:spacing.lg},

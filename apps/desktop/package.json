@@ -1,10 +1,13 @@
 {
   "name": "@tokenfence/desktop",
-  "version": "0.3.7",
+  "version": "0.4.0-dev",
   "private": true,
   "scripts": {
+    "ui:install": "cd ui && npm install",
+    "ui:dev": "cd ui && npm run dev",
+    "ui:build": "cd ui && npm run build",
     "dev": "tauri dev",
-    "build": "tauri build",
+    "build": "npm run ui:build && tauri build",
     "typecheck": "echo desktop-no-ts-check"
   },
   "dependencies": {
