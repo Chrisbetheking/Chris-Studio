@@ -1,4 +1,4 @@
-# TokenFence Studio
+﻿# TokenFence Studio
 
 **Languages:** [English](README.md) | [简体中文](README.zh-CN.md)
 
@@ -294,10 +294,22 @@ Response / comparison / archive / exported context
 ---
 
 
+
+## Showcase
+
+| GitHub README | Latest Downloads | Chinese README | GitHub Release |
+|---|---|---|---|
+| ![GitHub README](docs/assets/screenshots/github-readme-home.png) | ![Latest Downloads](docs/assets/screenshots/github-latest-downloads.png) | ![Chinese README](docs/assets/screenshots/github-readme-zh-cn.png) | ![GitHub Release](docs/assets/screenshots/github-release-current.png) |
+
+| Desktop Dashboard | Desktop Providers | Desktop Guard | Desktop About |
+|---|---|---|---|
+| ![Desktop Dashboard](docs/assets/screenshots/desktop-dashboard.png) | ![Desktop Providers](docs/assets/screenshots/desktop-providers.png) | ![Desktop Guard](docs/assets/screenshots/desktop-guard.png) | ![Desktop About](docs/assets/screenshots/desktop-about.png) |
+
+---
 ## Releases
 
-- **v0.3.11** is the current stable release -- includes Android APK in GitHub Release Assets
-- **Recommended Android APK**: `TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk` (57.3 MB, standalone, no Metro required). Available from [GitHub Releases](https://github.com/Chrisbetheking/tokenfence-studio/releases/tag/v0.5.24). Debug APK also available for traceability.
+- **v1.0.0-rc2** is the current product candidate release -- includes Android APK in GitHub Release Assets
+- **Recommended Android APK**: `TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk` (57.3 MB, standalone, no Metro required). Available from [v1.0.0-rc2 Release](https://github.com/Chrisbetheking/tokenfence-studio/releases/tag/v1.0.0-rc2) and [v0.5.24 Release](https://github.com/Chrisbetheking/tokenfence-studio/releases/tag/v0.5.24). Debug APK also available for traceability.
 - ****Windows**: Desktop package available (MSI 6.2 MB, NSIS installer 4.2 MB), built locally with Tauri 2. **macOS**: Experimental, GitHub Actions CI build in progress.
 - **iOS** is self-build/self-signing only
 
