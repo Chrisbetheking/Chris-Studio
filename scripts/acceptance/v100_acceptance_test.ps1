@@ -250,7 +250,22 @@ if (Test-Path $vaultNotePath) {
     Check "Obsidian note has title" ($noteContent -match 'Acceptance Test') "Title present"
 }
 
-# 10. Verify provider config
+# 10. Verify README.zh-CN.md UTF-8 cleanliness
+$readmeZhPath = "README.zh-CN.md"
+if (Test-Path $readmeZhPath) {
+    $readmeBytes = [System.IO.File]::ReadAllBytes((Resolve-Path $readmeZhPath))
+    $readmeStr = [System.Text.Encoding]::UTF8.GetString($readmeBytes)
+    $hasFFFD = $readmeStr.Contains([char]0xFFFD)
+    Check "README.zh-CN.md has no U+FFFD replacement chars" (-not $hasFFFD) "Clean UTF-8"
+    $hasCN = $readmeStr -match "本地优先|下载|当前状态|项目简介"
+    Check "README.zh-CN.md contains Chinese text" $hasCN "Chinese present"
+    $hasLink = $readmeStr -match "语言.*English.*简体中文"
+    Check "README.zh-CN.md has language cross-link" $hasLink "Cross-link present"
+} else {
+    Check "README.zh-CN.md file exists" $false "Not found"
+}
+
+# 11. Verify provider config
 $configPath = "$BaseDir/config/provider-config.json"
 Check "Provider config exists" (Test-Path $configPath) $configPath
 if (Test-Path $configPath) {
@@ -270,4 +285,8 @@ Write-Output "========================================"
 $Report | ForEach-Object { Write-Output $_ }
 
 exit $Fail
+
+
+
+
 
