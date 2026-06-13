@@ -14,22 +14,19 @@
       "env": {
         "EAS_BUILD_DISABLE_NPM_CACHE": "1",
         "EAS_BUILD_DISABLE_MAVEN_CACHE": "1"
-      },
-      "channel": "preview-apk"
+      }
     },
     "production-aab": {
       "android": {
         "buildType": "app-bundle"
       },
-      "distribution": "store",
-      "channel": "production-aab"
+      "distribution": "store"
     },
     "ios-simulator": {
       "ios": {
         "simulator": true
       },
-      "distribution": "internal",
-      "channel": "ios-simulator"
+      "distribution": "internal"
     }
   },
   "submit": {
