@@ -2,47 +2,22 @@
 
 **语言：** [English](README.md) | [简体中文](README.zh-CN.md)
 
-<p align="center">
-  <img src="./docs/images/banner.png" alt="TokenFence Studio" width="100%">
-</p>
+![TokenFence Studio Banner](docs/images/banner.png)
 
-<p align="center">
-  <strong>面向大语言模型的本地优先 Prompt 安全、文档智能处理与多模型编排工作台</strong>
-</p>
+面向大语言模型的本地优先 Prompt 安全、文档智能处理与多模型编排工作台。
 
-<p align="center">
-  Prompt Guard｜文档处理管线｜模型矩阵｜文件级路由｜面向 Agent 的工作流
-</p>
-
-<p align="center">
-  <a href="./docs/changelog/README.md">更新日志</a> |
-  <a href="https://github.com/Chrisbetheking/tokenfence-studio">GitHub</a> |
-  <a href="./README.md">English</a>
-</p>
-
----
+**Prompt Guard** ｜ **文档处理管线** ｜ **模型矩阵** ｜ **文件级路由** ｜ **面向 Agent 的工作流**
 
 ## 最新下载
 
-### Android Mobile Lite
+- [Android APK（推荐）](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk)
+- [Windows 便携版 EXE（推荐）](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/tokenfence-studio-windows-v0.5.24-i686-unsigned.exe)
+- [Windows MSI 安装包](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Studio-Windows-v0.5.24-i686-unsigned.msi)
+- [Windows Setup EXE 安装包](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Studio-Windows-v0.5.24-i686-unsigned-setup.exe)
 
-**推荐 APK：** [TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk)
+> Android APK 是已在模拟器中验证的 internal release 构建。Windows Desktop 是 unsigned experimental i686 构建。Windows x64 和 macOS artifacts 仍待完成。
 
-- internal release APK，独立运行，无需 Metro 开发服务器
-- 已在 Android 模拟器完成安装和 12 页面导航测试
-- 不是 Google Play production-signed build
-
-### Windows 桌面端 (Experimental)
-
-**推荐：** [tokenfence-studio-windows-v0.5.24-i686-unsigned.exe](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/tokenfence-studio-windows-v0.5.24-i686-unsigned.exe)
-
-- unsigned experimental i686 便携版 exe
-- 已完成本地 smoke test，成功启动，无白屏/闪退
-- WebView2Loader.dll 已包含
-
-安装包： [MSI](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Studio-Windows-v0.5.24-i686-unsigned.msi) | [Setup.exe](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Studio-Windows-v0.5.24-i686-unsigned-setup.exe)
-
-> **注意：** Windows artifacts 为 unsigned experimental i686 构建。x64 等待 MSVC linker / 64-bit MinGW-w64 toolchain。macOS 构建流程已配置，但 artifact 仍未验证。
+[更新日志](CHANGELOG.md) | [GitHub](https://github.com/Chrisbetheking/tokenfence-studio) | [English](README.md)
 
 ---
 ## 项目简介
