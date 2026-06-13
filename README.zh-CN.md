@@ -11,38 +11,45 @@
 </p>
 
 <p align="center">
-  <a href="./README.md">English</a> | <strong>中文</strong>
+  Prompt Guard｜文档处理管线｜模型矩阵｜文件级路由｜面向 Agent 的工作流
+</p>
+
+<p align="center">
+  <a href="./docs/changelog/README.md">更新日志</a> |
+  <a href="https://github.com/Chrisbetheking/tokenfence-studio">GitHub</a> |
+  <a href="./README.md">English</a>
 </p>
 
 ---
 
-## 项目简介
-
-**TokenFence Studio** 是一个面向大语言模型（LLM）的本地优先安全编排工作台，提供 Prompt 安全扫描、文档智能处理、模型矩阵对比和上下文安全路由。
-
-不是又一个聊天界面。核心思路是在用户输入到达 LLM 之前，构建一个可检查、可清洗、可保护、可分块、可路由的 Pre-LLM 层。
-
----
-
-## 下载 (v0.5.24)
+## 最新下载
 
 ### Android Mobile Lite
 
 **推荐 APK：** [TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk)
 
-- internal release APK，无需 Metro 开发服务器即可运行
-- 已在 Android 模拟器完成安装和启动测试
+- internal release APK，独立运行，无需 Metro 开发服务器
+- 已在 Android 模拟器完成安装和 12 页面导航测试
 - 不是 Google Play production-signed build
 
 ### Windows 桌面端 (Experimental)
 
 **推荐：** [tokenfence-studio-windows-v0.5.24-i686-unsigned.exe](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/tokenfence-studio-windows-v0.5.24-i686-unsigned.exe)
 
-- unsigned experimental i686 portable exe
-- 已完成本地 smoke test 并成功启动
-- x64 构建等待 toolchain 支持
+- unsigned experimental i686 便携版 exe
+- 已完成本地 smoke test，成功启动，无白屏/闪退
+- WebView2Loader.dll 已包含
 
 安装包： [MSI](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Studio-Windows-v0.5.24-i686-unsigned.msi) | [Setup.exe](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Studio-Windows-v0.5.24-i686-unsigned-setup.exe)
+
+> **注意：** Windows artifacts 为 unsigned experimental i686 构建。x64 等待 MSVC linker / 64-bit MinGW-w64 toolchain。macOS 构建流程已配置，但 artifact 仍未验证。
+
+---
+## 项目简介
+
+**TokenFence Studio** 是一个面向大语言模型（LLM）的本地优先安全编排工作台，提供 Prompt 安全扫描、文档智能处理、模型矩阵对比和上下文安全路由。
+
+不是又一个聊天界面。核心思路是在用户输入到达 LLM 之前，构建一个可检查、可清洗、可保护、可分块、可路由的 Pre-LLM 层。
 
 ---
 

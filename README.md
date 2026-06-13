@@ -1,5 +1,4 @@
-﻿# TokenFence Studio
-
+# TokenFence Studio
 
 **Languages:** [English](README.md) | [简体中文](README.zh-CN.md)
 
@@ -7,31 +6,45 @@
   <img src="./docs/images/banner.png" alt="TokenFence Studio" width="100%">
 </p>
 
-
-**Languages:** [English](README.md) | [简体中文](README.zh-CN.md)
-
 <p align="center">
   <strong>Local-first prompt safety, document intelligence, and multi-model orchestration workspace for LLMs.</strong>
 </p>
-
-
-**Languages:** [English](README.md) | [简体中文](README.zh-CN.md)
 
 <p align="center">
   Prompt Guard | Document Pipeline | Model Matrix | File-level routing | Agent-ready workflows
 </p>
 
-
-**Languages:** [English](README.md) | [简体中文](README.zh-CN.md)
-
 <p align="center">
-  <a href="./README.zh-CN.md">Chinese</a> |
   <a href="./docs/changelog/README.md">Update Log</a> |
-  <a href="https://github.com/Chrisbetheking/tokenfence-studio">GitHub</a>
+  <a href="https://github.com/Chrisbetheking/tokenfence-studio">GitHub</a> |
+  <a href="./README.zh-CN.md">Chinese</a>
 </p>
 
 ---
 
+## Latest Downloads
+
+### Android Mobile Lite
+
+**Recommended APK:** [TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk)
+
+- Internal release APK — standalone, no Metro/dev server required
+- Verified in Android Emulator — 12-screen navigation tested
+- Not a Google Play production-signed build
+
+### Windows Desktop (Experimental)
+
+**Recommended:** [tokenfence-studio-windows-v0.5.24-i686-unsigned.exe](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/tokenfence-studio-windows-v0.5.24-i686-unsigned.exe)
+
+- Unsigned experimental i686 portable executable
+- Smoke-tested locally — launches successfully without white-screen or crash
+- WebView2Loader.dll included
+
+Installers: [MSI](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Studio-Windows-v0.5.24-i686-unsigned.msi) | [Setup.exe](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Studio-Windows-v0.5.24-i686-unsigned-setup.exe)
+
+> **Note:** Windows artifacts are unsigned experimental i686 builds. x64 is pending MSVC linker / 64-bit MinGW-w64 toolchain. macOS pipeline is CI-prepared but artifact remains unverified.
+
+---
 ## Overview
 
 **TokenFence Studio** is a local-first AI workspace that sits between users and large language models.
@@ -127,29 +140,6 @@ Cross-platform logic in `packages/shared` -- guard scanning, provider presets, f
 | Windows Desktop | Experimental | Tauri wrapper, packaging in progress |
 | macOS Desktop | Experimental | Tauri wrapper, packaging in progress |
 | iOS | Self-build only | Users sign with their own Apple Developer account |
----
-
-## Download (v0.5.24)
-
-### Android Mobile Lite
-
-**Recommended APK:** [TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk)
-
-- Internal release APK — runs without Metro/dev server
-- Verified in Android Emulator
-- Not a Google Play production-signed build
-
-### Windows Desktop (Experimental)
-
-**Recommended:** [tokenfence-studio-windows-v0.5.24-i686-unsigned.exe](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/tokenfence-studio-windows-v0.5.24-i686-unsigned.exe)
-
-- Unsigned experimental i686 portable exe
-- Smoke-tested locally — launches successfully
-- x64 build pending toolchain support
-
-Installers: [MSI](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Studio-Windows-v0.5.24-i686-unsigned.msi) | [Setup.exe](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v0.5.24/TokenFence-Studio-Windows-v0.5.24-i686-unsigned-setup.exe)
-
-
 ---
 
 ## Quick Start
