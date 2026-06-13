@@ -214,7 +214,7 @@ Check "PDF file exists" (Test-Path $pdfPath) $pdfPath
 if (Test-Path $pdfPath) {
     $sz = (Get-Item $pdfPath).Length
     Check "PDF file has content" ($sz -gt 0) "$sz bytes"
-    $header = Get-Content $pdfPath -Raw -Encoding Byte -TotalCount 5
+    $header = [System.IO.File]::ReadAllBytes($pdfPath) | Select-Object -First 5
     $headerStr = [System.Text.Encoding]::ASCII.GetString($header)
     Check "PDF has valid header (%PDF)" ($headerStr -eq '%PDF-') "Header: $headerStr"
 }
@@ -225,7 +225,7 @@ Check "DOCX file exists" (Test-Path $docxPath) $docxPath
 if (Test-Path $docxPath) {
     $sz = (Get-Item $docxPath).Length
     Check "DOCX file has content" ($sz -gt 0) "$sz bytes"
-    $contentStart = Get-Content $docxPath -Raw -TotalCount 100
+    $contentStart = Get-Content $docxPath -TotalCount 5
     Check "DOCX contains XML" ($contentStart -match 'xml|w:document') "Content present"
 }
 
@@ -270,3 +270,4 @@ Write-Output "========================================"
 $Report | ForEach-Object { Write-Output $_ }
 
 exit $Fail
+
