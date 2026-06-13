@@ -1,16 +1,28 @@
 ﻿# TokenFence Studio
 
+
+**Languages:** [English](README.md) | [简体中文](README.zh-CN.md)
+
 <p align="center">
   <img src="./docs/images/banner.png" alt="TokenFence Studio" width="100%">
 </p>
+
+
+**Languages:** [English](README.md) | [简体中文](README.zh-CN.md)
 
 <p align="center">
   <strong>Local-first prompt safety, document intelligence, and multi-model orchestration workspace for LLMs.</strong>
 </p>
 
+
+**Languages:** [English](README.md) | [简体中文](README.zh-CN.md)
+
 <p align="center">
   Prompt Guard | Document Pipeline | Model Matrix | File-level routing | Agent-ready workflows
 </p>
+
+
+**Languages:** [English](README.md) | [简体中文](README.zh-CN.md)
 
 <p align="center">
   <a href="./README.zh-CN.md">Chinese</a> |
@@ -361,4 +373,5 @@ Building practical AI infrastructure.
 ## License
 
 MIT License
+
 

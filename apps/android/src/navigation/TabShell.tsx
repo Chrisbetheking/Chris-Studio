@@ -1,7 +1,8 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from './NavigationContext';
 import { TAB_ROUTES, MORE_ROUTES, findRoute, type ScreenName } from './routeRegistry';
+import { tk } from '@shared/i18n';
 
 interface TabShellProps {
   currentScreen: ScreenName | 'More';
@@ -23,7 +24,7 @@ export function TabBar({ currentScreen, onMorePress }: TabShellProps) {
           >
             <Text style={styles.tabIcon}>{route.icon}</Text>
             <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
-              {route.label}
+              {tk(route.labelKey)}
             </Text>
           </TouchableOpacity>
         );
@@ -40,7 +41,7 @@ export function MoreSheet({ visible, onClose }: { visible: boolean; onClose: () 
       <TouchableOpacity style={styles.moreBackdrop} onPress={onClose} />
       <View style={styles.moreSheet}>
         <View style={styles.moreHandle} />
-        <Text style={styles.moreTitle}>More</Text>
+        <Text style={styles.moreTitle}>{tk('android.more')}</Text>
         <ScrollView style={styles.moreList}>
           {MORE_ROUTES.map(name => {
             const route = findRoute(name);
@@ -51,7 +52,7 @@ export function MoreSheet({ visible, onClose }: { visible: boolean; onClose: () 
                 onPress={() => { navigate(name); onClose(); }}
               >
                 <Text style={styles.moreIcon}>{route.icon}</Text>
-                <Text style={styles.moreLabel}>{route.label}</Text>
+                <Text style={styles.moreLabel}>{tk(route.labelKey)}</Text>
                 <Text style={styles.moreArrow}>&rsaquo;</Text>
               </TouchableOpacity>
             );
@@ -65,53 +66,95 @@ export function MoreSheet({ visible, onClose }: { visible: boolean; onClose: () 
 const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
-    paddingBottom: 4,
-    paddingTop: 4,
+    backgroundColor: '#ffffff',
+    paddingBottom: 20,
+    paddingTop: 8,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 6,
+    justifyContent: 'center',
+    paddingVertical: 4,
   },
   tabActive: {
-    borderTopWidth: 2,
-    borderTopColor: '#3b82f6',
-    marginTop: -5,
-    paddingTop: 9,
+    // active indicator handled by label color
   },
-  tabIcon: { fontSize: 20, marginBottom: 2 },
-  tabLabel: { fontSize: 10, color: '#9ca3af', fontWeight: '500' },
-  tabLabelActive: { color: '#3b82f6', fontWeight: '600' },
+  tabIcon: {
+    fontSize: 20,
+    marginBottom: 2,
+  },
+  tabLabel: {
+    fontSize: 10,
+    color: '#9ca3af',
+    fontWeight: '500',
+  },
+  tabLabelActive: {
+    color: '#2563eb',
+    fontWeight: '600',
+  },
   moreOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    justifyContent: 'flex-end', zIndex: 100,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
   },
   moreBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
   moreSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
-    paddingBottom: 20,
+    paddingBottom: 30,
   },
   moreHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: '#d1d5db', alignSelf: 'center', marginTop: 12, marginBottom: 8,
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#d1d5db',
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 8,
   },
-  moreTitle: { fontSize: 18, fontWeight: '700', color: '#111827', paddingHorizontal: 20, marginBottom: 12 },
-  moreList: { paddingHorizontal: 8 },
+  moreTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 12,
+    color: '#1f2937',
+  },
+  moreList: {
+    paddingHorizontal: 16,
+  },
   moreItem: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 14, paddingHorizontal: 12,
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
   },
-  moreIcon: { fontSize: 22, marginRight: 12 },
-  moreLabel: { flex: 1, fontSize: 16, fontWeight: '500', color: '#111827' },
-  moreArrow: { fontSize: 22, color: '#9ca3af' },
+  moreIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  moreLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  moreArrow: {
+    fontSize: 22,
+    color: '#9ca3af',
+  },
 });

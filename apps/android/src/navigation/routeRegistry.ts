@@ -1,4 +1,6 @@
-// Type-safe route definitions for TokenFence Mobile Lite
+﻿// Type-safe route definitions for TokenFence Mobile Lite
+// Labels are now i18n-aware via tk() and labelKey
+
 export type ScreenName =
   | 'Home'
   | 'Guard'
@@ -15,30 +17,30 @@ export type ScreenName =
 
 export interface RouteConfig {
   name: ScreenName | 'More';
-  label: string;
+  labelKey: string;
   icon: string;
   badge?: string;
 }
 
 export const ROUTE_REGISTRY: RouteConfig[] = [
-  { name: 'Home',        label: 'Home',      icon: '\u{1F3E0}' },
-  { name: 'Guard',       label: 'Guard',     icon: '\u{1F6E1}\uFE0F' },
-  { name: 'Documents',   label: 'Docs',      icon: '\u{1F4C4}' },
-  { name: 'Models',      label: 'Models',    icon: '\u2699\uFE0F' },
-  { name: 'Archive',     label: 'Archive',   icon: '\u{1F4C1}' },
-  { name: 'AgentLab',    label: 'Agent',     icon: '\u{1F916}' },
-  { name: 'PluginStore', label: 'Plugins',   icon: '\u{1F9E9}' },
-  { name: 'Output',      label: 'Output',    icon: '\u{1F4E4}' },
-  { name: 'MindMap',     label: 'MindMap',   icon: '\u{1F9E0}' },
-  { name: 'ComputerUse', label: 'CompUse',   icon: '\u{1F5A5}\uFE0F' },
-  { name: 'Routing',     label: 'Routing',   icon: '\u{1F500}' },
-  { name: 'Settings',    label: 'Settings',  icon: '\u2699\uFE0F' },
-  { name: 'More',        label: 'More',      icon: '\u22EF' },
+  { name: 'Home',        labelKey: 'android.home',       icon: '\u{1F3E0}' },
+  { name: 'Guard',       labelKey: 'android.guard',      icon: '\u{1F6E1}\uFE0F' },
+  { name: 'Documents',   labelKey: 'android.documents',  icon: '\u{1F4C4}' },
+  { name: 'Models',      labelKey: 'android.models',     icon: '\u2699\uFE0F' },
+  { name: 'Archive',     labelKey: 'android.archive',    icon: '\u{1F4C1}' },
+  { name: 'AgentLab',    labelKey: 'android.agentLab',   icon: '\u{1F916}' },
+  { name: 'PluginStore', labelKey: 'android.plugins',    icon: '\u{1F9E9}' },
+  { name: 'Output',      labelKey: 'android.output',     icon: '\u{1F4E4}' },
+  { name: 'MindMap',     labelKey: 'android.mindMap',    icon: '\u{1F9E0}' },
+  { name: 'ComputerUse', labelKey: 'android.computerUse',icon: '\u{1F5A5}\uFE0F' },
+  { name: 'Routing',     labelKey: 'android.routing',    icon: '\u{1F500}' },
+  { name: 'Settings',    labelKey: 'android.settings',   icon: '\u2699\uFE0F' },
+  { name: 'More',        labelKey: 'android.more',       icon: '\u22EF' },
 ];
 
 export const TAB_ROUTES: (ScreenName | 'More')[] = ['Home', 'Guard', 'Documents', 'Models', 'More'];
 export const MORE_ROUTES: ScreenName[] = ['Archive', 'AgentLab', 'PluginStore', 'Output', 'MindMap', 'ComputerUse', 'Routing', 'Settings'];
 
 export function findRoute(name: ScreenName | 'More'): RouteConfig {
-  return ROUTE_REGISTRY.find(r => r.name === name) || { name, label: name, icon: '\u2022' };
+  return ROUTE_REGISTRY.find(r => r.name === name) || { name, labelKey: name, icon: '\u2022' };
 }

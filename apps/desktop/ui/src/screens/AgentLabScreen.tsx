@@ -1,4 +1,5 @@
-﻿import { useState, useCallback } from "react";
+﻿import { tk } from "@tokenfence/shared/src/i18n";
+import { useState, useCallback } from "react";
 import {
   createTask,
   listTasks,
@@ -107,8 +108,8 @@ export function AgentLabScreen() {
 
   return (
     <div>
-      <h1 className="page-title">Agent Lab</h1>
-      <p className="page-subtitle">Local agent task workspace — execute plugins with real file output</p>
+      <h1 className={"page-title"}>{tk("agentLab.title")}</h1>
+      <p className={"page-subtitle"}>{tk("agentLab.subtitle")}</p>
 
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-label">Tasks</div><div className="stat-value">{tasks.length}</div></div>
@@ -178,4 +179,5 @@ export function AgentLabScreen() {
     </div>
   );
 }
+
 

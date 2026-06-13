@@ -1,20 +1,22 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import type { ScreenName } from '../navigation/routeRegistry';
 import { findRoute } from '../navigation/routeRegistry';
+import { tk } from '../shared/i18n';
 
 interface Props { name: ScreenName; }
 
 export function ScreenShell({ name }: Props) {
   const route = findRoute(name);
+  const label = tk(route.labelKey);
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerIcon}>{route.icon}</Text>
-        <Text style={styles.headerTitle}>{route.label}</Text>
+        <Text style={styles.headerTitle}>{label}</Text>
       </View>
       <View style={styles.body}>
-        <Text style={styles.placeholder}>{route.label} Screen</Text>
+        <Text style={styles.placeholder}>{label}</Text>
         <Text style={styles.hint}>Content coming soon</Text>
       </View>
     </View>

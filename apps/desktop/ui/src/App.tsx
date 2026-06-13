@@ -1,4 +1,5 @@
-import { useState } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
+import { tk, onLangChange } from '@tokenfence/shared/src/i18n';
 import { Dashboard } from './screens/Dashboard';
 import { GuardScreen } from './screens/GuardScreen';
 import { DocumentsScreen } from './screens/DocumentsScreen';
@@ -13,25 +14,34 @@ import { OutputScreen } from './screens/OutputScreen';
 import { MindMapScreen } from './screens/MindMapScreen';
 import { ComputerControlScreen } from './screens/ComputerControlScreen';
 import { RoutingScreen } from './screens/RoutingScreen';
+import { LanguageSwitcher } from './components/LanguageSwitcher';
+import type { SupportedLanguage } from '@tokenfence/shared/src/i18n';
 
 type Screen = 'dashboard' | 'guard' | 'documents' | 'matrix' | 'providers' | 'archive' | 'storage' | 'about' | 'agent-lab' | 'plugins' | 'output' | 'mindmap' | 'computer' | 'routing';
 
-const navItems: { id: Screen; label: string; icon: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '◈' },
-  { id: 'guard', label: 'Prompt Guard', icon: '◆' },
-  { id: 'documents', label: 'Documents', icon: '◇' },
-  { id: 'matrix', label: 'Model Matrix', icon: '▣' },
-  { id: 'agent-lab', label: 'Agent Lab', icon: '⚙' },
-  { id: 'plugins', label: 'Plugins', icon: '⏣' },
-  { id: 'output', label: 'Output', icon: '◫' },
-  { id: 'mindmap', label: 'Mind Map', icon: '◈' },
-  { id: 'routing', label: 'Routing', icon: '⇋' },
-  { id: 'computer', label: 'Computer', icon: '◉' },
-  { id: 'providers', label: 'Providers', icon: '◉' },
-  { id: 'archive', label: 'Archive', icon: '◷' },
-  { id: 'storage', label: 'Storage', icon: '◫' },
-  { id: 'about', label: 'About', icon: '◈' },
-];
+const screenLabelKeys: Record<Screen, string> = {
+  dashboard: 'nav.dashboard',
+  guard: 'nav.guard',
+  documents: 'nav.documents',
+  matrix: 'nav.matrix',
+  'agent-lab': 'nav.agentLab',
+  plugins: 'nav.plugins',
+  output: 'nav.outputs',
+  mindmap: 'nav.mindMap',
+  routing: 'nav.routing',
+  computer: 'nav.computerUse',
+  providers: 'nav.providers',
+  archive: 'nav.archive',
+  storage: 'nav.storage',
+  about: 'nav.about',
+};
+
+const icons: Record<Screen, string> = {
+  dashboard: '\u25C9', guard: '\u25C8', documents: '\u25D7', matrix: '\u25A3',
+  'agent-lab': '\u2AFF', plugins: '\u27D0', output: '\u25CA', mindmap: '\u25CE',
+  routing: '\u2B21', computer: '\u25EB', providers: '\u25D1', archive: '\u25F0',
+  storage: '\u25E7', about: '\u25CC',
+};
 
 const screens: Record<Screen, React.ReactNode> = {
   dashboard: <Dashboard />,
@@ -52,6 +62,11 @@ const screens: Record<Screen, React.ReactNode> = {
 
 export function App() {
   const [screen, setScreen] = useState<Screen>('dashboard');
+  const [, forceRender] = useState(0);
+
+  useEffect(() => {
+    return onLangChange(() => forceRender((n) => n + 1));
+  }, []);
 
   return (
     <div className="app-layout">
@@ -61,23 +76,24 @@ export function App() {
           <span className="sidebar-brand-text">TokenFence</span>
         </div>
         <div className="sidebar-nav">
-          {navItems.map((item) => (
+          {(Object.entries(screenLabelKeys) as [Screen, string][]).map(([id, key]) => (
             <button
-              key={item.id}
-              className={`sidebar-item ${screen === item.id ? 'active' : ''}`}
-              onClick={() => setScreen(item.id)}
+              key={id}
+              className={`sidebar-item ${screen === id ? 'active' : ''}`}
+              onClick={() => setScreen(id)}
             >
-              <span className="sidebar-item-icon">{item.icon}</span>
-              <span className="sidebar-item-label">{item.label}</span>
+              <span className="sidebar-item-icon">{icons[id]}</span>
+              <span className="sidebar-item-label">{tk(key)}</span>
             </button>
           ))}
         </div>
         <div className="sidebar-footer">
-          <div className="status-indicator">
+          <LanguageSwitcher />
+          <div className="status-indicator" style={{ marginTop: 8 }}>
             <span className="status-dot green"></span>
-            <span>Local-first</span>
+            <span>{tk('status.localFirst')}</span>
           </div>
-          <div className="version-text">v0.5.0-dev</div>
+          <div className="version-text">v1.0.0-rc1</div>
         </div>
       </nav>
       <main className="main-content">
