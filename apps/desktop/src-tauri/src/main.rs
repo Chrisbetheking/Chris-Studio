@@ -85,7 +85,7 @@ fn execute_command(command: String, args: Vec<String>, cwd: Option<String>, time
     }
     cmd.current_dir(&work_dir);
 
-    let timeout = timeout_ms.unwrap_or(30000);
+    let _timeout = timeout_ms.unwrap_or(30000);
     let output = cmd.output();
 
     let duration_ms = start.elapsed().as_millis() as u64;
@@ -202,3 +202,4 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running TokenFence Studio");
 }
+
