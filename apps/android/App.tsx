@@ -1,22 +1,44 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationProvider, useNavigation } from './src/navigation/NavigationContext';
+import { TabBar, MoreSheet } from './src/navigation/TabShell';
+import { ScreenShell } from './src/screens/ScreenShell';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { MORE_ROUTES } from './src/navigation/routeRegistry';
 
-export default function App() {
+function AppContent() {
+  const { currentScreen, navigate } = useNavigation();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const isMoreScreen = MORE_ROUTES.includes(currentScreen) || currentScreen === 'Settings';
+  const tabScreen = isMoreScreen ? 'More' as const : currentScreen;
+
   return (
-    <NavigationContainer>
-      <StatusBar style="dark" />
-      <View style={s.c}>
-        <Text style={s.t}>Nav Container Import Test</Text>
-        <Text style={s.sub}>If you see this, import works</Text>
+    <View style={styles.container}>
+      <View style={styles.body}>
+        <ErrorBoundary key={currentScreen}>
+          <ScreenShell name={currentScreen} />
+        </ErrorBoundary>
       </View>
-    </NavigationContainer>
+      <TabBar currentScreen={tabScreen} onMorePress={() => setMoreOpen(true)} />
+      <MoreSheet visible={moreOpen} onClose={() => setMoreOpen(false)} />
+    </View>
   );
 }
 
-const s = StyleSheet.create({
-  c: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  t: { fontSize: 24, fontWeight: '700', color: '#3b82f6' },
-  sub: { fontSize: 14, color: '#666', marginTop: 8 },
+export default function App() {
+  return (
+    <NavigationProvider>
+      <StatusBar style="dark" />
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
+    </NavigationProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  body: { flex: 1 },
 });
