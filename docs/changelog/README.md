@@ -1,4 +1,4 @@
-# TokenFence Studio Update Log
+﻿# TokenFence Studio Update Log
 
 This folder records the main development updates of TokenFence Studio.
 
@@ -8,10 +8,10 @@ Instead of putting every detail into the main README, each update has its own no
 
 | Date | Version / Stage | Summary | Details |
 |---|---|---|---|
-| 2026-06-14 | v1.0.0-rc2 / Product Candidate 2 | ZIP-wrapped DOCX, upgraded acceptance tests, README UTF-8 cleaned. | — |
-| 2026-06-13 | v1.0.0-rc1 / Product Candidate 1 | Bilingual i18n, Chinese README repair, 35 acceptance checks. | — |
-| 2026-06-13 | v0.5.24 / Stable Navigation + Desktop | Stable Android navigation, Windows Desktop i686 artifacts. | — |
-| 2026-06-13 | v0.5.22 / Android Navigation Architecture | Custom native navigation replacing crash-prone bottom-tabs. | — |
+| 2026-06-14 | v1.0.0-rc2 / Product Candidate 2 | ZIP-wrapped DOCX, upgraded acceptance tests, README UTF-8 cleaned. | —|
+| 2026-06-13 | v1.0.0-rc1 / Product Candidate 1 | Bilingual i18n, Chinese README repair, 35 acceptance checks. | —|
+| 2026-06-13 | v0.5.24 / Stable Navigation + Desktop | Stable Android navigation, Windows Desktop i686 artifacts. | —|
+| 2026-06-13 | v0.5.22 / Android Navigation Architecture | Custom native navigation replacing crash-prone bottom-tabs. | —|
 | 2026-06-12 | v0.5.1 / Android Startup Crash Fix | Fixed deprecated Clipboard import for React Native 0.76 / Expo SDK 52. | [View details](./2026-06-12-v051-android-crash-fix.md) |
 | 2026-06-12 | v0.5.0 / Agent Workspace + Plugin System | Agent Runtime, 10 built-in plugins, new Web/Desktop/Android UI pages, 11 new docs. | [View details](./2026-06-12-v050-agent-workspace.md) |
 | 2026-06-11 | v0.3.7 / Docs & Release Fix | Fixed README encoding, updated Expo/EAS config, bumped versions. | [View details](./2026-06-11-readme-roadmap-and-release-polish.md) |

@@ -1,4 +1,4 @@
-# Releases
+﻿# Releases
 
 TokenFence Studio ships via GitHub Releases.
 
