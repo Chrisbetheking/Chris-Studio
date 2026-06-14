@@ -72,6 +72,16 @@ The current product-candidate acceptance flow verifies:
 - Provider calls require user-provided API keys.
 - Computer Use full control remains experimental.
 
+## Platform Support
+
+| Platform | Status | Notes |
+|---|---|---|
+| Web | Available | Full Next.js workspace |
+| Android | Available | Expo React Native Mobile Lite. APK available from GitHub Releases. |
+| Windows Desktop | Experimental | Tauri wrapper, unsigned experimental i686 |
+| macOS Desktop | Experimental | Tauri wrapper, CI prepared but artifact unverified |
+| iOS | Self-build only | Users sign with their own Apple Developer account |
+
 ## Quick Start
 
 ```bash
@@ -80,6 +90,20 @@ cd tokenfence-studio
 npm install --legacy-peer-deps
 npm run dev
 ```
+
+### API Keys
+
+This project requires user-provided API keys. Supported providers include OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Volcengine/Doubao, Alibaba/Qwen, Kimi/Moonshot, Zhipu GLM, Ollama, LM Studio, and custom OpenAI-compatible endpoints.
+
+## Project Structure
+
+| Directory | Description |
+|---|---|
+| apps/web | Next.js Web workspace |
+| apps/android | Expo React Native Android Mobile Lite |
+| apps/desktop | Tauri desktop wrapper (Windows + macOS) |
+| packages/shared | Cross-platform shared logic |
+| docs | Product documentation |
 
 ## License
 
