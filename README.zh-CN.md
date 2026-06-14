@@ -64,9 +64,7 @@
 |---|---|---|---|
 | ![GitHub README](docs/assets/screenshots/github-readme-home.png) | ![最新下载](docs/assets/screenshots/github-latest-downloads.png) | ![中文 README](docs/assets/screenshots/github-readme-zh-cn.png) | ![GitHub Release](docs/assets/screenshots/github-release-current.png) |
 
-| Desktop Dashboard | Desktop Providers | Desktop Guard | Desktop About |
-|---|---|---|---|
-| ![Desktop Dashboard](docs/assets/screenshots/desktop-dashboard.png) | ![Desktop Providers](docs/assets/screenshots/desktop-providers.png) | ![Desktop Guard](docs/assets/screenshots/desktop-guard.png) | ![Desktop About](docs/assets/screenshots/desktop-about.png) |
+> 桌面端截图正在更新中。Windows portable exe 已完成本地 smoke test。
 
 ---
 
