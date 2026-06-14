@@ -27,347 +27,59 @@
 
 不是又一个聊天界面。核心思路是在用户输入到达 LLM 之前，构建一个可检查、可清洗、可保护、可分块、可路由的 Pre-LLM 层。
 
-```
-原始 Prompt / 上传文件
-    → 文档智能管线
-    → Prompt Guard + 脱敏
-    → 意图检测
-    → 上下文压缩
-    → 模型矩阵 / 文件级路由
-    → 最终 Prompt 预览
-    → LLM 提供商或本地模型
-```
-
-目标是让 LLM 使用更安全、更干净、更易于调试。
-
----
-
-## 为什么选择 TokenFence？
-
-大多数 AI 工具关注模型访问。TokenFence Studio 关注**模型访问之前**发生的事：
-
-- Prompt 中是否包含密钥或隐私数据？
-- PDF、DOCX、日志、Markdown 文件能否先清洗？
-- 噪音页眉、页码、重复文字能否去除？
-- 文档能否转为 RAG 就绪的分块？
-- 哪个模型应该处理这个任务或文件？
-- 文件应该发送到云端模型、本地模型，还是走更安全的脱敏流程？
-- 多个模型的输出能否并排对比？
-
-这让 TokenFence 更接近一个**Pre-LLM 安全编排层**，而非普通的 ChatGPT 风格界面。
-
----
-
-## 产品截图
-
-| GitHub README | 最新下载 | 中文 README | GitHub Release |
-|---|---|---|---|
-| ![GitHub README](docs/assets/screenshots/github-readme-home.png) | ![最新下载](docs/assets/screenshots/github-latest-downloads.png) | ![中文 README](docs/assets/screenshots/github-readme-zh-cn.png) | ![GitHub Release](docs/assets/screenshots/github-release-current.png) |
-
-> 桌面端截图正在更新中。Windows portable exe 已完成本地 smoke test。
-
----
-
-## 平台支持
-
-| 平台 | 状态 | 说明 |
-|---|---|---|
-| Web | 可用 | 完整 Next.js 工作台 |
-| Android | 可用 | Expo React Native Mobile Lite。APK 可从 GitHub Releases 下载。 |
-| Windows Desktop | 实验性 | Tauri 封装，unsigned experimental i686，已本地 smoke test |
-| macOS Desktop | 实验性 | Tauri 封装，CI 已配置但 artifact 未验证 |
-| iOS | 仅源码 | 用户需自行签名 |
-
----
-
-## 快速开始
-
-### Web 工作台
-
-```bash
-cd apps/web
-npm install
-npm run dev
-```
-
-打开 http://localhost:3000。
-
-### Android Mobile Lite
-
-```bash
-cd apps/android
-npm install
-npm run start
-```
-
-用 Expo Go 扫描二维码，或连接 Android 设备/模拟器。
-
-### 桌面应用
-
-```bash
-cd apps/desktop
-npm install
-npm run dev
-```
-
-需要 Rust 和 Tauri CLI。详见 [docs/RELEASES.md](./docs/RELEASES.md)。
-
-### API 密钥
-
-创建 `.env.local` 或在 Provider 设置页面保存密钥。
-
-```env
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-GEMINI_API_KEY=
-DEEPSEEK_API_KEY=
-VOLCENGINE_API_KEY=
-DASHSCOPE_API_KEY=
-QIANFAN_API_KEY=
-MOONSHOT_API_KEY=
-ZHIPU_API_KEY=
-MINIMAX_API_KEY=
-SILICONFLOW_API_KEY=
-OPENROUTER_API_KEY=
-GROQ_API_KEY=
-TOGETHER_API_KEY=
-THREE_ZERO_TWO_API_KEY=
-MODELSCOPE_API_KEY=
-```
-
-如果只用 Ollama 或 LM Studio，云端 API 密钥为可选项。
-
----
-
-## 项目结构
-
-```tokenfence-studio/
-  apps/
-    web/           Next.js Web 工作台（完整 TokenFence Studio）
-    android/       Expo React Native Android Mobile Lite
-    desktop/       Tauri 桌面封装（Windows + macOS）
-  packages/
-    shared/        共享 TypeScript 逻辑（guard、providers、routing）
-  docs/
-    changelog/     各版本开发笔记
-    images/        横幅与截图
-  examples/        测试用示例文档
-  cli/             CLI 工具（计划中）
-  mcp/             MCP 集成（计划中）
-  .github/
-    workflows/     CI/CD（release、lint）
-  package.json     根工作区配置
-  tsconfig.base.json
-```
-
-| 包 | 说明 |
-|---|---|
-| `apps/web` | 完整 Next.js Web 工作台，含 Chat、Guard、Document Pipeline、Model Matrix、Provider Settings、Archive、Agent Packs |
-| `apps/android` | Android Mobile Lite App，Expo / React Native 构建 — Prompt 扫描、模型路由、脱敏本地归档 |
-| `apps/desktop` | Tauri 桌面封装，Windows 和 macOS（实验性） |
-| `packages/shared` | 跨平台纯 TypeScript 逻辑 — Guard 扫描、Provider 预设、文件路由、存储辅助 |
-
----
-
-## 功能特性
-
-- 响应式 Web 工作台（Chat、Guard、Document Pipeline、Model Matrix、Provider Settings、Archive、Agent Packs）
-- Android Mobile Lite App（Prompt 扫描、模型路由、脱敏本地归档）
-- Windows Desktop Tauri 封装（实验性 i686，已本地 smoke test）
-- 多提供商支持（11 个 Provider Profile，含 DeepSeek、通义千问、Kimi、豆包、智谱、Ollama 等）
-- 本地 Agent 运行时（Computer Use 权限控制、Obsidian 知识库写入、PDF/DOCX 输出生成）
-- Prompt Guard 敏感数据扫描
-- 脱敏引擎（结构化占位符替换）
-- 风险策略配置
-- 上下文压缩
-- 模型矩阵多模型对比
-- 文件级模型路由
-- 文档智能管线（PDF 文本提取、DOCX 解析、本地图片 OCR、噪音清洗、分块生成）
-- 本地脱敏归档
-- 共享 TypeScript 逻辑包（packages/shared）
-- GitHub Releases CI/CD Workflow
-
-### 实验性 / 开发中
-
-- Provider 故障转移链
-- 成本与延迟预算路由
-- 来源引用面板（原型）
-- 桌面存储路径选择
-- 文件类型模型路由规则
-- 桌面静态渲染器打包
-
-### 计划中
-
-- 扫描版 PDF 页面 OCR
-- 复杂 PDF / 表格的布局感知解析
-- 搜索 Grounding 路由
-- Judge 模型合并多模型输出
-- MCP 市场
-- VS Code 扩展
-- 浏览器扩展
-- 本地向量搜索
-- 团队工作区
-- 插件/技能市场
-
----
-
-## 当前状态
-
-| 模块 | 状态 |
-|---|---|
-| Web UI | 可用 |
-| Android Mobile Lite | internal release APK 已验证 |
-| Windows Desktop | i686 unsigned experimental，可运行 |
-| Windows x64 | 等待 MSVC linker / 64-bit MinGW |
-| macOS | CI 已配置，artifact 未验证 |
-| Local Runtime | v1.0.0-rc1 acceptance 已验证 |
-| Obsidian 写入 | Test Vault 写入与读回已验证 |
-| PDF 输出 | 已验证 |
-| DOCX 输出 | Flat OOXML（rc2 升级为 ZIP-wrapped DOCX） |
-| Provider Hub | 11 个 Provider Profile |
-| Computer Use | 权限流已验证，完整控制仍为实验功能 |
-
----
-
-## 架构
-
-```
-用户输入 / 上传文件
-         |
-         v
-文档智能管线
-         |-- 解析器
-         |-- 清洗器
-         |-- 分块器
-         |-- 元数据构建
-         |
-         v
-Prompt Guard
-         |-- 扫描器
-         |-- 脱敏器
-         |-- 风险评估
-         |-- 压缩器
-         |
-         v
-模型矩阵 / 路由器
-         |-- Prompt 级多模型运行
-         |-- 文件级模型路由
-         |-- 敏感文件本地模型优先
-         |-- 未来 Judge 模型 / 故障转移链
-         |
-         v
-Provider 层
-         |-- 全球 Provider
-         |-- 国内 Provider
-         |-- Router Provider
-         |-- 本地 Provider
-         |
-         v
-响应 / 对比 / 归档 / 导出上下文
-```
-
----
-
-## 发布版本
-
-- **v1.0.0-rc2** 是当前产品候选版本
-- **推荐 Android APK**: `TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk`（57.3 MB，独立运行，无需 Metro）。可从 [v1.0.0-rc2 Release](https://github.com/Chrisbetheking/tokenfence-studio/releases/tag/v1.0.0-rc2) 和 [v0.5.24 Release](https://github.com/Chrisbetheking/tokenfence-studio/releases/tag/v0.5.24) 获取。
-- **Windows**：桌面安装包（MSI 与 NSIS installer），使用 Tauri 2 本地构建。**macOS**：实验性，GitHub Actions CI 构建中。
-- **iOS** 仅提供源码，用户需自行签名
-
-详见 [docs/RELEASES.md](./docs/RELEASES.md) 了解当前发布状态和故障排除。
-
----
-
 ## 功能矩阵
 
-| 功能 | 状态 | 说明 |
+| 功能区域 | 能力 | 状态 |
 |---|---|---|
-| Prompt Guard（敏感数据扫描） | 已验证 | API 密钥、邮箱、手机、密码、中文个人标识 |
-| 脱敏引擎 | 已验证 | 结构化占位符替换 |
-| 风险策略配置 | 已验证 | 可配置风险等级 |
-| 文档管线（PDF/DOCX/OCR） | 已验证 | 文本型 PDF、DOCX、Tesseract OCR、分块生成 |
-| 模型矩阵（多模型对比） | 已验证 | 延迟、Token、风险并排对比 |
-| 文件级模型路由 | 已验证 | 基于类型和风险的模型选择 |
-| Provider Hub（11 个 Provider） | 已验证 | OpenAI、DeepSeek、通义千问、Kimi、豆包、智谱、Ollama、LM Studio 等 |
-| API Connector | 已验证 | 自定义 OpenAI 兼容端点的连通性测试 |
-| 上下文压缩 | 已验证 | 保留目标、约束和关键细节 |
-| 本地归档 | 已验证 | 脱敏本地存储，无需云数据库 |
-| Agent Pack | 已验证 | 面向 Coding Agent 的可复用上下文包 |
-| 输出生成（MD/HTML/JSON/PDF/DOCX） | 已验证 | ZIP-wrapped DOCX，有效 PDF |
-| Obsidian Vault 写入 | 已验证 | Test Vault 写入与读回 |
-| Computer Use 运行时 | 已验证* | 权限控制、危险命令拦截；完整控制仍为实验功能 |
-| Web UI（Next.js） | 已验证 | 完整工作台，含所有页面 |
-| Android Mobile Lite | 已验证 | 12 页面导航，internal-release APK |
-| Windows Desktop（i686） | 实验性 | unsigned，portable exe 已 smoke test |
-| Windows Desktop（x64） | 阻塞 | 缺少 MSVC linker / 64-bit MinGW |
-| macOS Desktop | 实验性 | CI 已配置，artifact 未验证 |
-| iOS | 仅源码 | 需自行签名 |
+| Prompt Guard | 检测密钥、凭据、Token、邮箱、手机号、数据库 URL 及危险 Prompt 内容 | 正常 |
+| 脱敏 | 将敏感值替换为安全占位符 | 正常 |
+| 文档智能 | PDF / DOCX / 图片 OCR 解析、清洗、分块 | 正常 / 部分实验 |
+| 输出生成 | Markdown, HTML, JSON, PDF, ZIP-wrapped DOCX | 验收通过 |
+| 模型矩阵 | 多模型响应并排对比 | 正常 |
+| 文件级路由 | 按文件类型、风险和任务意图路由 | 正常 |
+| Provider Hub | OpenAI, Claude, Gemini, DeepSeek, 通义千问, Kimi, 豆包, 智谱, Ollama, LM Studio, Custom | 正常，需用户密钥 |
+| 本地 Runtime | 执行已审批的本地任务并保存日志 | 已验证 |
+| Obsidian Memory | 将输出笔记写入 test vault | 已验证 |
+| API Connector | 测试真实或模拟 HTTP 连接器 | 已验证 |
+| Computer Use | 权限控制的 Action 流程 | 实验功能 |
+| Android Mobile Lite | 移动端助手 App | 已验证 internal APK |
+| Windows Desktop | Tauri 桌面 App | 实验 i686 构建 |
+| 国际化 | 英文 / 简体中文 UI 和 README | 正常 |
 
 ## 已验证工作流
 
-以下工作流已通过 v1.0.0-rc2 验收测试：
+当前 product-candidate 验收流程已验证：
 
-| 工作流 | 结果 |
-|---|---|
-| 本地 runtime 执行 | 通过 |
-| 输出生成：Markdown | 通过 |
-| 输出生成：HTML | 通过 |
-| 输出生成：JSON | 通过 |
-| 输出生成：PDF | 通过 |
-| 输出生成：ZIP-wrapped DOCX | 通过 |
-| Obsidian test-vault 写入与读回 | 通过 |
-| Provider Hub 预设加载 | 通过 |
-| API Connector 测试流程 | 通过 |
-| Computer Use 权限控制 | 通过 |
-| 危险命令拦截 | 通过 |
-| README UTF-8 与下载链接检查 | 通过 |
-| Android 12 页面导航 smoke test | 通过 |
-| Windows desktop portable exe smoke test | 通过 |
+1. 本地 runtime 执行
+2. Markdown / HTML / JSON / PDF / DOCX 输出生成
+3. ZIP-wrapped DOCX 包结构
+4. Obsidian test-vault 笔记写入与读回
+5. Provider Hub 预设加载
+6. Router 主/备用规则加载
+7. API Connector 测试流程
+8. Computer Use 权限控制（已审批操作）
+9. 危险命令拦截
+10. README UTF-8 和直接下载链接检查
 
 ## 已知限制
 
-> 这是 **v1.0.0-rc2** 发布候选版本，并非 v1.0 正式版。
+- 这是 release candidate，不是最终 v1.0 生产版本。
+- Windows Desktop 是 unsigned i686 实验构建。
+- Windows x64 因当前构建环境缺少 MSVC linker / 64-bit MinGW-w64 而阻塞。
+- macOS artifact CI 已配置，但尚未验证。
+- Android 为 Mobile Lite，功能不完全等同于完整桌面版。
+- 暂无 Play Store 生产签名。
+- Provider 调用需要用户自行提供 API 密钥。
+- Computer Use 完整控制仍为实验功能。
 
-- **Windows Desktop** 为 unsigned i686 实验性构建，非 production-signed。
-- **Windows x64** 因缺少 MSVC linker 或 64-bit MinGW-w64 toolchain 而阻塞。
-- **macOS artifact** CI 已配置但未验证。无可测试的 macOS 二进制文件。
-- **Android** 为 Mobile Lite，功能不完全等同于完整 Web 工作台。
-- **Provider 调用** 需要用户自行提供 API 密钥，不内置任何密钥。
-- **Computer Use 完整控制** 仍为实验功能。已做权限控制但未完成生产硬化。
-- **iOS** 仅提供源码，无预构建 IPA，需自行签名。
+## 快速开始
 
----
-
-## 更新日志
-
-近期更新和开发笔记请见 [更新日志](./docs/changelog/README.md)。
-
----
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request。
-
-特别有帮助的方向：
-- 更好的文档解析器
-- 扫描版 PDF OCR 与视觉模型集成
-- 新 Provider 适配器
-- 更好的检测规则
-- Search Grounding 集成
-- 文件路由启发式算法
-- 模型对比工作流
-- Agent / MCP 使用场景
-
----
-
-## 作者
-
-由 **ChrisWang** 创建。
-
-致力于构建实用的 AI 基础设施。
-
----
+```bash
+git clone https://github.com/Chrisbetheking/tokenfence-studio.git
+cd tokenfence-studio
+npm install --legacy-peer-deps
+npm run dev
+```
 
 ## 许可证
 

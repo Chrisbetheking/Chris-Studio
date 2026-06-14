@@ -20,101 +20,59 @@ Local-first prompt safety, document intelligence, and multi-model orchestration 
 [Update Log](CHANGELOG.md) | [GitHub](https://github.com/Chrisbetheking/tokenfence-studio) | [简体中文](README.zh-CN.md)
 
 ---
+
 ## Overview
 
-**TokenFence Studio** is a local-first AI workspace that sits between users and large language models.
+TokenFence Studio is a local-first AI workspace that sits between users and large language models.
 
-It is not trying to be just another chat UI. The main idea is to build a small pre-LLM layer that can inspect, clean, protect, chunk, and route user input before it reaches a model.
+It is not just another chat UI. It builds a pre-LLM layer that can inspect, clean, protect, chunk, and route user input before it reaches a model.
 
-```
-Raw prompt / uploaded files
-    -> Document Intelligence Pipeline
-    -> Prompt Guard + Redaction
-    -> Intent detection
-    -> Context compression
-    -> Model Matrix / file-level routing
-    -> Final prompt preview
-    -> LLM provider or local model
-```
+## Feature Matrix
 
-The goal is to make LLM usage safer, cleaner, and easier to debug.
-
----
-
-## Why TokenFence?
-
-Most AI tools focus on model access.
-
-TokenFence Studio focuses on what happens **before** model access:
-
-- Does this prompt contain secrets or private data?
-- Can this PDF, DOCX, log, or Markdown file be cleaned first?
-- Can noisy headers, page numbers, and repeated text be removed?
-- Can the document be turned into RAG-ready chunks?
-- Which model should handle this task or file?
-- Should this file go to a cloud model, a local model, or a safer redacted workflow?
-- Can several models be compared side by side?
-
-That makes TokenFence closer to a **pre-LLM safety and orchestration layer** than a normal ChatGPT-style interface.
-
----
-
-
-## Core Features
-
-### Prompt Guard
-Scan prompts locally before they are sent to a model. Detects API keys, emails, phone numbers, database URLs, access tokens, secret assignments, Chinese personal identifiers, and credential-like leaks.
-
-### Redaction Engine
-Replace detected sensitive values with safe placeholders while keeping the task understandable.
-
-### Document Intelligence Pipeline
-Turn uploaded or pasted files into clean, safe, model-ready context:
-- PDF text extraction (text-based PDFs)
-- DOCX raw text extraction
-- Local image OCR through Tesseract.js
-- Noise cleaning and RAG-ready chunk generation
-- Export as Markdown / JSON
-
-### Model Matrix
-Send the same prompt to multiple models, compare responses, latency, token usage, and risk status. Route each file separately when processing multiple files.
-
-### File-level Model Routing
-Different files get different models based on type and risk. Coding files go to coding models, secrets go to local models, long documents get long-context models.
-
-### Multi-provider Support
-Supports global, China-based, router, and local providers. Bring your own API key. No vendor lock-in.
-
-Current presets: OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Volcengine/Doubao, Alibaba/Qwen, Baidu Qianfan, Kimi/Moonshot, Zhipu GLM, MiniMax, SiliconFlow, OpenRouter, Groq, Together AI, 302.AI, ModelScope, Ollama, LM Studio, and custom OpenAI-compatible endpoints.
-
-### Context Compression
-Compress long prompts or document context while keeping the user goal, constraints, and important details.
-
-### Local Archive
-Store sanitized runs locally. No cloud database required.
-
-### Agent Context Packs
-Prepare reusable context bundles for AI coding and agent workflows.
-
-### Shared TypeScript Package
-Cross-platform logic in `packages/shared` -- guard scanning, provider presets, file routing, fallback chains, budget routing, citation panel.
-
----
-
-## Platform Support
-
-| Platform | Status | Notes |
+| Area | Capability | Status |
 |---|---|---|
-| Web | Available now | Full Next.js workspace |
-| Android | Available now | Expo React Native Mobile Lite. APK available from GitHub Releases. |
-| Windows Desktop | Experimental | Tauri wrapper, packaging in progress |
-| macOS Desktop | Experimental | Tauri wrapper, packaging in progress |
-| iOS | Self-build only | Users sign with their own Apple Developer account |
----
+| Prompt Guard | Detect secrets, credentials, tokens, emails, phone numbers, database URLs, and risky prompt content | Working |
+| Redaction | Replace sensitive values with safe placeholders | Working |
+| Document Intelligence | PDF / DOCX / image OCR parsing, cleaning, and chunking | Working / experimental depending on input |
+| Output Generation | Markdown, HTML, JSON, PDF, ZIP-wrapped DOCX | Verified in acceptance |
+| Model Matrix | Compare multiple model responses side by side | Working |
+| File-level Routing | Route files by type, risk, and task intent | Working |
+| Provider Hub | OpenAI, Claude, Gemini, DeepSeek, Qwen, Kimi, Doubao, Zhipu, Ollama, LM Studio, Custom | Working; requires user keys |
+| Local Runtime | Execute approved local tasks and save logs | Verified |
+| Obsidian Memory | Write output notes into a test vault | Verified |
+| API Connector | Test real or mock HTTP connectors | Verified |
+| Computer Use | Permission-gated action flow | Experimental |
+| Android Mobile Lite | Mobile-first companion app | Verified internal APK |
+| Windows Desktop | Tauri desktop app | Experimental i686 build |
+| i18n | English / Simplified Chinese UI and README | Working |
+
+## Verified Workflows
+
+The current product-candidate acceptance flow verifies:
+
+1. Local runtime execution
+2. Markdown / HTML / JSON / PDF / DOCX output generation
+3. ZIP-wrapped DOCX package structure
+4. Obsidian test-vault note writing and read-back
+5. Provider Hub preset loading
+6. Router primary / fallback rule loading
+7. API Connector test flow
+8. Computer Use permission gating for approved actions
+9. Dangerous command blocking
+10. README UTF-8 and direct download checks
+
+## Known Limitations
+
+- This is a release candidate, not the final v1.0 production release.
+- Windows Desktop is an unsigned i686 experimental build.
+- Windows x64 is blocked by missing MSVC linker / 64-bit MinGW-w64 in the current build environment.
+- macOS artifact is CI-prepared but not yet verified.
+- Android is Mobile Lite, not full desktop parity.
+- Play Store production signing is not available.
+- Provider calls require user-provided API keys.
+- Computer Use full control remains experimental.
 
 ## Quick Start
-
-### Web Workspace
 
 ```bash
 git clone https://github.com/Chrisbetheking/tokenfence-studio.git
@@ -123,287 +81,6 @@ npm install --legacy-peer-deps
 npm run dev
 ```
 
-Open `http://localhost:3000`.
-
-### Android Mobile Lite
-
-```bash
-cd apps/android
-npm install
-npm run start
-```
-
-Scan the QR code with Expo Go, or connect an Android device / emulator.
-
-### Desktop App
-
-```bash
-cd apps/desktop
-npm install
-npm run dev
-```
-
-Requires Rust and Tauri CLI. See [docs/RELEASES.md](./docs/RELEASES.md).
-
-### API Keys
-
-Create a `.env.local` file or save keys in the Provider settings page.
-
-```env
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-GEMINI_API_KEY=
-DEEPSEEK_API_KEY=
-VOLCENGINE_API_KEY=
-DASHSCOPE_API_KEY=
-QIANFAN_API_KEY=
-MOONSHOT_API_KEY=
-ZHIPU_API_KEY=
-MINIMAX_API_KEY=
-SILICONFLOW_API_KEY=
-OPENROUTER_API_KEY=
-GROQ_API_KEY=
-TOGETHER_API_KEY=
-THREE_ZERO_TWO_API_KEY=
-MODELSCOPE_API_KEY=
-```
-
-If you only use Ollama or LM Studio, cloud API keys are optional.
-
----
-
-## Project Structure
-
-This repository is organized as a cross-platform monorepo:
-
-```
-tokenfence-studio/
-  apps/
-    web/          Next.js web workspace (full TokenFence Studio)
-    android/      Expo React Native Android Mobile Lite
-    desktop/      Tauri desktop wrapper (Windows + macOS)
-  packages/
-    shared/       Shared TypeScript logic (guard, providers, routing)
-  docs/
-    changelog/    Per-update development notes
-    images/       Banner and screenshots
-  examples/       Sample documents for testing
-  cli/            CLI tooling (planned)
-  mcp/            MCP integrations (planned)
-  .github/
-    workflows/    CI/CD (release, lint)
-  package.json    Root workspace config
-  tsconfig.base.json
-```
-
-| Package | Description |
-|---|---|
-| `apps/web` | Full Next.js web workspace with Chat, Guard, Document Pipeline, Model Matrix, Provider Settings, Archive, and Agent Packs |
-| `apps/android` | Android Mobile Lite app built with Expo / React Native -- prompt scanning, model routing, sanitized local archive |
-| `apps/desktop` | Tauri desktop wrapper for Windows and macOS (experimental) |
-| `packages/shared` | Pure TypeScript logic reused across platforms -- guard scanning, provider presets, file routing, storage helpers |
-
----
-
-## Project Status
-
-### Available Now
-
-- Responsive Web Workspace (Chat, Guard, Document Pipeline, Model Matrix, Provider Settings, Archive, Agent Packs)
-- Android Mobile Lite App (prompt scanning, model routing, sanitized local archive)
-- Tauri Desktop Wrapper (Windows + macOS, experimental)
-- Multi-provider Settings (global, China-based, router, and local models)
-- Prompt Guard with sensitive data scanning
-- Redaction Engine with structured placeholders
-- Policy Profiles for risk-level control
-- Context Compression
-- Model Matrix for multi-model comparison
-- File-level Model Routing
-- Document Intelligence Pipeline (PDF text extraction, DOCX parsing, local image OCR, noise cleaning, chunk generation)
-- Local Sanitized Archive
-- Agent Context Pack prototype
-- Shared TypeScript Logic Package (`packages/shared`)
-- GitHub Releases CI/CD Workflow
-
-### Experimental / In Progress
-
-- Provider Fallback Chains
-- Cost and Latency Budget Router
-- Source Citation Panel (prototype)
-- Desktop Storage Path Selection
-- File-type Model Routing Rules
-- Desktop static renderer packaging (in progress on feature/agent-workspace-v050)
-
-### Planned
-
-- Scanned-PDF Page OCR with PDF-to-image rendering
-- Layout-aware Parsing for Complex PDFs and Tables
-- Search Grounding Router
-- Judge Model for Merging Multi-model Outputs
-- MCP Marketplace
-- VS Code Extension
-- Browser Extension
-- Local Vector Search
-- Team Workspace
-- Plugin / Skill Marketplace
-
----
-
-## Architecture
-
-```
-User input / uploaded files
-         |
-         v
-Document Intelligence Pipeline
-         |-- Parser
-         |-- Cleaner
-         |-- Chunker
-         |-- Metadata builder
-         |
-         v
-Prompt Guard
-         |-- Scanner
-         |-- Redactor
-         |-- Risk Engine
-         |-- Compressor
-         |
-         v
-Model Matrix / Router
-         |-- Prompt-level multi-model run
-         |-- File-level model routing
-         |-- Local model preference for sensitive files
-         |-- Future judge model / fallback chain
-         |
-         v
-Provider Layer
-         |-- Global providers
-         |-- China-based providers
-         |-- Router providers
-         |-- Local providers
-         |
-         v
-Response / comparison / archive / exported context
-```
-
----
-
-
-
-## Showcase
-
-| GitHub README | Latest Downloads | Chinese README | GitHub Release |
-|---|---|---|---|
-| ![GitHub README](docs/assets/screenshots/github-readme-home.png) | ![Latest Downloads](docs/assets/screenshots/github-latest-downloads.png) | ![Chinese README](docs/assets/screenshots/github-readme-zh-cn.png) | ![GitHub Release](docs/assets/screenshots/github-release-current.png) |
-
-
-> Desktop UI screenshots are being updated. The Windows portable exe has been smoke-tested locally.
-
-
----
-## Releases
-
-- **v1.0.0-rc2** is the current product candidate release -- includes Android APK in GitHub Release Assets
-- **Recommended Android APK**: `TokenFence-Mobile-Lite-Android-v0.5.24-internal-release.apk` (57.3 MB, standalone, no Metro required). Available from [v1.0.0-rc2 Release](https://github.com/Chrisbetheking/tokenfence-studio/releases/tag/v1.0.0-rc2) and [v0.5.24 Release](https://github.com/Chrisbetheking/tokenfence-studio/releases/tag/v0.5.24). Debug APK also available for traceability.
-- **Windows**: Desktop package available (MSI 6.2 MB, NSIS installer 4.2 MB), built locally with Tauri 2. **macOS**: Experimental, GitHub Actions CI build in progress.
-- **iOS** is self-build/self-signing only
-
-See [docs/RELEASES.md](./docs/RELEASES.md) for current release status and troubleshooting.
-
----
-
-## Feature Matrix
-
-| Feature | Status | Notes |
-|---|---|---|
-| Prompt Guard (sensitive data scanning) | Verified | API keys, emails, phones, secrets, Chinese PII |
-| Redaction Engine | Verified | Structured placeholder replacement |
-| Risk Policy Profiles | Verified | Configurable risk levels |
-| Document Pipeline (PDF/DOCX/OCR) | Verified | Text-based PDF, DOCX, Tesseract OCR, chunk generation |
-| Model Matrix (multi-model comparison) | Verified | Side-by-side latency, token, risk comparison |
-| File-level Model Routing | Verified | Type- and risk-based model selection |
-| Provider Hub (11 providers) | Verified | OpenAI, DeepSeek, Qwen, Kimi, Doubao, Zhipu, Ollama, LM Studio, etc. |
-| API Connector | Verified | Custom OpenAI-compatible endpoint connectivity test |
-| Context Compression | Verified | Preserves goal, constraints, key details |
-| Local Archive | Verified | Sanitized local storage, no cloud DB |
-| Agent Packs | Verified | Reusable context bundles for coding agents |
-| Output Generator (MD/HTML/JSON/PDF/DOCX) | Verified | ZIP-wrapped DOCX, valid PDF |
-| Obsidian Vault Writer | Verified | Test-vault write and read-back |
-| Computer Use Runtime | Verified* | Permission-gated, dangerous-command blocking; full control experimental |
-| Web UI (Next.js) | Verified | Full workspace with all screens |
-| Android Mobile Lite | Verified | 12-screen navigation, internal-release APK |
-| Windows Desktop (i686) | Experimental | Unsigned, smoke-tested portable exe |
-| Windows Desktop (x64) | Blocked | Missing MSVC linker / 64-bit MinGW |
-| macOS Desktop | Experimental | CI prepared, artifact unverified |
-| iOS | Source only | Self-build/self-signing |
-
-
-## Verified Workflows
-
-These workflows have passed the v1.0.0-rc2 acceptance test suite:
-
-| Workflow | Result |
-|---|---|
-| Local runtime execution | Passed |
-| Output generation: Markdown | Passed |
-| Output generation: HTML | Passed |
-| Output generation: JSON | Passed |
-| Output generation: PDF | Passed |
-| Output generation: ZIP-wrapped DOCX | Passed |
-| Obsidian test-vault write and read-back | Passed |
-| Provider Hub preset loading | Passed |
-| API Connector test flow | Passed |
-| Computer Use permission gating | Passed |
-| Dangerous command blocking | Passed |
-| README UTF-8 and direct download checks | Passed |
-| Android 12-screen navigation smoke test | Passed |
-| Windows desktop portable exe smoke test | Passed |
-
-## Known Limitations
-
-> This is **v1.0.0-rc2**, a release candidate. It is not v1.0 final.
-
-- **Windows Desktop** is unsigned i686 experimental. Not production-signed.
-- **Windows x64** is blocked by missing MSVC linker or 64-bit MinGW-w64 toolchain.
-- **macOS artifact** is CI-prepared but unverified. No tested macOS binary.
-- **Android** is Mobile Lite — not feature-complete with the full Web workspace.
-- **Provider calls** require user-provided API keys. No bundled keys.
-- **Computer Use full control** remains experimental. Permission-gated but not production-hardened.
-- **iOS** is source-only. No pre-built IPA. Requires self-signing.
----
-
-## Update Log
-
-Recent updates and development notes are available in the [Update Log](./docs/changelog/README.md).
-
----
-
-## Contributing
-
-Issues and pull requests are welcome.
-
-Ideas that are especially helpful:
-- Better document parsers
-- Scanned-PDF OCR and vision model integrations
-- New provider adapters
-- Better detection rules
-- Search grounding integrations
-- File routing heuristics
-- Model comparison workflows
-- Agent / MCP use cases
-
----
-
-## Author
-
-Created by **ChrisWang**.
-
-Building practical AI infrastructure.
-
----
-
 ## License
 
 MIT License
-
-
