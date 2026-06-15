@@ -10,10 +10,8 @@ Local-first prompt safety, document intelligence, and multi-model orchestration 
 
 ## Latest Downloads
 
-- [Android APK](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.2/TokenFence-Studio-Android-v1.0.0-release.apk)
-- [Windows Portable EXE](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.2/TokenFence-Studio-Windows-v1.0.0-portable.exe)
-- [Windows MSI](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.2/TokenFence-Studio-Windows-v1.0.0.msi)
-- [Windows Setup EXE](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.2/TokenFence-Studio-Windows-v1.0.0-setup.exe)
+- [Android APK](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.0/TokenFence-Studio-Android-v1.0.0-release.apk)
+- [Windows Portable ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.3/TokenFence-Studio-Windows-v1.0.3-portable.zip)
 
 > Android APK is an internal release build verified in emulator. Windows Desktop is an unsigned experimental i686 build. Windows x64 and macOS artifacts remain pending.
 

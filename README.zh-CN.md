@@ -10,10 +10,10 @@
 
 ## 最新下载
 
-- [Android APK](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.2/TokenFence-Studio-Android-v1.0.0-release.apk)
-- [Windows 便携版 EXE](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.2/TokenFence-Studio-Windows-v1.0.0-portable.exe)
-- [Windows MSI 安装包](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.2/TokenFence-Studio-Windows-v1.0.0.msi)
-- [Windows Setup EXE 安装包](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.2/TokenFence-Studio-Windows-v1.0.0-setup.exe)
+- [Android APK](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.0/TokenFence-Studio-Android-v1.0.0-release.apk)
+- [Windows 便携版 ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.3/TokenFence-Studio-Windows-v1.0.3-portable.zip)
+- [Windows 便携版 ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.3/TokenFence-Studio-Windows-v1.0.3-portable.zip)
+- [Windows 便携版 ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.3/TokenFence-Studio-Windows-v1.0.3-portable.zip)
 
 > Android APK 是已在模拟器验证的 internal release 构建。Windows Desktop 是 unsigned experimental i686 构建。Windows x64 和 macOS artifacts 仍待完成。
 
