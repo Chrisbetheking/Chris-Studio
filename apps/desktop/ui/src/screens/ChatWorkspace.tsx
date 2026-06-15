@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { tk } from "@tokenfence/shared/src/i18n";
 import {
   PROVIDERS, PROVIDER_ENDPOINTS, type ProviderConfig,
@@ -117,6 +117,13 @@ export function ChatWorkspace() {
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [taskStatus, setTaskStatus] = useState<TaskStatus>("idle");
   const [autoSwitchModel, setAutoSwitchModel] = useState(true);
+  const [activeProject, setActiveProject] = useState<{id:string;name:string;folderPath:string;files:any[]}|null>(() => {
+    try { const r = storeGet('tokenfence-active-project'); const ps = storeGet('tokenfence-projects');
+      if (r && ps) { const projects = JSON.parse(ps); return projects.find((p:any)=>p.id===r)??null; }
+    } catch { return null; }
+    return null;
+  });
+  const [taskSteps, setTaskSteps] = useState<{id:string;label:string;status:'pending'|'running'|'done'|'error'}[]>([]);
   const [routingNote, setRoutingNote] = useState<string | null>(null);
   const [textInputMode, setTextInputMode] = useState(false);
   const [manualCalcText, setManualCalcText] = useState("");
@@ -317,6 +324,14 @@ export function ChatWorkspace() {
     }
 
     setSending(true); setTaskStatus("scanning"); setRoutingNote(null);
+    setTaskSteps([
+      { id: 'scan', label: 'Scan prompt', status: 'running' },
+      { id: 'prepare', label: 'Prepare context', status: 'pending' },
+      { id: 'select', label: 'Select model', status: 'pending' },
+      { id: 'send', label: 'Send to provider', status: 'pending' },
+      { id: 'respond', label: 'Generate response', status: 'pending' },
+      { id: 'save', label: 'Save conversation', status: 'pending' },
+    ]);
 
     let guardResult: { flagged: boolean; details: string } | undefined;
     if (guardEnabled && activeConv) {
@@ -325,7 +340,7 @@ export function ChatWorkspace() {
       if (guardResult.flagged) { setTaskStatus("idle"); setSending(false); return; }
     }
 
-    setTaskStatus("preparing");
+    setTaskStatus("preparing"); setTaskSteps(prev => prev.map(s => s.id==="scan" ? {...s,status:"done"} : s.id==="prepare" ? {...s,status:"running"} : s));
     let fullContent = text;
     if (attachedFiles.length > 0) {
       const fileContexts = attachedFiles.map((f) => {
@@ -350,7 +365,7 @@ export function ChatWorkspace() {
     if (!conversations.some((c) => c.id === targetConv!.id)) updatedConvs.unshift(withUserMsg);
     setConversations(updatedConvs); saveConversations(updatedConvs); setComposerText("");
 
-    setTaskStatus("waiting");
+    setTaskStatus("waiting"); setTaskSteps(prev => prev.map(s => s.id==="prepare" ? {...s,status:"done"} : s.id==="select" ? {...s,status:"running"} : s));
     const configs = loadProviderConfigs();
     const config = configs.find((c) => c.provider === selectedProvider) ?? { provider: selectedProvider, model: selectedModel, deployment: "cloud" } as ProviderConfig;
 
@@ -358,9 +373,9 @@ export function ChatWorkspace() {
     if (withUserMsg.messages.length === 1) apiMessages.push({ role: "system", content: "You are an AI assistant in TokenFence Studio. Be helpful and concise." });
     for (const m of withUserMsg.messages) apiMessages.push({ role: m.role, content: m.content });
 
-    setTaskStatus("responding");
+    setTaskStatus("responding"); setTaskSteps(prev => prev.map(s => s.id==="select" ? {...s,status:"done"} : s.id==="send" ? {...s,status:"running"} : s));
     const responseText = await callProviderAPI(apiMessages, config);
-    setTaskStatus("done");
+    setTaskStatus("done"); setTaskSteps(prev => prev.map(s => s.id==="send" ? {...s,status:"done"} : s.id==="respond" ? {...s,status:"done"} : s.id==="save" ? {...s,status:"done"} : s));
 
     const assistantMsg: ChatMessage = { id: uid(), role: "assistant", content: responseText, timestamp: Date.now(), provider: selectedProvider, model: selectedModel };
     const finalConv = { ...withUserMsg, messages: [...withUserMsg.messages, assistantMsg], updatedAt: Date.now() };
@@ -385,6 +400,7 @@ export function ChatWorkspace() {
     idle: tk("chat.idle"), scanning: tk("chat.scanning"), preparing: tk("chat.preparing"),
     waiting: tk("chat.waiting"), responding: tk("chat.responding"), done: tk("chat.done"), error: tk("chat.taskError"),
   };
+  const stepLabels: Record<string,string> = { scan: "Scan prompt", prepare: "Prepare context", select: "Select model", send: "Send to provider", respond: "Generate response", save: "Save conversation" };
 
   const taskStatusColor: Record<TaskStatus, string> = {
     idle: "var(--text-muted)", scanning: "var(--amber)", preparing: "var(--amber)",
@@ -468,7 +484,15 @@ export function ChatWorkspace() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Composer */}
+        {/* Active Project */}
+      {activeProject && (
+        <div style={{ padding: "6px 20px", background: "var(--surface-alt)", borderTop: "1px solid var(--border)", fontSize: "0.7rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--primary)" }}></span>
+          Project: <strong style={{ color: "var(--text-secondary)" }}>{activeProject.name}</strong>
+          <span style={{ marginLeft: "auto" }}>{activeProject.files?.filter((f: any) => f.selected).length ?? 0} files in context</span>
+        </div>
+      )}
+      {/* Composer */}
         <div style={{ borderTop: "1px solid var(--border)", padding: "16px 20px", background: "var(--surface)" }}>
           {attachedFiles.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
@@ -636,7 +660,25 @@ export function ChatWorkspace() {
 
           {/* Agent Tasks */}
           <h4 style={{ margin: "12px 0 8px", color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.agentTasks")}</h4>
-          <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)", display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)" }}>
+            {taskSteps.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {taskSteps.map(step => (
+                  <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.7rem" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: step.status === "done" ? "var(--green)" : step.status === "running" ? "var(--primary)" : step.status === "error" ? "var(--red)" : "var(--text-muted)", display: "inline-block", flexShrink: 0 }}></span>
+                    <span style={{ color: step.status === "done" ? "var(--green)" : step.status === "running" ? "var(--text)" : "var(--text-muted)" }}>{step.label}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: taskStatusColor[taskStatus], display: "inline-block", flexShrink: 0 }}></span>
+                <span style={{ fontSize: "0.8rem", color: taskStatusColor[taskStatus], fontWeight: 600 }}>{taskStatusLabel[taskStatus]}</span>
+                {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>⏳</span>}
+              </div>
+            )}
+          </div>
+          {/* was: <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ width: 10, height: 10, borderRadius: "50%", background: taskStatusColor[taskStatus], display: "inline-block", flexShrink: 0 }}></span>
             <span style={{ fontSize: "0.8rem", color: taskStatusColor[taskStatus], fontWeight: 600 }}>{taskStatusLabel[taskStatus]}</span>
             {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>⏳</span>}
