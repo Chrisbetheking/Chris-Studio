@@ -11,7 +11,7 @@ Local-first prompt safety, document intelligence, multi-model routing, and Codex
 ## Latest Downloads
 
 - [Android APK](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.0/TokenFence-Studio-Android-v1.0.0-release.apk)
-- [Windows Portable ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.3/TokenFence-Studio-Windows-v1.0.3-portable.zip)
+- [Windows Portable ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.4/TokenFence-Studio-Windows-v1.0.4-portable.zip)
 
 > Windows users: download the portable ZIP, extract it first, then run `tokenfence-studio.exe` from the extracted folder. Do not run the EXE directly from inside the ZIP preview.
 
