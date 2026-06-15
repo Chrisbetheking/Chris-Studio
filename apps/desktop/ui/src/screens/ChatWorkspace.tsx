@@ -1123,7 +1123,7 @@ export function ChatWorkspace() {
 
             <h4 style={{ margin: 0, color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.tokenBudget")}</h4>
 
-            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("budget") ? "\u25B6 : "\u25B6}</span>
+            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("budget") ? "▶" : "▼"}</span>
 
           </div>
 
@@ -1237,7 +1237,7 @@ export function ChatWorkspace() {
 
                 <span style={{ fontSize: "0.8rem", color: taskStatusColor[taskStatus], fontWeight: 600 }}>{taskStatusLabel[taskStatus]}</span>
 
-                {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>▶/span>}
+                {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>▶</span>}
 
               </div>
 
@@ -1251,7 +1251,7 @@ export function ChatWorkspace() {
 
             <span style={{ fontSize: "0.8rem", color: taskStatusColor[taskStatus], fontWeight: 600 }}>{taskStatusLabel[taskStatus]}</span>
 
-            {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>▶/span>}
+            {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>▶</span>}
 
           </div>
 
@@ -1265,7 +1265,7 @@ export function ChatWorkspace() {
 
             <h4 style={{ margin: 0, color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.inspector")}</h4>
 
-            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("inspector") ? "\u25B6 : "\u25B6}</span>
+            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("inspector") ? "▶" : "▼"}</span>
 
           </div>
 
