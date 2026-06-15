@@ -4,110 +4,85 @@
 
 ![TokenFence Studio Banner](docs/images/banner.png)
 
-Local-first prompt safety, document intelligence, and multi-model orchestration workspace for LLMs.
+Local-first prompt safety, document intelligence, multi-model routing, and Codex-like chat workspace for LLMs.
 
-**Prompt Guard** | **Document Pipeline** | **Model Matrix** | **File-level Routing** | **Agent-ready Workflows**
+**Chat Workspace** | **Prompt Guard** | **Context Pack** | **Model Routing** | **Token Budget**
 
 ## Latest Downloads
 
 - [Android APK](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.0/TokenFence-Studio-Android-v1.0.0-release.apk)
 - [Windows Portable ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.3/TokenFence-Studio-Windows-v1.0.3-portable.zip)
 
-> Android APK is an internal release build verified in emulator. Windows Desktop is an unsigned experimental i686 build. Windows x64 and macOS artifacts remain pending.
+> Windows users: download the portable ZIP, extract it first, then run `tokenfence-studio.exe` from the extracted folder. Do not run the EXE directly from inside the ZIP preview.
 
-[Update Log](CHANGELOG.md) | [GitHub](https://github.com/Chrisbetheking/tokenfence-studio) | [简体中文](README.zh-CN.md)
+[Releases](https://github.com/Chrisbetheking/tokenfence-studio/releases) | [Update Log](CHANGELOG.md) | [简体中文](README.zh-CN.md)
 
 ---
 
 ## Overview
 
-TokenFence Studio is a local-first AI workspace that sits between users and large language models.
+TokenFence Studio is a local-first AI workspace with a Codex-like chat interface.
 
-It builds a pre-LLM layer that can inspect, clean, protect, chunk, and route user input before it reaches a model.
+It helps users work with prompts, files, context packs, model routing, token budgets, and provider-based AI workflows.
+
+## What is included
+
+- Codex-like Chat Workspace
+- File attach and Context Pack
+- Agent task status area
+- Prompt Guard integration
+- Token Budget / Token Calculator
+- Model configuration status indicators
+- Custom provider model aliases
+- File-type based model routing
+- Provider Hub
+- Output generation
+- English / Simplified Chinese UI
 
 ## Feature Matrix
 
 | Area | Capability | Status |
 |---|---|---|
-| Prompt Guard | Detect secrets, credentials, tokens, emails, phone numbers, database URLs, and risky prompt content | Working |
-| Redaction | Replace sensitive values with safe placeholders | Working |
-| Document Intelligence | PDF / DOCX / image OCR parsing, cleaning, and chunking | Working / experimental |
-| Output Generation | Markdown, HTML, JSON, PDF, ZIP-wrapped DOCX | Verified |
-| Model Matrix | Compare multiple model responses side by side | Working |
-| File-level Routing | Route files by type, risk, and task intent | Working |
-| Provider Hub | OpenAI, Claude, Gemini, DeepSeek, Qwen, Kimi, Doubao, Zhipu, Ollama, LM Studio, Custom | Working; requires user keys |
-| Local Runtime | Execute approved local tasks and save logs | Verified |
-| Obsidian Memory | Write output notes into a test vault | Verified |
-| API Connector | Test real or mock HTTP connectors | Verified |
-| Computer Use | Permission-gated action flow | Experimental |
-| Android Mobile Lite | Mobile-first companion app | Verified internal APK |
-| Windows Desktop | Tauri desktop app | Experimental i686 build |
-| i18n | English / Simplified Chinese UI and README | Working |
+| Chat Workspace | Sidebar, conversation list, composer, inspector | Working |
+| File Attach | Attach text files and add them to Context Pack | Working |
+| Context Pack | Files, characters, estimated tokens, context summary | Working |
+| Agent Tasks | Idle, scanning, preparing, waiting, responding, done | Working |
+| Prompt Guard | Scan user input and show guard results | Working |
+| Token Budget | Estimate input, files, messages, and total tokens | Working |
+| Model Status | Green/gray/amber/red provider status | Working |
+| Model Routing | Route by file type and context rule | Working |
+| Provider Hub | OpenAI, Claude, Gemini, DeepSeek, Qwen, Kimi, Doubao, Zhipu, Ollama, LM Studio, Custom | Working; requires keys |
+| Toolbox | Plugin/output/media/computer-use entries | Preview |
+| Projects | Project workspace entry | Coming soon |
+| Settings | Configuration entry | Coming soon |
 
 ## Verified Workflows
 
-The current product-candidate acceptance flow verifies:
+1. Desktop launch from portable ZIP
+2. Codex-like Chat Workspace as default screen
+3. File attach entry
+4. Context Pack display
+5. Agent task status display
+6. Prompt Guard result display
+7. Token Budget display
+8. Model status indicators
+9. File-type based routing hints
+10. Local conversation persistence
 
-1. Local runtime execution
-2. Markdown output generation
-3. HTML output generation
-4. JSON output generation
-5. PDF output generation
-6. ZIP-wrapped DOCX output generation
-7. Obsidian test-vault note writing and read-back
-8. Provider Hub preset loading
-9. Router primary / fallback rule loading
-10. API Connector test flow
-11. Computer Use permission gating for approved actions
-12. Dangerous command blocking
-13. README UTF-8 checks
-14. Direct download link checks
+## Windows Usage
+
+Download `TokenFence-Studio-Windows-v1.0.3-portable.zip`, extract it first, then run `tokenfence-studio.exe` from the extracted folder.
+
+Do not run the EXE directly from inside the ZIP preview.
 
 ## Known Limitations
 
-- This is a release candidate, not the final v1.0 production release.
-- Windows Desktop is an unsigned i686 experimental build.
-- Windows x64 is blocked by missing MSVC linker / 64-bit MinGW-w64.
-- macOS artifact is CI-prepared but not yet verified.
-- Android is Mobile Lite, not full desktop parity.
-- Play Store production signing is not available.
+- Windows build is unsigned experimental.
 - Provider calls require user-provided API keys.
-- Computer Use full control remains experimental.
-
-## Platform Support
-
-| Platform | Status | Notes |
-|---|---|---|
-| Web | Available | Full Next.js workspace |
-| Android | Available | Expo React Native Mobile Lite |
-| Windows Desktop | Experimental | Tauri wrapper, unsigned i686 |
-| macOS Desktop | Experimental | CI prepared but artifact unverified |
-| iOS | Self-build only | Users sign with their own Apple Developer account |
-
-## Quick Start
-
-```bash
-git clone https://github.com/Chrisbetheking/tokenfence-studio.git
-cd tokenfence-studio
-npm install --legacy-peer-deps
-npm run dev
-```
-
-## API Keys
-
-This project requires user-provided API keys.
-
-Supported providers include OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Qwen, Kimi, Doubao, Zhipu, Ollama, LM Studio, and custom OpenAI-compatible endpoints.
-
-## Project Structure
-
-| Directory | Description |
-|---|---|
-| apps/web | Next.js Web workspace |
-| apps/android | Expo React Native Android Mobile Lite |
-| apps/desktop | Tauri desktop wrapper |
-| packages/shared | Cross-platform shared logic |
-| docs | Product documentation |
+- Android APK is carried forward from the previously verified Mobile Lite build.
+- macOS is not included.
+- Some Toolbox features are marked as Preview.
+- Projects and Settings pages are still being expanded.
 
 ## License
 
