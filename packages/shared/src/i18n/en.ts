@@ -105,7 +105,7 @@ const en = {
     fileIO: "File I/O",
     outputGeneration: "Output Generation",
     tauriConnected: "Tauri Connected",
-    tauriNotConnected: "Browser mode 閳?no filesystem access",
+    tauriNotConnected: "Browser mode — no filesystem access",
   },
 
   outputs: {

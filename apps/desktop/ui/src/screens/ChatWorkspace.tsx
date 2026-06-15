@@ -878,7 +878,7 @@ export function ChatWorkspace() {
 
         </div>
 
-        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>v1.0.7</div>
+        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>v1.0.8</div>
 
       </div>
 
@@ -998,7 +998,7 @@ export function ChatWorkspace() {
 
                 <span key={f.id} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", background: "var(--surface-alt)", border: "1px solid var(--border)", borderRadius: 6, fontSize: "0.7rem", color: "var(--text-secondary)" }}>
 
-                  妫ｅ啯鎯?{f.name}
+                  {f.name}
 
                   <button onClick={() => handleRemoveFile(f.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.75rem", padding: 0, lineHeight: 1 }}>x</button>
 
@@ -1186,7 +1186,7 @@ export function ChatWorkspace() {
 
             <button onClick={() => fileInputRef.current?.click()} className="btn btn-ghost" style={{ fontSize: "0.8rem", padding: "7px 12px" }}>
 
-              妫ｅ啯鎯?{tk("chat.attachFile")}
+              {tk("chat.attachFile")}
 
             </button>
 
@@ -1446,7 +1446,7 @@ export function ChatWorkspace() {
 
                       <div style={{ color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</div>
 
-                      <div style={{ color: "var(--text-muted)", fontSize: "0.6rem" }}>{f.type} 鐠?{(f.size / 1024).toFixed(1)} KB</div>
+                      <div style={{ color: "var(--text-muted)", fontSize: "0.6rem" }}>{f.type} ·{(f.size / 1024).toFixed(1)} KB</div>
 
                     </div>
 

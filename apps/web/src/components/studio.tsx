@@ -22,7 +22,7 @@ import { DocumentPipelineDesk } from "./document-pipeline-desk";
 type Tab = "chat" | "providers" | "guard" | "compare" | "documents" | "archive" | "context" | "agent" | "plugins" | "output" | "computer-use" | "routing";
 type Lang = "en" | "zh";
 
-const version = "v0.5.0-dev";
+const version = "v1.0.8 (Legacy Web Preview)";
 const safetyMode = "on";
 
 const navItems: Array<{ id: Tab; labelEn: string; labelZh: string; icon: React.ReactNode }> = [
