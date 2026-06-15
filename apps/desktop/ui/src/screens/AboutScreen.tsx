@@ -4,7 +4,7 @@ export function AboutScreen() {
       <h1 className="page-title">About TokenFence Studio</h1>
       <p className="page-subtitle">Local-first AI safety workstation</p>
       <div className="stats-grid">
-        <div className="stat-card"><div className="stat-label">Version</div><div className="stat-value" style={{fontSize:20}}>v1.0.8</div></div>
+        <div className="stat-card"><div className="stat-label">Version</div><div className="stat-value" style={{fontSize:20}}>v1.0.9</div></div>
         <div className="stat-card"><div className="stat-label">Android APK</div><div className="stat-value" style={{fontSize:18,color:'var(--green)'}}>Available</div></div>
         <div className="stat-card"><div className="stat-label">Windows/macOS</div><div className="stat-value" style={{fontSize:18,color:'var(--amber)'}}>Experimental</div></div>
         <div className="stat-card"><div className="stat-label">iOS</div><div className="stat-value" style={{fontSize:16}}>Self-build</div></div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 import { tk } from "@tokenfence/shared/src/i18n";
+import { ModelPickerPanel } from "../components/ModelPickerPanel";
 
 import {
 
@@ -878,7 +879,7 @@ export function ChatWorkspace() {
 
         </div>
 
-        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>v1.0.8</div>
+        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>v1.0.9</div>
 
       </div>
 
@@ -1014,149 +1015,16 @@ export function ChatWorkspace() {
 
           <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center", flexWrap: "wrap" }}>
 
-            {/* Model picker button */}
-
-            <div ref={pickerRef} style={{ position: "relative" }}>
-
-              <button onClick={() => setShowModelPicker(!showModelPicker)}
-
-                style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 12px", fontSize: "0.8rem", cursor: "pointer", outline: "none", minWidth: 180 }}>
-
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: isProviderConfigured(selectedProvider) ? "var(--green)" : "var(--text-muted)", flexShrink: 0 }}></span>
-
-                <span style={{ fontWeight: 500 }}>{selectedProvider}</span>
-
-                <span style={{ color: "var(--text-muted)", fontSize: "0.7rem" }}>/ {currentRegistryModel?.displayName ?? selectedModel}</span>
-
-                <span style={{ marginLeft: "auto", fontSize: "0.6rem", color: "var(--text-muted)" }}>▶</span>
-
-              </button>
-
-
-
-              {/* Model picker dropdown */}
-
-              {showModelPicker && (
-
-                <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, width: 320, maxHeight: 400, overflowY: "auto", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 30px rgba(0,0,0,0.2)", zIndex: 100, padding: "8px 0" }}>
-
-                  {/* Search */}
-
-                  <div style={{ padding: "0 12px 8px" }}>
-
-                    <input
-
-                      value={modelSearch} onChange={(e) => setModelSearch(e.target.value)}
-
-                      placeholder="Search models..." autoFocus
-
-                      style={{ width: "100%", background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", fontSize: "0.8rem", outline: "none" }}
-
-                    />
-
-                  </div>
-
-
-
-                  {modelSearch.trim().length >= 2 ? (
-
-                    /* Search results - cross provider */
-
-                    <>
-
-                      <div style={{ padding: "4px 12px", fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase" }}>Search results</div>
-
-                      {searchedModels.slice(0, 30).map((m) => (
-
-                        <div key={m.providerId + m.modelId} onClick={() => handleSelectModel(m.providerId, m.modelId)}
-
-                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", cursor: "pointer", fontSize: "0.8rem" }}
-
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-alt)")}
-
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-
-                        >
-
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: isProviderConfigured(m.providerId) ? "var(--green)" : "var(--text-muted)", flexShrink: 0 }}></span>
-
-                          <span style={{ fontWeight: 500, color: "var(--text)" }}>{m.displayName}</span>
-
-                          <span style={{ color: "var(--text-muted)", fontSize: "0.7rem", marginLeft: "auto" }}>{m.providerName}</span>
-
-                        </div>
-
-                      ))}
-
-                    </>
-
-                  ) : (
-
-                    /* Provider-grouped models */
-
-                    providerIds.map((pid) => {
-
-                      const models = getModelsForProvider(pid);
-
-                      if (models.length === 0) return null;
-
-                      const configured = isProviderConfigured(pid);
-
-                      return (
-
-                        <div key={pid}>
-
-                          <div onClick={() => { setSelectedProvider(pid); const d = getDefaultModelForProvider(pid); if (d) setSelectedModel(d.modelId); setShowModelPicker(false); setModelSearch(""); }}
-
-                            style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", cursor: "pointer", background: pid === selectedProvider ? "var(--surface-alt)" : "transparent", borderBottom: "1px solid var(--border)" }}>
-
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: configured ? "var(--green)" : "var(--text-muted)", flexShrink: 0 }}></span>
-
-                            <span style={{ fontWeight: 600, fontSize: "0.75rem", color: configured ? "var(--green)" : "var(--text-muted)" }}>{pid}</span>
-
-                            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginLeft: "auto" }}>{models.length} models</span>
-
-                          </div>
-
-                          {pid === selectedProvider && models.map((m) => (
-
-                            <div key={m.modelId} onClick={() => handleSelectModel(pid, m.modelId)}
-
-                              style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px 5px 24px", cursor: "pointer", background: m.modelId === selectedModel ? "var(--accent-faint, rgba(79,140,255,0.1))" : "transparent", fontSize: "0.75rem" }}
-
-                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-alt)")}
-
-                              onMouseLeave={(e) => { if (m.modelId !== selectedModel) e.currentTarget.style.background = "transparent"; }}
-
-                            >
-
-                              <span style={{ color: "var(--text)", flex: 1 }}>{m.displayName}</span>
-
-                              {m.isRecommended && <span style={{ fontSize: "0.6rem", background: "var(--primary)", color: "white", padding: "1px 5px", borderRadius: 8 }}>REC</span>}
-
-                              {m.isDefault && <span style={{ fontSize: "0.6rem", color: "var(--text-muted)" }}>default</span>}
-
-                              <span style={{ fontSize: "0.6rem", color: "var(--text-muted)" }}>{m.contextWindow ? (m.contextWindow >= 1000000 ? (m.contextWindow / 1000000).toFixed(1) + "M" : (m.contextWindow / 1000).toFixed(0) + "K") : ""}</span>
-
-                            </div>
-
-                          ))}
-
-                        </div>
-
-                      );
-
-                    })
-
-                  )}
-
-                </div>
-
-              )}
-
+            {/* Current model indicator */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "4px 10px", borderRadius: 14,
+              background: "var(--surface-alt)", fontSize: "0.72rem",
+              color: "var(--text-secondary)",
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: isProviderConfigured(selectedProvider) ? "var(--green)" : "var(--text-muted)", flexShrink: 0 }}></span>
+              <span>{selectedProvider} / {currentRegistryModel?.displayName ?? selectedModel}</span>
             </div>
-
-
 
             {/* Guard toggle */}
 
@@ -1488,7 +1356,16 @@ export function ChatWorkspace() {
 
       )}
 
-    </div>
+    
+      {/* Model Picker Modal */}
+      <ModelPickerPanel
+        isOpen={showModelPicker}
+        onClose={() => setShowModelPicker(false)}
+        selectedProvider={selectedProvider}
+        selectedModel={selectedModel}
+        onSelect={(pid, mid) => { setSelectedProvider(pid); setSelectedModel(mid); }}
+      />
+</div>
 
   );
 

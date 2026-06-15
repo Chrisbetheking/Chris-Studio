@@ -7,7 +7,7 @@ import { TASK_TYPE_LABELS } from '@shared/types';
 import { colors } from '../theme/colors';
 import { spacing, radius } from '../theme/spacing';
 
-const CURRENT_VERSION = 'v1.0.8';
+const CURRENT_VERSION = 'v1.0.9';
 
 type Nav = NativeStackNavigationProp<{ Home: undefined; Guard: { prompt: string } }, 'Home'>;
 

@@ -94,6 +94,20 @@ const en = {
     notConfigured: "Not configured",
     cloud: "Cloud",
     local: "Local",
+    configure: "Configure AI model providers, set API keys, and run health checks",
+    runAllHealth: "Run All Health Checks",
+    healthy: "healthy",
+    modelsAvailable: "models",
+    lastCheck: "Last check",
+    testing: "Testing...",
+    editProvider: "Edit",
+    noModel: "No model selected",
+    selectModel: "Select Model",
+    searchModels: "Search models...",
+    configuredModels: "Configured",
+    recentModels: "Recent",
+    recommendedModels: "Recommended",
+    modelCount: "{configured} / {total}",
   },
 
   runtime: {
@@ -271,6 +285,7 @@ const en = {
     collapsedInfo: 'Details',
     expandDetails: 'Expand',
     collapseDetails: 'Collapse',
+    modelPickerTitle: 'Select Model',
   },
   common: {
     loading: "Loading...",
