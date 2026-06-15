@@ -240,7 +240,7 @@ fn init_tokenfence_dirs(base_path: String) -> Result<String, String> {
 }
 
 /* ============================================================
-   v1.0.9: Real file scanning
+   v1.0.10: Real file scanning
    ============================================================ */
 
 #[tauri::command]
@@ -266,7 +266,7 @@ fn read_project_file(path: String) -> Result<String, String> {
 }
 
 /* ============================================================
-   v1.0.9: Provider connection testing via backend
+   v1.0.10: Provider connection testing via backend
    ============================================================ */
 
 #[tauri::command]

@@ -270,6 +270,7 @@ const zhCN: Translations = {
     modelStatusFailed: "\u5931\u8D25",
     modelStatusDegraded: "\u964D\u7EA7",
     modelStatusUnknown: "\u672A\u77E5",
+    switchModel: "切换模型",
     hideInspector: "\u9690\u85CF\u68C0\u67E5\u5668",
     showInspector: "\u663E\u793A\u68C0\u67E5\u5668",
     collapsedInfo: "\u8BE6\u60C5",

@@ -286,6 +286,7 @@ const en = {
     expandDetails: 'Expand',
     collapseDetails: 'Collapse',
     modelPickerTitle: 'Select Model',
+    switchModel: 'Switch Model',
   },
   common: {
     loading: "Loading...",

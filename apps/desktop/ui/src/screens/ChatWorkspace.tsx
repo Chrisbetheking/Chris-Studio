@@ -879,7 +879,7 @@ export function ChatWorkspace() {
 
         </div>
 
-        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>v1.0.9</div>
+        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>v1.0.10</div>
 
       </div>
 
@@ -896,18 +896,37 @@ export function ChatWorkspace() {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
 
             <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text)" }}>{activeConv?.title || tk("chat.newConversation")}</span>
+            {/* Current model pill */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "3px 10px", borderRadius: 14,
+              background: "var(--surface-alt)", fontSize: "0.7rem",
+              color: "var(--text-secondary)", border: "1px solid var(--border)",
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: isProviderConfigured(selectedProvider) ? "var(--green)" : "var(--text-muted)", flexShrink: 0 }}></span>
+              <span>{selectedProvider} / {currentRegistryModel?.displayName ?? selectedModel}</span>
+            </div>
 
           </div>
 
           <div style={{ display: "flex", gap: 8 }}>
 
+            {/* Switch Model button */}
+            <button
+              onClick={() => setShowModelPicker(true)}
+              className="btn btn-accent"
+              style={{ fontSize: "0.75rem", padding: "5px 14px", fontWeight: 500 }}
+            >
+              {tk("chat.switchModel")}
+            </button>
+
             {activeConv && activeConv.messages.length > 0 && (
 
-              <button onClick={handleClearConversation} className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "4px 10px" }}>{tk("chat.clearConversation")}</button>
+              <button onClick={handleClearConversation} className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "5px 10px" }}>{tk("chat.clearConversation")}</button>
 
             )}
 
-            <button onClick={() => setShowRightPanel(!showRightPanel)} className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "4px 10px" }}>
+            <button onClick={() => setShowRightPanel(!showRightPanel)} className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "5px 10px" }}>
 
               {showRightPanel ? tk("chat.hideInspector") : tk("chat.showInspector")}
 
