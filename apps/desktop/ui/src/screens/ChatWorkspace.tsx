@@ -879,7 +879,7 @@ export function ChatWorkspace() {
 
         </div>
 
-        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>v1.0.10</div>
+        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>v1.0.11</div>
 
       </div>
 
@@ -1123,7 +1123,7 @@ export function ChatWorkspace() {
 
             <h4 style={{ margin: 0, color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.tokenBudget")}</h4>
 
-            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("budget") ? "▼" : "▲"}</span>
+            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("budget") ? "�? : "�?}</span>
 
           </div>
 
@@ -1237,7 +1237,7 @@ export function ChatWorkspace() {
 
                 <span style={{ fontSize: "0.8rem", color: taskStatusColor[taskStatus], fontWeight: 600 }}>{taskStatusLabel[taskStatus]}</span>
 
-                {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>▶</span>}
+                {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>�?/span>}
 
               </div>
 
@@ -1251,7 +1251,7 @@ export function ChatWorkspace() {
 
             <span style={{ fontSize: "0.8rem", color: taskStatusColor[taskStatus], fontWeight: 600 }}>{taskStatusLabel[taskStatus]}</span>
 
-            {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>▶</span>}
+            {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>�?/span>}
 
           </div>
 
@@ -1265,7 +1265,7 @@ export function ChatWorkspace() {
 
             <h4 style={{ margin: 0, color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.inspector")}</h4>
 
-            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("inspector") ? "▼" : "▲"}</span>
+            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("inspector") ? "�? : "�?}</span>
 
           </div>
 
@@ -1275,7 +1275,7 @@ export function ChatWorkspace() {
 
               <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)" }}>
 
-                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>Active Model</div>
+                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{tk("chat.activeModel")}</div>
 
                 <div style={{ fontSize: "0.8rem", color: "var(--text)", fontWeight: 500 }}>{selectedProvider} / {currentRegistryModel?.displayName ?? selectedModel}</div>
 
@@ -1301,7 +1301,7 @@ export function ChatWorkspace() {
 
                   <div style={{ fontSize: "0.75rem", color: lastGuardResult.flagged ? "var(--amber)" : "var(--green)" }}>{lastGuardResult.flagged ? lastGuardResult.details : "No issues"}</div>
 
-                ) : <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Send a message</div>}
+                ) : <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{tk("chat.sendMessageHint")}</div>}
 
               </div>
 

@@ -226,6 +226,9 @@ const zhCN: Translations = {
     guardToggle: "\u9632\u62A4",
     inspector: "\u68C0\u67E5\u5668",
     activeProvider: "\u5F53\u524D\u63D0\u4F9B\u5546",
+    activeModel: "\u5F53\u524D\u6A21\u578B",
+    sendMessageHint: "\u53D1\u9001\u6D88\u606F",
+    noIssues: "\u65E0\u95EE\u9898",
     promptGuard: "\u63D0\u793A\u8BCD\u9632\u62A4",
     guardEnabled: "\u9632\u62A4\u5DF2\u542F\u7528",
     guardDisabled: "\u9632\u62A4\u5DF2\u7981\u7528",
@@ -329,7 +332,7 @@ const zhCN: Translations = {
 
 settings: {
   general: "通用",
-  providers: "提供商",
+  providers: "提供商"?,
   modelRouting: "模型路由",
   privacy: "隐私",
   theme: "主题",
@@ -338,17 +341,19 @@ settings: {
   themeSystem: "跟随系统",
   defaultPage: "默认页面",
   language: "语言",
-  resetData: "重置所有本地数据",
-  resetWarning: "此操作无法撤销。",
-  clearConversations: "清除所有对话",
-  conversationsCleared: "对话已清除",
+  resetData: "重置所有本地数据"?,
+  resetWarning: "此操作无法撤销。"?,
+  clearConversations: "清除所有对话"?,
+  conversationsCleared: "对话已清除"?,
   localFirstMode: "本地优先模式",
   redactBeforeSend: "发送前脱敏处理",
   saveConversations: "本地保存对话",
-  autoSwitchDesc: "添加文件时自动切换模型",
-  askBeforeSwitch: "切换前询问",
-  routingRulesDesc: "路由规则在模型注册表中配置。",
+  autoSwitchDesc: "添加文件时自动切换模型"?,
+  askBeforeSwitch: "切换前询问"?,
+  routingRulesDesc: "路由规则在模型注册表中配置。"?,
 },
+  mascot: { hide: "\u9690\u85CF\u5409\u7965\u7269", show: "\u663E\u793A\u5409\u7965\u7269" },
+
 
 };
 

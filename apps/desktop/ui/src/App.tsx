@@ -26,7 +26,7 @@ type Screen = "chat" | "projects" | "models" | "toolbox" | "settings" | "about"
 
 type FeatureStatus = "working" | "preview" | "coming_soon" | "needs_runtime";
 
-const VERSION = "v1.0.10";
+const VERSION = "v1.0.11";
 
 const primaryNav: { id: Screen; icon: string }[] = [
   { id: "chat", icon: "\u{1F4AC}" },
@@ -122,7 +122,7 @@ const screens: Record<string, React.ReactNode> = {
   dashboard: <Dashboard />,
 };
 
-/* ---- ToolboxScreen — independent full-page layout ---- */
+/* ---- ToolboxScreen �?independent full-page layout ---- */
 function ToolboxScreen() {
   const [activeTool, setActiveTool] = useState<Screen | null>(null);
   if (activeTool && screens[activeTool]) {
@@ -146,7 +146,7 @@ function ToolboxScreen() {
     <div style={{ padding: "32px 36px", maxWidth: 1280, margin: "0 auto", width: "100%", overflow: "auto" }}>
       <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--tf-text)", marginBottom: 6 }}>{tk("common.toolbox")}</h1>
       <p style={{ fontSize: 14, color: "var(--tf-text-muted)", marginBottom: 32 }}>
-        Tools and utilities — status labels show readiness.
+        {tk("common.toolGroupDesc")}
       </p>
       {toolGroups.map((group) => (
         <div key={group.labelKey} style={{ marginBottom: 28 }}>
@@ -262,9 +262,9 @@ function AppInner() {
               fontSize: 11, color: "var(--tf-text-muted)", marginTop: 6,
               padding: "2px 4px"
             }}
-            title={mascotVisible ? "Hide mascot" : "Show mascot"}
+            title={mascotVisible ? tk("mascot.hide") : tk("mascot.show")}
           >
-            {mascotVisible ? "\u{1F441}\uFE0F} Hide mascot" : "\u{1F441}\uFE0F} Show mascot"}
+            {mascotVisible ? "\u{1F441}\uFE0F} " + tk("mascot.hide") : "\u{1F441}\uFE0F} " + tk("mascot.show")}
           </button>
         </div>
       </nav>
@@ -276,7 +276,7 @@ function AppInner() {
       <div
         className={`mascot ${mascotVisible ? "" : "hidden"}`}
         onClick={() => setScreen("chat")}
-        title="Back to Chat"
+        title={tk("nav.chat")}
       >
         <span style={{ fontSize: 48 }}>{String.fromCodePoint(0x1F916)}</span>
       </div>

@@ -119,7 +119,7 @@ const en = {
     fileIO: "File I/O",
     outputGeneration: "Output Generation",
     tauriConnected: "Tauri Connected",
-    tauriNotConnected: "Browser mode — no filesystem access",
+    tauriNotConnected: "Browser mode —no filesystem access",
   },
 
   outputs: {
@@ -236,6 +236,9 @@ const en = {
     guardToggle: "Guard",
     inspector: "Inspector",
     activeProvider: "Active Provider",
+    activeModel: "Active Model",
+    sendMessageHint: "Send a message",
+    noIssues: "No issues",
     promptGuard: "Prompt Guard",
     guardEnabled: "Guard enabled",
     guardDisabled: "Guard disabled",
@@ -319,6 +322,7 @@ const en = {
     settings: 'Settings',
     about: 'About',
     toolGroups: 'Tool Groups',
+    toolGroupDesc: 'Tools and utilities — status labels show readiness.',
     security: 'Security',
     documents: 'Documents',
     knowledge: 'Knowledge',
@@ -360,6 +364,8 @@ settings: {
   askBeforeSwitch: "Ask before switching",
   routingRulesDesc: "Routing rules are configured in the Model Registry.",
 },
+  mascot: { hide: "Hide mascot", show: "Show mascot" },
+
 
 };
 
