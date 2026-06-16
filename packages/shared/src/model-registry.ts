@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    TokenFence Studio — Model Registry v1.0.14
    ============================================================ */
 
@@ -72,6 +72,8 @@ export const MODEL_REGISTRY: ModelRegistryItem[] = [
   // === OpenAI ===
   { providerId: "OpenAI", providerName: "OpenAI", modelId: "gpt-5.5", displayName: "GPT-5.5", capabilities: ["chat","reasoning","coding","long-context"], contextWindow: 256000, status: "not_configured", isRecommended: true },
   { providerId: "OpenAI", providerName: "OpenAI", modelId: "gpt-5.5-pro", displayName: "GPT-5.5 Pro", capabilities: ["chat","reasoning","coding","long-context","vision"], contextWindow: 256000, status: "not_configured" },
+  { providerId: "OpenAI", providerName: "OpenAI", modelId: "gpt-5.4", displayName: "GPT-5.4", capabilities: ["chat","reasoning","coding","vision"], contextWindow: 256000, status: "not_configured" },
+  { providerId: "OpenAI", providerName: "OpenAI", modelId: "gpt-5.4-mini", displayName: "GPT-5.4 Mini", capabilities: ["chat","reasoning","coding","fast","cheap"], contextWindow: 256000, status: "not_configured" },
   { providerId: "OpenAI", providerName: "OpenAI", modelId: "gpt-5.1", displayName: "GPT-5.1", capabilities: ["chat","reasoning","coding"], contextWindow: 256000, status: "not_configured" },
   { providerId: "OpenAI", providerName: "OpenAI", modelId: "gpt-5.1-mini", displayName: "GPT-5.1 Mini", capabilities: ["chat","fast","cheap"], contextWindow: 256000, status: "not_configured" },
   { providerId: "OpenAI", providerName: "OpenAI", modelId: "gpt-4.1", displayName: "GPT-4.1", capabilities: ["chat","reasoning","coding"], contextWindow: 1000000, status: "not_configured" },
@@ -89,6 +91,8 @@ export const MODEL_REGISTRY: ModelRegistryItem[] = [
   // === Gemini ===
   { providerId: "Gemini", providerName: "Google", modelId: "gemini-3.0-pro", displayName: "Gemini 3.0 Pro", capabilities: ["chat","reasoning","coding","vision","audio","long-context"], contextWindow: 2000000, status: "not_configured", isRecommended: true },
   { providerId: "Gemini", providerName: "Google", modelId: "gemini-3.0-flash", displayName: "Gemini 3.0 Flash", capabilities: ["chat","vision","audio","fast"], contextWindow: 1000000, status: "not_configured", isDefault: true },
+  { providerId: "Gemini", providerName: "Google", modelId: "gemini-3.1-pro", displayName: "Gemini 3.1 Pro", capabilities: ["chat","reasoning","coding","vision","audio","long-context"], contextWindow: 2000000, status: "not_configured" },
+  { providerId: "Gemini", providerName: "Google", modelId: "gemini-3.1-flash", displayName: "Gemini 3.1 Flash", capabilities: ["chat","vision","audio","fast"], contextWindow: 1000000, status: "not_configured" },
   { providerId: "Gemini", providerName: "Google", modelId: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro", capabilities: ["chat","reasoning","coding","vision","audio","long-context"], contextWindow: 2000000, status: "not_configured" },
   { providerId: "Gemini", providerName: "Google", modelId: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash", capabilities: ["chat","vision","fast"], contextWindow: 1000000, status: "not_configured" },
 
@@ -101,6 +105,7 @@ export const MODEL_REGISTRY: ModelRegistryItem[] = [
   { providerId: "Qwen", providerName: "Alibaba", modelId: "qwen3.5-max", displayName: "Qwen 3.5 Max", capabilities: ["chat","reasoning","coding","long-context"], contextWindow: 128000, status: "not_configured", isRecommended: true },
   { providerId: "Qwen", providerName: "Alibaba", modelId: "qwen3.5-plus", displayName: "Qwen 3.5 Plus", capabilities: ["chat","reasoning","coding"], contextWindow: 128000, status: "not_configured", isDefault: true },
   { providerId: "Qwen", providerName: "Alibaba", modelId: "qwen3.5-turbo", displayName: "Qwen 3.5 Turbo", capabilities: ["chat","fast","cheap"], contextWindow: 64000, status: "not_configured" },
+  { providerId: "Qwen", providerName: "Alibaba", modelId: "qwen3-coder-plus", displayName: "Qwen 3 Coder Plus", capabilities: ["chat","coding","reasoning"], contextWindow: 128000, status: "not_configured" },
 
   // === Kimi / Moonshot ===
   { providerId: "Kimi", providerName: "Moonshot", modelId: "kimi-k2.6", displayName: "Kimi K2.6", capabilities: ["chat","reasoning","coding","long-context","vision"], contextWindow: 128000, status: "not_configured", isRecommended: true },
@@ -330,3 +335,4 @@ export function getStatusLabel(status: ModelStatus): string {
     default: return "Unknown";
   }
 }
+

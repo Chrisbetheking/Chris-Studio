@@ -110,6 +110,19 @@ const en = {
     modelCount: "{configured} / {total}",
   },
 
+  providersPage: {
+    title: "Models",
+    subtitle: "Configure your AI model providers, API keys, and health checks",
+    runAllHC: "Run All Health Checks",
+    refreshModels: "Refresh Models",
+    enabledCount: "enabled",
+    healthyCount: "healthy",
+    customModelHint: "Custom Model ID",
+    noKeyForRefresh: "No API key configured for this provider",
+    refreshedModels: "{count} models from {provider}",
+    noModelsFound: "No models found",
+  },
+
   runtime: {
     localRuntime: "Local Runtime",
     desktopRequired: "Desktop runtime required for this feature",
@@ -220,7 +233,7 @@ const en = {
 
   language: {
     english: "English",
-    chinese: "涓枃",
+    chinese: "\u4E2D\u6587",
     switchTo: "Language",
   },
 
@@ -420,4 +433,6 @@ settings: {
 
 export type Translations = typeof en;
 export default en;
+
+
 

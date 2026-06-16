@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::Manager;
+
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::path::PathBuf;
@@ -45,9 +45,7 @@ fn is_command_safe(command: &str) -> bool {
 
 #[tauri::command]
 fn get_storage_path(app_handle: tauri::AppHandle) -> String {
-    app_handle
-        .path()
-        .app_data_dir()
+    tauri::api::path::app_data_dir(&app_handle.config())
         .unwrap_or_default()
         .to_string_lossy()
         .to_string()

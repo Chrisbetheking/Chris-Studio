@@ -878,7 +878,7 @@ export function ChatWorkspace() {
 
         </div>
 
-        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>v1.0.7</div>
+        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>v1.0.15</div>
 
       </div>
 

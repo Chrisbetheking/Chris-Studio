@@ -1,15 +1,30 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nickkuk/tauri-docs/v2/references/config-schema.json",
-  "productName": "TokenFence Studio",
-  "version": "1.0.14",
-  "identifier": "com.tokenfence.studio",
   "build": {
-    "frontendDist": "../ui/dist",
-    "devUrl": "http://localhost:1420",
+    "distDir": "../ui/dist",
+    "devPath": "http://localhost:1420",
     "beforeBuildCommand": "npm run ui:build",
     "beforeDevCommand": "npm run ui:dev"
   },
-  "app": {
+  "package": {
+    "productName": "TokenFence Studio",
+    "version": "1.0.15"
+  },
+  "tauri": {
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "com.tokenfence.studio"
+    },
+    "security": {
+      "csp": null
+    },
     "windows": [
       {
         "title": "TokenFence Studio",
@@ -20,20 +35,6 @@
         "resizable": true,
         "fullscreen": false
       }
-    ],
-    "security": {
-      "csp": null
-    }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
     ]
   }
 }

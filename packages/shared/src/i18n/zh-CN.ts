@@ -101,6 +101,19 @@ const zhCN: Translations = {
     local: "\u672C\u5730",
   },
 
+
+  providersPage: {
+    title: "\u6A21\u578B\u7BA1\u7406",
+    subtitle: "\u914D\u7F6E AI \u6A21\u578B\u670D\u52A1\u5546\u3001API \u5BC6\u94A5\u548C\u5065\u5EB7\u68C0\u67E5",
+    runAllHC: "\u5168\u90E8\u5065\u5EB7\u68C0\u67E5",
+    refreshModels: "\u5237\u65B0\u6A21\u578B\u5217\u8868",
+    enabledCount: "\u5DF2\u542F\u7528",
+    healthyCount: "\u5065\u5EB7",
+    customModelHint: "\u81EA\u5B9A\u4E49\u6A21\u578B ID",
+    noKeyForRefresh: "\u672A\u914D\u7F6E API \u5BC6\u94A5",
+    refreshedModels: "\u4ECE {provider} \u83B7\u53D6\u5230 {count} \u4E2A\u6A21\u578B",
+    noModelsFound: "\u672A\u627E\u5230\u6A21\u578B",
+  },
   runtime: {
     localRuntime: "\u672C\u5730\u8FD0\u884C\u65F6",
     desktopRequired: "\u6B64\u529F\u80FD\u9700\u8981\u684C\u9762\u8FD0\u884C\u65F6",
@@ -336,5 +349,6 @@ const zhCN: Translations = {
 };
 
 export default zhCN;
+
 
 
