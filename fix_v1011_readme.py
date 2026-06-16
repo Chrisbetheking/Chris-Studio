@@ -181,12 +181,12 @@ zh = [
 ]
 
 for name, lines in [("README.md", en), ("README.zh-CN.md", zh)]:
-    Path(name).write_bytes(("\\n".join(lines) + "\\n").encode("utf-8"))
+    Path(name).write_bytes(("\n".join(lines) + "\n").encode("utf-8"))
     b = Path(name).read_bytes()
     text = b.decode("utf-8")
-    print(name, "LF:", b.count(b"\\n"), "CR:", b.count(b"\\r"))
-    assert b.count(b"\\n") >= 70
-    assert b.count(b"\\r") == 0
+    print(name, "LF:", b.count(10), "CR:", b.count(13))
+    assert b.count(10) >= 70
+    assert b.count(13) == 0
     assert "v1.0.11" in text
     for bad in ["????", "绠", "浣", "鏂", "portable.exe", "v1.0.10-portable.zip", "v1.0.6-portable.zip", "Coming soon", "即将推出"]:
         assert bad not in text, f"{name} contains bad token: {bad}"

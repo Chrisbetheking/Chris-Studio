@@ -1,1 +1,87 @@
-# TokenFence Studio\n\n**Languages:** [English](README.md) | [Simplified Chinese](README.zh-CN.md)\n\n![TokenFence Studio Banner](docs/images/banner.png)\n\nLocal-first AI workspace with a Codex-like chat interface, Prompt Guard, Context Pack, Model Hub, smart routing, project context, and Token Budget.\n\n**Chat Workspace** | **Prompt Guard** | **Context Pack** | **Model Hub** | **Smart Routing** | **Token Budget**\n\n## Latest Downloads\n\n- [Android APK](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.0/TokenFence-Studio-Android-v1.0.0-release.apk)\n- [Windows Portable ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.11/TokenFence-Studio-Windows-v1.0.11-portable.zip)\n\n> Windows users: download the portable ZIP, extract it first, then run `tokenfence-studio.exe` from the extracted folder. Do not run the EXE directly from inside the ZIP preview.\n\n[Releases](https://github.com/Chrisbetheking/tokenfence-studio/releases) | [Update Log](CHANGELOG.md) | [Simplified Chinese](README.zh-CN.md)\n\n---\n\n## Overview\n\nTokenFence Studio is a local-first AI workspace for prompt safety, model routing, file context, project context, and provider-based AI workflows.\n\nIt provides a Codex-like chat workspace with attached files, context packs, model-aware routing, token budget tracking, provider configuration, and project file context.\n\n## Included Features\n\n- Codex-like Chat Workspace\n- File Attach and Context Pack\n- Project workspace and project file context\n- Agent task status area\n- Prompt Guard integration\n- Token Budget and Token Calculator\n- Expanded Model Hub with provider/model presets\n- Searchable provider-first model picker\n- Model configuration status indicators\n- Custom model ID and alias support\n- File-type based smart model routing\n- Provider API key configuration\n- Provider connection testing in desktop runtime\n- Toolbox dashboard with preview/working status labels\n- English and Simplified Chinese UI\n\n## Feature Matrix\n\n| Area | Capability | Status |\n|---|---|---|\n| Chat Workspace | Sidebar, conversation list, composer, inspector | Working |\n| File Attach | Attach files and add them to Context Pack | Working |\n| Context Pack | Files, characters, estimated tokens, context summary | Working |\n| Projects | Project records, desktop project scanning, selected project files | Working in desktop runtime |\n| Settings | General, Providers, Model Routing, Privacy settings | Working |\n| Provider Test | Provider health checks through desktop runtime | Working in desktop runtime |\n| Agent Tasks | Step status and workflow state | Partial |\n| Prompt Guard | Scan user input and show guard results | Working |\n| Token Budget | Estimate input, files, messages, and total tokens | Working |\n| Model Hub | Provider/model registry and status | Working |\n| Model Picker | Provider-first model browsing and search | Working |\n| Model Routing | Route by file type and capability | Working |\n| Custom Models | Custom model IDs and aliases | Working |\n| Toolbox | Plugin/output/media/computer-use entries | Preview / partial |\n| Android | Mobile Lite build carried forward | Mobile Lite |\n| macOS | Not included | Not included |\n| Windows signing | Unsigned desktop build | Unsigned experimental |\n\n## Windows Usage\n\nDownload `TokenFence-Studio-Windows-v1.0.11-portable.zip`, extract it first, then run `tokenfence-studio.exe` from the extracted folder.\n\nDo not run the EXE directly from inside the ZIP preview.\n\n## Known Limitations\n\n- Windows build is unsigned experimental.\n- Provider calls require user-provided API keys.\n- Project scanning and provider health checks require the desktop runtime.\n- Some provider model IDs may need manual adjustment.\n- Android APK is carried forward from the Mobile Lite build.\n- macOS is not included.\n- Some Toolbox features are preview or partial.\n- Agent execution is partial; full file-editing/diff workflows are future work.\n\n## License\n\nMIT License\n
+# TokenFence Studio
+
+**Languages:** [English](README.md) | [Simplified Chinese](README.zh-CN.md)
+
+![TokenFence Studio Banner](docs/images/banner.png)
+
+Local-first AI workspace with a Codex-like chat interface, Prompt Guard, Context Pack, Model Hub, smart routing, project context, and Token Budget.
+
+**Chat Workspace** | **Prompt Guard** | **Context Pack** | **Model Hub** | **Smart Routing** | **Token Budget**
+
+## Latest Downloads
+
+- [Android APK](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.0/TokenFence-Studio-Android-v1.0.0-release.apk)
+- [Windows Portable ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.11/TokenFence-Studio-Windows-v1.0.11-portable.zip)
+
+> Windows users: download the portable ZIP, extract it first, then run `tokenfence-studio.exe` from the extracted folder. Do not run the EXE directly from inside the ZIP preview.
+
+[Releases](https://github.com/Chrisbetheking/tokenfence-studio/releases) | [Update Log](CHANGELOG.md) | [Simplified Chinese](README.zh-CN.md)
+
+---
+
+## Overview
+
+TokenFence Studio is a local-first AI workspace for prompt safety, model routing, file context, project context, and provider-based AI workflows.
+
+It provides a Codex-like chat workspace with attached files, context packs, model-aware routing, token budget tracking, provider configuration, and project file context.
+
+## Included Features
+
+- Codex-like Chat Workspace
+- File Attach and Context Pack
+- Project workspace and project file context
+- Agent task status area
+- Prompt Guard integration
+- Token Budget and Token Calculator
+- Expanded Model Hub with provider/model presets
+- Searchable provider-first model picker
+- Model configuration status indicators
+- Custom model ID and alias support
+- File-type based smart model routing
+- Provider API key configuration
+- Provider connection testing in desktop runtime
+- Toolbox dashboard with preview/working status labels
+- English and Simplified Chinese UI
+
+## Feature Matrix
+
+| Area | Capability | Status |
+|---|---|---|
+| Chat Workspace | Sidebar, conversation list, composer, inspector | Working |
+| File Attach | Attach files and add them to Context Pack | Working |
+| Context Pack | Files, characters, estimated tokens, context summary | Working |
+| Projects | Project records, desktop project scanning, selected project files | Working in desktop runtime |
+| Settings | General, Providers, Model Routing, Privacy settings | Working |
+| Provider Test | Provider health checks through desktop runtime | Working in desktop runtime |
+| Agent Tasks | Step status and workflow state | Partial |
+| Prompt Guard | Scan user input and show guard results | Working |
+| Token Budget | Estimate input, files, messages, and total tokens | Working |
+| Model Hub | Provider/model registry and status | Working |
+| Model Picker | Provider-first model browsing and search | Working |
+| Model Routing | Route by file type and capability | Working |
+| Custom Models | Custom model IDs and aliases | Working |
+| Toolbox | Plugin/output/media/computer-use entries | Preview / partial |
+| Android | Mobile Lite build carried forward | Mobile Lite |
+| macOS | Not included | Not included |
+| Windows signing | Unsigned desktop build | Unsigned experimental |
+
+## Windows Usage
+
+Download `TokenFence-Studio-Windows-v1.0.11-portable.zip`, extract it first, then run `tokenfence-studio.exe` from the extracted folder.
+
+Do not run the EXE directly from inside the ZIP preview.
+
+## Known Limitations
+
+- Windows build is unsigned experimental.
+- Provider calls require user-provided API keys.
+- Project scanning and provider health checks require the desktop runtime.
+- Some provider model IDs may need manual adjustment.
+- Android APK is carried forward from the Mobile Lite build.
+- macOS is not included.
+- Some Toolbox features are preview or partial.
+- Agent execution is partial; full file-editing/diff workflows are future work.
+
+## License
+
+MIT License
