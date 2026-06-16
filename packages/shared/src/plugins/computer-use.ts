@@ -5,7 +5,7 @@ export interface ComputerUseRequest {
   action: "screenshot" | "click" | "type" | "scroll" | "keypress" | "shell";
   params: Record<string, unknown>;
   reason: string;
-  status: "pending" | "approved" | "denied" | "executed";
+  status: "pending" | "approved" | "denied" | "executed" | "failed";
   createdAt: number;
   approvedAt?: number;
   executedAt?: number;
@@ -52,6 +52,15 @@ export function markExecuted(id: string, result?: string): void {
   const req = requests.find((r) => r.id === id);
   if (req) {
     req.status = "executed";
+    req.executedAt = Date.now();
+    req.result = result;
+  }
+}
+
+export function markFailed(id: string, result?: string): void {
+  const req = requests.find((r) => r.id === id);
+  if (req) {
+    req.status = "failed";
     req.executedAt = Date.now();
     req.result = result;
   }

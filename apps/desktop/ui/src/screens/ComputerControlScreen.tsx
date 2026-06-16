@@ -4,6 +4,7 @@ import {
   approveComputerAction,
   denyComputerAction,
   markExecuted,
+  markFailed,
   listComputerRequests,
   listPendingComputerRequests,
 } from "@tokenfence/shared/src/plugins/computer-use";
@@ -27,13 +28,22 @@ export function ComputerControlScreen() {
   const [result, setResult] = useState("");
 
   const [computerEnabled, setComputerEnabled] = useState<boolean>(() => {
-    try { return localStorage.getItem("tokenfence-computer-enabled") !== "false"; } catch { return true; }
+    try {
+      const newVal = localStorage.getItem("tokenfence.computerUse.enabled");
+      if (newVal != null) return newVal !== "false";
+      const oldVal = localStorage.getItem("tokenfence-computer-enabled");
+      if (oldVal != null) {
+        localStorage.setItem("tokenfence.computerUse.enabled", oldVal);
+        return oldVal !== "false";
+      }
+      return true;
+    } catch { return true; }
   });
 
   const toggleEnabled = useCallback(() => {
     const next = !computerEnabled;
     setComputerEnabled(next);
-    try { localStorage.setItem("tokenfence-computer-enabled", String(next)); } catch {}
+    try { localStorage.setItem("tokenfence.computerUse.enabled", String(next)); } catch {}
   }, [computerEnabled]);
 
   const init = useCallback(async () => {
@@ -62,7 +72,7 @@ export function ComputerControlScreen() {
       }
       setResult(`${tk('computerUse.executed')}: ${id}`);
     } catch (e: any) {
-      markExecuted(id, `Error: ${e.message}`);
+      markFailed(id, `Error: ${e.message}`);
       setResult(`${tk('common.error')}: ${e.message}`);
     }
     refresh();

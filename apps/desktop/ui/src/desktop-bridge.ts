@@ -44,7 +44,7 @@ export interface FileInfo {
 export async function executeCommand(command: string, args?: string[], cwd?: string, timeoutMs?: number): Promise<CommandResult> {
   const invoke = await getInvoke();
   if (!invoke) {
-    return { exit_code: -1, stdout: "", stderr: "[desktop-bridge] Not running inside Tauri", killed: false, duration_ms: 0 };
+    return { exit_code: -1, stdout: "", stderr: "Desktop command bridge failed: runtime unavailable or invoke command not registered.", killed: false, duration_ms: 0 };
   }
   return invoke("execute_command", { command, args: args ?? [], cwd: cwd ?? ".", timeoutMs: timeoutMs ?? 30000 }) as Promise<CommandResult>;
 }
