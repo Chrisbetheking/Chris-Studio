@@ -44,6 +44,65 @@ function healthBadge(status?: string): string {
   }
 }
 
+function EditProviderModal({ config, testing, onClose, onUpdate, onHealthCheck }: {
+  config: ProviderConfig;
+  testing: boolean;
+  onClose: () => void;
+  onUpdate: (updates: Partial<ProviderConfig>) => void;
+  onHealthCheck: () => void;
+}) {
+  try {
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={onClose}>
+        <div className="card" style={{ background: "var(--surface)", borderRadius: 16, padding: 24, width: 440, maxWidth: "90vw", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 60px rgba(0,0,0,0.3)" }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 600, color: "var(--text)" }}>{tk("providers.editProvider")}: {config.provider ?? "Unknown"}</h3>
+            <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "1.3rem", padding: "4px 8px" }}>&times;</button>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginBottom: 4 }}>{tk("providers.model")}</label>
+              <input className="input" style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", fontSize: "0.85rem" }} value={config.model ?? ""} onChange={(e) => onUpdate({ model: e.target.value })} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginBottom: 4 }}>{tk("providers.baseUrl")}</label>
+              <input className="input" style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", fontSize: "0.8rem", fontFamily: "monospace" }} value={config.baseUrl ?? ""} onChange={(e) => onUpdate({ baseUrl: e.target.value })} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginBottom: 4 }}>{tk("providers.apiKey")}</label>
+              <input className="input" type="password" style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", fontSize: "0.8rem", fontFamily: "monospace" }} value={config.apiKey ?? ""} onChange={(e) => onUpdate({ apiKey: e.target.value })} placeholder={config.deployment === "local" ? tk("common.none") : "sk-..."} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginBottom: 4 }}>{tk("providersPage.customModelHint")}</label>
+              <input className="input" style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", fontSize: "0.8rem" }} value={config.customModelId ?? ""} onChange={(e) => onUpdate({ customModelId: e.target.value || undefined })} placeholder={tk("common.none")} />
+            </div>
+            {config.lastHealthError && (
+              <div style={{ color: "var(--red)", fontSize: "0.8rem", padding: "8px 12px", background: "rgba(255,0,0,0.05)", borderRadius: 8 }}>{tk("common.error")}: {config.lastHealthError}</div>
+            )}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+              <button className="btn btn-ghost" onClick={onClose}>{tk("actions.close")}</button>
+              <button className="btn btn-primary" onClick={onHealthCheck} disabled={testing}>{testing ? tk("providers.testing") : tk("providers.healthCheck")}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  } catch (e: any) {
+    console.error("[EditProviderModal] render error:", e);
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={onClose}>
+        <div className="card" style={{ background: "var(--surface)", borderRadius: 16, padding: 24, maxWidth: 400, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ fontSize: "1.5rem", marginBottom: 8 }}>&#9888;</div>
+          <div style={{ fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>Provider editor failed</div>
+          <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: 16 }}>{e.message}</div>
+          <button className="btn btn-primary" onClick={onClose}>{tk("actions.close")}</button>
+        </div>
+      </div>
+    );
+  }
+}
+
 export function ProvidersScreen() {
   const [, forceRender] = useState(0);
   useEffect(() => { return onLangChange(() => forceRender((n) => n + 1)); }, []);
@@ -194,42 +253,15 @@ export function ProvidersScreen() {
         })}
       </div>
 
-      {/* Edit Modal */}
+      {/* Edit Modal with error boundary */}
       {editingProvider && editingConfig && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setEditingProvider(null)}>
-          <div className="card" style={{ background: "var(--surface)", borderRadius: 16, padding: 24, width: 440, maxWidth: "90vw", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 60px rgba(0,0,0,0.3)", animation: "modalIn 0.2s ease" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 600, color: "var(--text)" }}>{tk("providers.editProvider")}: {editingConfig.provider}</h3>
-              <button onClick={() => setEditingProvider(null)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "1.3rem", padding: "4px 8px" }}>&times;</button>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginBottom: 4 }}>{tk("providers.model")}</label>
-                <input className="input" style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", fontSize: "0.85rem" }} value={editingConfig.model} onChange={(e) => updateConfig(editingConfig.provider, { model: e.target.value })} />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginBottom: 4 }}>{tk("providers.baseUrl")}</label>
-                <input className="input" style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", fontSize: "0.8rem", fontFamily: "monospace" }} value={editingConfig.baseUrl} onChange={(e) => updateConfig(editingConfig.provider, { baseUrl: e.target.value })} />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginBottom: 4 }}>{tk("providers.apiKey")}</label>
-                <input className="input" type="password" style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", fontSize: "0.8rem", fontFamily: "monospace" }} value={editingConfig.apiKey} onChange={(e) => updateConfig(editingConfig.provider, { apiKey: e.target.value })} placeholder={editingConfig.deployment === "local" ? tk("common.none") : "sk-..."} />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginBottom: 4 }}>{tk("providersPage.customModelHint")}</label>
-                <input className="input" style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", fontSize: "0.8rem" }} value={editingConfig.customModelId ?? ""} onChange={(e) => updateConfig(editingConfig.provider, { customModelId: e.target.value || undefined })} placeholder={tk("common.none")} />
-              </div>
-              {editingConfig.lastHealthError && (
-                <div style={{ color: "var(--red)", fontSize: "0.8rem", padding: "8px 12px", background: "rgba(255,0,0,0.05)", borderRadius: 8 }}>{tk("common.error")}: {editingConfig.lastHealthError}</div>
-              )}
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
-                <button className="btn btn-ghost" onClick={() => setEditingProvider(null)}>{tk("actions.close")}</button>
-                <button className="btn btn-primary" onClick={() => { runHealthCheck(editingConfig.provider); }} disabled={testing}>{testing ? tk("providers.testing") : tk("providers.healthCheck")}</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <EditProviderModal
+          config={editingConfig}
+          testing={!!testingId}
+          onClose={() => setEditingProvider(null)}
+          onUpdate={(updates) => updateConfig(editingProvider!, updates)}
+          onHealthCheck={() => runHealthCheck(editingProvider!)}
+        />
       )}
     </div>
   );

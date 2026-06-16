@@ -281,6 +281,9 @@ const zhCN: Translations = {
     agentStepRespond: "响应",
     agentStepSave: "保存",
     noFilesAttached: "\u672A\u9644\u52A0\u6587\u4EF6",
+    searchFiles: "搜索文件...",
+    noFiles: "无文件",
+    noFilesFound: "无匹配文件",
 
     tokenBudget: "\u4EE4\u724CToken\u9884\u7B97",
     inputTokens: "\u8F93\u5165",

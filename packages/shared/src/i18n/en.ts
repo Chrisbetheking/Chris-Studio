@@ -291,6 +291,9 @@ const en = {
 
     dropFilesHere: 'Drop files here',
     addToContextPack: 'Add to Context Pack',
+    searchFiles: 'Search files...',
+    noFiles: 'No files',
+    noFilesFound: 'No matching files',
     tokenBudget: 'Token Budget',
     inputTokens: 'Input',
     fileTokens: 'Files',

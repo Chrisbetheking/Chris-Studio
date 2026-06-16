@@ -269,6 +269,7 @@ export function ChatWorkspace() {
   const [manualCalcText, setManualCalcText] = useState("");
 
   const [showModelPanel, setShowModelPanel] = useState(false);
+  const [projectTab, setProjectTab] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
 
@@ -733,6 +734,174 @@ export function ChatWorkspace() {
 
 
 
+
+/* ============================================================
+   ProjectFilePanel Component
+   ============================================================ */
+
+interface ProjectFilePanel {
+  activeProject: { id: string; name: string; folderPath: string; files: any[] } | null;
+  setActiveProject: React.Dispatch<React.SetStateAction<{ id: string; name: string; folderPath: string; files: any[] } | null>>;
+  attachedFiles: AttachedFile[];
+  setAttachedFiles: React.Dispatch<React.SetStateAction<AttachedFile[]>>;
+  onClose: () => void;
+}
+
+function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setAttachedFiles, onClose }: ProjectFilePanel) {
+  const [searchQ, setSearchQ] = useState("");
+  const [projects, setProjects] = useState<any[]>(() => {
+    try { const ps = storeGet("tokenfence-projects"); return ps ? JSON.parse(ps) : []; } catch { return []; }
+  });
+
+  const filteredFiles = useMemo(() => {
+    if (!activeProject?.files) return [];
+    if (!searchQ.trim()) return activeProject.files;
+    const q = searchQ.toLowerCase();
+    return activeProject.files.filter((f: any) => f.name.toLowerCase().includes(q));
+  }, [activeProject?.files, searchQ]);
+
+  const toggleFile = (fileName: string) => {
+    if (!activeProject) return;
+    const updated = {
+      ...activeProject,
+      files: activeProject.files.map((f: any) =>
+        f.name === fileName ? { ...f, selected: !f.selected } : f
+      ),
+    };
+    setActiveProject(updated);
+    try { storeSet("tokenfence-active-project", updated.id); storeSet("tokenfence-projects", JSON.stringify(projects.map((p: any) => p.id === updated.id ? updated : p))); } catch {}
+
+    // Update Context Pack
+    const wasSelected = activeProject.files.find((f: any) => f.name === fileName)?.selected;
+    if (!wasSelected) {
+      // Add to context
+      const content = `[Project: ${activeProject.name}]\n[File: ${fileName}]\n`;
+      setAttachedFiles((prev) => {
+        if (prev.find((f) => f.name === fileName && f.type === "project")) return prev;
+        return [...prev, { id: `proj-${fileName}`, name: fileName, size: content.length, type: "project", content }];
+      });
+    } else {
+      // Remove from context
+      setAttachedFiles((prev) => prev.filter((f) => f.name !== fileName || f.type !== "project"));
+    }
+  };
+
+  const toggleAllFiles = (select: boolean) => {
+    if (!activeProject) return;
+    const updated = {
+      ...activeProject,
+      files: activeProject.files.map((f: any) => ({ ...f, selected: select })),
+    };
+    setActiveProject(updated);
+    try { storeSet("tokenfence-projects", JSON.stringify(projects.map((p: any) => p.id === updated.id ? updated : p))); } catch {}
+    if (select) {
+      const newFiles = activeProject.files.map((f: any) => ({
+        id: `proj-${f.name}`, name: f.name, size: 0, type: "project",
+        content: `[Project: ${activeProject.name}]\n[File: ${f.name}]\n`,
+      }));
+      setAttachedFiles((prev) => {
+        const existing = new Set(prev.filter((f) => f.type === "project").map((f) => f.name));
+        return [...prev.filter((f) => f.type !== "project"), ...newFiles.filter((f) => !existing.has(f.name))];
+      });
+    } else {
+      setAttachedFiles((prev) => prev.filter((f) => f.type !== "project"));
+    }
+  };
+
+  if (!activeProject) {
+    const storedActive = (() => { try { const r = storeGet("tokenfence-active-project"); if (r && projects.length > 0) { const p = projects.find((p: any) => p.id === r); if (p) return p; } } catch {} return null; })();
+    if (storedActive) { setActiveProject(storedActive); return null; }
+
+    return (
+      <div style={{ padding: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--text)" }}>{tk("common.projects")}</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "1rem" }}>&times;</button>
+        </div>
+        {projects.length === 0 ? (
+          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", padding: "20px 0", textAlign: "center" }}>
+            {tk("common.noProjects")}
+          </div>
+        ) : (
+          projects.map((p: any) => (
+            <div key={p.id} onClick={() => setActiveProject(p)} className="card" style={{ padding: "10px 12px", marginBottom: 6, cursor: "pointer", fontSize: "0.8rem" }}>
+              <div style={{ fontWeight: 500, color: "var(--text)" }}>{p.name}</div>
+              <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: 2 }}>{p.files?.length ?? 0} files</div>
+            </div>
+          ))
+        )}
+      </div>
+    );
+  }
+
+  const selectedCount = activeProject.files?.filter((f: any) => f.selected).length ?? 0;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Header */}
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--primary)" }}></span>
+            <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--text)" }}>{activeProject.name}</span>
+          </div>
+          <button onClick={() => { setActiveProject(null); onClose(); }} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "1rem" }}>&times;</button>
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button onClick={() => toggleAllFiles(true)} className="btn btn-ghost" style={{ fontSize: "0.68rem", padding: "3px 8px" }}>{tk("common.allFiles")}</button>
+          <button onClick={() => toggleAllFiles(false)} className="btn btn-ghost" style={{ fontSize: "0.68rem", padding: "3px 8px" }}>{tk("common.noneFiles")}</button>
+          <span style={{ marginLeft: "auto", fontSize: "0.7rem", color: "var(--text-muted)", alignSelf: "center" }}>{selectedCount} selected</span>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div style={{ padding: "8px 16px", borderBottom: "1px solid var(--border)" }}>
+        <input
+          value={searchQ}
+          onChange={(e) => setSearchQ(e.target.value)}
+          placeholder={tk("chat.searchFiles") || "Search files..."}
+          style={{ width: "100%", boxSizing: "border-box", background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 10px", fontSize: "0.75rem", outline: "none" }}
+        />
+      </div>
+
+      {/* File tree */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+        {filteredFiles.length === 0 ? (
+          <div style={{ padding: "20px 16px", fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center" }}>
+            {searchQ.trim() ? tk("chat.noFilesFound") || "No matching files" : tk("chat.noFiles") || "No files"}
+          </div>
+        ) : (
+          filteredFiles.map((f: any) => {
+            const isSelected = f.selected;
+            const inContext = attachedFiles.some((af) => af.name === f.name && af.type === "project");
+            return (
+              <div
+                key={f.name}
+                onClick={() => toggleFile(f.name)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "6px 16px", cursor: "pointer",
+                  background: isSelected ? "var(--accent-faint, rgba(79,140,255,0.08))" : "transparent",
+                  fontSize: "0.78rem",
+                }}
+                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "var(--surface-alt)"; }}
+                onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
+              >
+                <span style={{ fontSize: "0.9rem", flexShrink: 0 }}>{String.fromCodePoint(0x1F4C4)}</span>
+                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isSelected ? "var(--primary)" : "var(--text)" }}>{f.name}</span>
+                {inContext && (
+                  <span style={{ fontSize: "0.6rem", background: "var(--primary)", color: "white", padding: "1px 5px", borderRadius: 8, flexShrink: 0 }}>CTX</span>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+
   /* ---- Drag & Drop upload ---- */
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation();
@@ -874,6 +1043,19 @@ export function ChatWorkspace() {
       </div>
 
 
+
+      {/* Project panel */}
+      {projectTab && (
+        <div style={{ width: 260, minWidth: 260, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", background: "var(--surface)", overflow: "hidden" }}>
+          <ProjectFilePanel
+            activeProject={activeProject}
+            setActiveProject={setActiveProject}
+            attachedFiles={attachedFiles}
+            setAttachedFiles={setAttachedFiles}
+            onClose={() => setProjectTab(false)}
+          />
+        </div>
+      )}
 
       {/* Center: Chat area */}
 
