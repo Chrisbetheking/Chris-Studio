@@ -407,6 +407,13 @@ export function ChatWorkspace() {
 
   const composerTokens = useMemo(() => estimateTokens(composerText), [composerText]);
 
+  // Project file tokens
+  const projectFilesTokens = useMemo(() => {
+    if (!activeProject) return 0;
+    const selected = (activeProject.files || []).filter((f) => f.selected);
+    return selected.reduce((sum, f) => sum + estimateTokens(f.content || f.path + " " + f.name), 0);
+  }, [activeProject]);
+
   const attachedFilesTokens = useMemo(
 
     () => attachedFiles.reduce((sum, f) => sum + estimateTokens(f.content), 0),
@@ -425,7 +432,7 @@ export function ChatWorkspace() {
 
 
 
-  const totalTokens = composerTokens + attachedFilesTokens + messageHistoryTokens;
+  const totalTokens = composerTokens + attachedFilesTokens + projectFilesTokens + messageHistoryTokens;
 
   const contextLimit = currentRegistryModel?.contextWindow ?? 128000;
 
@@ -653,17 +660,17 @@ export function ChatWorkspace() {
 
     setTaskSteps([
 
-      { id: 'scan', label: 'Scan prompt', status: 'running' },
+      { id: 'scan', label: tk("chat.agentStepScan"), status: 'running' },
 
-      { id: 'prepare', label: 'Prepare context', status: 'pending' },
+      { id: 'prepare', label: tk("chat.agentStepPrepare"), status: 'pending' },
 
-      { id: 'select', label: 'Select model', status: 'pending' },
+      { id: 'select', label: tk("chat.agentStepSelect"), status: 'pending' },
 
-      { id: 'send', label: 'Send to provider', status: 'pending' },
+      { id: 'send', label: tk("chat.agentStepSend"), status: 'pending' },
 
-      { id: 'respond', label: 'Generate response', status: 'pending' },
+      { id: 'respond', label: tk("chat.agentStepRespond"), status: 'pending' },
 
-      { id: 'save', label: 'Save conversation', status: 'pending' },
+      { id: 'save', label: tk("chat.agentStepSave"), status: 'pending' },
 
     ]);
 
@@ -698,6 +705,18 @@ export function ChatWorkspace() {
       });
 
       fullContent = fileContexts.join("\n\n") + "\n\n---\n\n" + text;
+
+    // Include active project selected files
+    if (activeProject) {
+      const selected = (activeProject.files || []).filter((f: any) => f.selected);
+      if (selected.length > 0) {
+        const projectCtx = selected.map((f: any) => {
+          const preview = (f.content || f.path + " " + f.name).slice(0, 3000);
+          return "[Project: " + (activeProject.name || "") + "/" + f.name + "]\n" + preview;
+        });
+        fullContent = projectCtx.join("\n\n") + "\n\n---\n\n" + fullContent;
+      }
+    }
 
     }
 
@@ -803,7 +822,7 @@ export function ChatWorkspace() {
 
   };
 
-  const stepLabels: Record<string,string> = { scan: "Scan prompt", prepare: "Prepare context", select: "Select model", send: "Send to provider", respond: "Generate response", save: "Save conversation" };
+  const stepLabels: Record<string,string> = { scan: tk("chat.agentStepScan"), prepare: tk("chat.agentStepPrepare"), select: tk("chat.agentStepSelect"), send: tk("chat.agentStepSend"), respond: tk("chat.agentStepRespond"), save: tk("chat.agentStepSave") };
 
 
 
@@ -1000,7 +1019,7 @@ export function ChatWorkspace() {
 
           Project: <strong style={{ color: "var(--text-secondary)" }}>{activeProject.name}</strong>
 
-          <span style={{ marginLeft: "auto" }}>{activeProject.files?.filter((f: any) => f.selected).length ?? 0} files in context</span>
+          <span style={{ marginLeft: "auto" }}>{activeProject.files?.filter((f: any) => f.selected).length ?? 0} {tk("chat.projectFilesInContext")}</span>
 
         </div>
 
@@ -1317,7 +1336,17 @@ export function ChatWorkspace() {
 
           <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)" }}>
 
-            {attachedFiles.length === 0 ? (
+            {activeProject && activeProject.files?.filter((f) => f.selected).length > 0 && (
+            <div style={{ marginTop: 8, padding: "8px 0", borderTop: "1px solid var(--border)" }}>
+              <div style={{ fontSize: "0.7rem", fontWeight: 500, color: "var(--text-secondary)", marginBottom: 4 }}>
+                {tk("chat.selectedProjectFiles")}
+              </div>
+              <div style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>
+                {activeProject.files?.filter((f) => f.selected).length ?? 0} files &middot; ~{activeProject.files?.filter((f) => f.selected).reduce((sum, f) => sum + (f.content?.length || f.path.length + f.name.length), 0)} chars
+              </div>
+            </div>
+          )}
+          {attachedFiles.length === 0 ? (
 
               <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{tk("chat.noFilesAttached")}</div>
 
@@ -1383,6 +1412,14 @@ export function ChatWorkspace() {
         selectedProvider={selectedProvider}
         selectedModel={selectedModel}
         onSelect={(pid, mid) => { setSelectedProvider(pid); setSelectedModel(mid); }}
+        attachedFileTypes={attachedFiles.map(f => {
+          const parts = f.name.split(".");
+          return parts.length > 1 ? parts.pop() ?? "" : "";
+        })}
+        onNavigateToProviders={() => {
+          const event = new CustomEvent("tokenfence-navigate", { detail: { screen: "models" } });
+          window.dispatchEvent(event);
+        }}
       />
 </div>
 

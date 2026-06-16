@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { tk } from "@tokenfence/shared/src/i18n";
 import { storeGet, storeSet } from "@tokenfence/shared/src/agent-runtime/safeStorage";
 import { estimateTokens } from "@tokenfence/shared/src/providers";
@@ -80,7 +80,7 @@ export function ProjectsScreen() {
         setProjects(updated); saveProjects(updated);
       } else {
         // Browser mode fallback
-        setError("Desktop runtime required for real file scanning. Using demo file list.");
+        setError(tk("status.desktopRuntimeRequired") + " — Using demo file list.");
         const demos = ["README.md","package.json","src/index.ts","src/App.tsx","src/utils.ts"];
         const files: ProjectFile[] = demos.map(name => ({
           path: project.folderPath + "/" + name, name, extension: name.split(".").pop() ?? "",
@@ -119,18 +119,18 @@ export function ProjectsScreen() {
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="card-title" style={{ marginBottom: 12 }}>Add Project</div>
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Project name"
+          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder={tk("common.projectName")}
             style={{ flex: 1, background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", fontSize: "0.85rem", outline: "none" }} />
-          <input value={newPath} onChange={e => setNewPath(e.target.value)} placeholder="Folder path (e.g. D:\myproject)"
+          <input value={newPath} onChange={e => setNewPath(e.target.value)} placeholder={tk("common.folderPath")}
             style={{ flex: 2, background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", fontSize: "0.85rem", outline: "none" }} />
-          <button onClick={addProject} className="btn btn-primary" style={{ fontSize: "0.85rem", padding: "8px 18px" }}>+ Add</button>
+          <button onClick={addProject} className="btn btn-primary" style={{ fontSize: "0.85rem", padding: "8px 18px" }}>{tk("common.addProject")}</button>
         </div>
         {error && <div style={{ fontSize: "0.8rem", color: error.includes("Desktop runtime") ? "var(--amber)" : "var(--red)", marginTop: 4 }}>{error}</div>}
       </div>
 
-      <h3 style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>Recent Projects</h3>
+      <h3 style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>{tk("common.recentProjects")}</h3>
       {projects.length === 0 ? (
-        <div style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>No projects yet.</div>
+        <div style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>{tk("common.noProjects")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {projects.sort((a,b) => b.lastOpened - a.lastOpened).map(p => (
@@ -164,12 +164,12 @@ export function ProjectsScreen() {
           <div className="card-title" style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>Project Files: {activeProject.name}</span>
             <div style={{ display: "flex", gap: 4 }}>
-              <button onClick={() => toggleAll(activeProject.id, true)} className="btn btn-ghost" style={{ fontSize: "0.65rem", padding: "2px 8px" }}>All</button>
-              <button onClick={() => toggleAll(activeProject.id, false)} className="btn btn-ghost" style={{ fontSize: "0.65rem", padding: "2px 8px" }}>None</button>
+              <button onClick={() => toggleAll(activeProject.id, true)} className="btn btn-ghost" style={{ fontSize: "0.65rem", padding: "2px 8px" }}>{tk("common.allFiles")}</button>
+              <button onClick={() => toggleAll(activeProject.id, false)} className="btn btn-ghost" style={{ fontSize: "0.65rem", padding: "2px 8px" }}>{tk("common.noneFiles")}</button>
             </div>
           </div>
           <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: 8 }}>
-            {selectedFiles.length} files selected · ~{selectedTokens} tokens
+            {selectedFiles.length} " + " " + tk("common.filesSelected") · ~{selectedTokens} tokens
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, maxHeight: 300, overflowY: "auto", fontSize: "0.75rem" }}>
             {activeProject.files.map(f => (

@@ -26,7 +26,7 @@ type Screen = "chat" | "projects" | "models" | "toolbox" | "settings" | "about"
 
 type FeatureStatus = "working" | "preview" | "coming_soon" | "needs_runtime";
 
-const VERSION = "v1.0.11";
+const VERSION = "v1.0.12";
 
 const primaryNav: { id: Screen; icon: string }[] = [
   { id: "chat", icon: "\u{1F4AC}" },
@@ -43,6 +43,14 @@ type ToolGroup = {
 };
 
 const toolGroups: ToolGroup[] = [
+  {
+    labelKey: "common.tools",
+    items: [
+      { id: "chat", labelKey: "common.toolboxTokenCalculator", status: "working", icon: "🔢" },
+      { id: "guard", labelKey: "common.toolboxPromptGuard", status: "working", icon: "🛡️" },
+      { id: "chat", labelKey: "common.toolboxContextPack", status: "working", icon: "📦" },
+    ],
+  },
   {
     labelKey: "common.security",
     items: [
