@@ -214,13 +214,20 @@ export function ChatWorkspace() {
 
   const [sending, setSending] = useState(false);
 
-  const getInitialModel = () => {
-    const best = pickBestAvailableModel(configs.map(c => ({ provider: c.provider, enabled: c.enabled, apiKey: c.apiKey, lastHealthStatus: c.lastHealthStatus })));
-    return best ?? { providerId: "OpenAI", modelId: "gpt-4o" };
-  };
-  const initModel = getInitialModel();
-  const [selectedProvider, setSelectedProvider] = useState(initModel.providerId);
-  const [selectedModel, setSelectedModel] = useState(initModel.modelId);
+  const [selectedProvider, setSelectedProvider] = useState(() => {
+    try {
+      const cfgs = loadProviderConfigs();
+      const best = pickBestAvailableModel(cfgs.map(c => ({ provider: c.provider, enabled: c.enabled, apiKey: c.apiKey, lastHealthStatus: c.lastHealthStatus })));
+      return best?.providerId ?? "OpenAI";
+    } catch { return "OpenAI"; }
+  });
+  const [selectedModel, setSelectedModel] = useState(() => {
+    try {
+      const cfgs = loadProviderConfigs();
+      const best = pickBestAvailableModel(cfgs.map(c => ({ provider: c.provider, enabled: c.enabled, apiKey: c.apiKey, lastHealthStatus: c.lastHealthStatus })));
+      return best?.modelId ?? "gpt-4o";
+    } catch { return "gpt-4o"; }
+  });
 
   const [guardEnabled, setGuardEnabled] = useState(true);
 
@@ -1021,7 +1028,7 @@ export function ChatWorkspace() {
 
                 <span style={{ color: "var(--text-muted)", fontSize: "0.7rem" }}>/ {currentRegistryModel?.displayName ?? selectedModel}</span>
 
-                <span style={{ marginLeft: "auto", fontSize: "0.6rem", color: "var(--text-muted)" }}>‚ñ?/span>
+                <span style={{ marginLeft: "auto", fontSize: "0.6rem", color: "var(--text-muted)" }}>&#9654;</span>
 
               </button>
 
@@ -1229,7 +1236,7 @@ export function ChatWorkspace() {
 
             <h4 style={{ margin: 0, color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.tokenBudget")}</h4>
 
-            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("budget") ? "‚ñ? : "‚ñ?}</span>
+            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("budget") ? "‚ñ∂" : "‚ñº"}</span>
 
           </div>
 
@@ -1343,7 +1350,7 @@ export function ChatWorkspace() {
 
                 <span style={{ fontSize: "0.8rem", color: taskStatusColor[taskStatus], fontWeight: 600 }}>{taskStatusLabel[taskStatus]}</span>
 
-                {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>‚ñ?/span>}
+                {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>&#9654;</span>}
 
               </div>
 
@@ -1351,27 +1358,13 @@ export function ChatWorkspace() {
 
           </div>
 
-          {/* was: <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)", display: "flex", alignItems: "center", gap: 8 }}>
-
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: taskStatusColor[taskStatus], display: "inline-block", flexShrink: 0 }}></span>
-
-            <span style={{ fontSize: "0.8rem", color: taskStatusColor[taskStatus], fontWeight: 600 }}>{taskStatusLabel[taskStatus]}</span>
-
-            {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>‚ñ?/span>}
-
-          </div>
-
-
-
-          {/* Inspector collapsible */}
-
           <div onClick={() => setCollapsedSections((prev) => { const next = new Set(prev); if (next.has("inspector")) next.delete("inspector"); else next.add("inspector"); return next; })}
 
             style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
 
             <h4 style={{ margin: 0, color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.inspector")}</h4>
 
-            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("inspector") ? "‚ñ? : "‚ñ?}</span>
+            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("inspector") ? "‚ñ∂" : "‚ñº"}</span>
 
           </div>
 
@@ -1439,7 +1432,7 @@ export function ChatWorkspace() {
 
                       <div style={{ color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</div>
 
-                      <div style={{ color: "var(--text-muted)", fontSize: "0.6rem" }}>{f.type} Èê?{(f.size / 1024).toFixed(1)} KB</div>
+                      <div style={{ color: "var(--text-muted)", fontSize: "0.6rem" }}>{f.type} ÔøΩ?{(f.size / 1024).toFixed(1)} KB</div>
 
                     </div>
 

@@ -70,7 +70,7 @@ export function AgentLabScreen() {
         const md = exportContent(`## ${label}\n\n### Agent Lab Execution Report\n\n- **Plugin**: ${pluginId}\n- **Action**: ${action}\n- **Exit Code**: ${result.exit_code}\n- **Duration**: ${result.duration_ms}ms\n- **Stdout**:\n\`\`\`\n${result.stdout || "(empty)"}\n\`\`\`\n- **Stderr**:\n\`\`\`\n${result.stderr || "(none)"}\n\`\`\``, label, "md");
         await writeFile(`${outDir}/${md.filename}`, md.content);
 
-        const json = exportContent({ task: label, pluginId, action, exitCode: result.exit_code, durationMs: result.duration_ms, stdout: result.stdout, stderr: result.stderr }, label, "json");
+        const json = exportContent(JSON.stringify({ task: label, pluginId, action, exitCode: result.exit_code, durationMs: result.duration_ms, stdout: result.stdout, stderr: result.stderr }), label, "json");
         await writeFile(`${outDir}/${json.filename}`, json.content);
 
         const html = exportContent(`<h2>${label}</h2><h3>Agent Lab Execution Report</h3><table><tr><td>Plugin</td><td>${pluginId}</td></tr><tr><td>Action</td><td>${action}</td></tr><tr><td>Exit Code</td><td>${result.exit_code}</td></tr><tr><td>Duration</td><td>${result.duration_ms}ms</td></tr></table><pre>${result.stdout || "(empty)"}</pre>`, label, "html");
@@ -86,7 +86,7 @@ export function AgentLabScreen() {
       } else {
         // Browser/Web mode: generate outputs only
         const md = exportContent(`## ${label}\n\n### Agent Lab Report\n\n- **Plugin**: ${pluginId}\n- **Action**: ${action}\n- **Mode**: Browser (no local execution)\n`, label, "md");
-        const json = exportContent({ task: label, pluginId, action, mode: "browser" }, label, "json");
+        const json = exportContent(JSON.stringify({ task: label, pluginId, action, mode: "browser" }), label, "json");
         updateStepStatus(task.id, "step-1", "complete", { md, json });
         appendLog({ taskId: task.id, stepId: "step-1", pluginId, level: "info", message: "Generated browser-mode outputs" });
         setOutput(`[Browser mode] Outputs generated: ${md.filename}, ${json.filename}`);
