@@ -119,7 +119,7 @@ const en = {
     fileIO: "File I/O",
     outputGeneration: "Output Generation",
     tauriConnected: "Tauri Connected",
-    tauriNotConnected: "Browser mode —no filesystem access",
+    tauriNotConnected: "Browser mode 鈥攏o filesystem access",
   },
 
   outputs: {
@@ -220,7 +220,7 @@ const en = {
 
   language: {
     english: "English",
-    chinese: "中文",
+    chinese: "涓枃",
     switchTo: "Language",
   },
 
@@ -263,6 +263,8 @@ const en = {
     done: "Done",
     taskError: "Error",
     noFilesAttached: "No files attached",
+    guardNoSensitive: "No sensitive data detected",
+    guardNoIssues: "No issues",
 
     tokenBudget: 'Token Budget',
     inputTokens: 'Input',
@@ -294,6 +296,12 @@ const en = {
     expandDetails: 'Expand',
     collapseDetails: 'Collapse',
     modelPickerTitle: 'Select Model',
+    agentStepScan: "Scan",
+    agentStepPrepare: "Prepare",
+    agentStepSelect: "Select",
+    agentStepSend: "Send",
+    agentStepRespond: "Respond",
+    agentStepSave: "Save",
     recentModels: 'Recent',
     favoriteModels: 'Favorites',
     recommendedModels: 'Recommended',

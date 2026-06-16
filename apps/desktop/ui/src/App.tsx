@@ -122,7 +122,7 @@ const screens: Record<string, React.ReactNode> = {
   dashboard: <Dashboard />,
 };
 
-/* ---- ToolboxScreen â€?independent full-page layout ---- */
+/* ---- ToolboxScreen â€”independent full-page layout ---- */
 function ToolboxScreen() {
   const [activeTool, setActiveTool] = useState<Screen | null>(null);
   if (activeTool && screens[activeTool]) {

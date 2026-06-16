@@ -1,4 +1,4 @@
-﻿#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::Manager;
 use serde::{Deserialize, Serialize};
@@ -188,7 +188,7 @@ fn init_tokenfence_dirs(base_path: String) -> Result<String, String> {
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
+        
         .invoke_handler(tauri::generate_handler![
             get_storage_path,
             execute_command,
