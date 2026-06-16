@@ -21,6 +21,7 @@ import {
 } from "@tokenfence/shared/src/model-registry";
 
 import { storeGet, storeSet } from "@tokenfence/shared/src/agent-runtime/safeStorage";
+import { ModelPickerPanel } from "../components/ModelPickerPanel";
 
 
 
@@ -263,9 +264,7 @@ export function ChatWorkspace() {
 
   const [manualCalcText, setManualCalcText] = useState("");
 
-  const [modelSearch, setModelSearch] = useState("");
-
-  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [showModelPanel, setShowModelPanel] = useState(false);
 
 
 
@@ -274,8 +273,6 @@ export function ChatWorkspace() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const pickerRef = useRef<HTMLDivElement>(null);
 
 
 
@@ -311,37 +308,7 @@ export function ChatWorkspace() {
 
 
 
-  // Filtered models based on search
 
-  const filteredModels = useMemo(() => {
-
-    if (!modelSearch.trim()) return providerModels;
-
-    const q = modelSearch.toLowerCase();
-
-    return providerModels.filter(m =>
-
-      m.displayName.toLowerCase().includes(q) ||
-
-      m.modelId.toLowerCase().includes(q) ||
-
-      (m.alias && m.alias.toLowerCase().includes(q))
-
-    );
-
-  }, [providerModels, modelSearch]);
-
-
-
-  // All searched models (cross-provider)
-
-  const searchedModels = useMemo(() => {
-
-    if (!modelSearch.trim() || modelSearch.trim().length < 2) return [];
-
-    return searchModels(modelSearch);
-
-  }, [modelSearch]);
 
 
 
@@ -382,28 +349,6 @@ export function ChatWorkspace() {
   }, [activeConv?.messages]);
 
 
-
-  // Close picker on outside click
-
-  useEffect(() => {
-
-    const handler = (e: MouseEvent) => {
-
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-
-        setShowModelPicker(false);
-
-        setModelSearch("");
-
-      }
-
-    };
-
-    if (showModelPicker) document.addEventListener("mousedown", handler);
-
-    return () => document.removeEventListener("mousedown", handler);
-
-  }, [showModelPicker]);
 
 
 
@@ -625,7 +570,7 @@ export function ChatWorkspace() {
 
     setSelectedProvider(providerId); setSelectedModel(modelId);
 
-    setShowModelPicker(false); setModelSearch("");
+    setShowModelPanel(false);
 
   }, []);
 
@@ -889,34 +834,39 @@ export function ChatWorkspace() {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
 
         {/* Header */}
-
         <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--surface)" }}>
-
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-
             <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text)" }}>{activeConv?.title || tk("chat.newConversation")}</span>
-
-          </div>
-
-          <div style={{ display: "flex", gap: 8 }}>
-
-            {activeConv && activeConv.messages.length > 0 && (
-
-              <button onClick={handleClearConversation} className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "4px 10px" }}>{tk("chat.clearConversation")}</button>
-
-            )}
-
-            <button onClick={() => setShowRightPanel(!showRightPanel)} className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "4px 10px" }}>
-
-              {showRightPanel ? tk("chat.hideInspector") : tk("chat.showInspector")}
-
+            {/* Model pill */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--surface-alt)", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 10px", fontSize: "0.75rem" }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: isProviderConfigured(selectedProvider) ? "var(--green)" : "var(--text-muted)" }}></span>
+              <span style={{ fontWeight: 500, color: "var(--text)" }}>{selectedProvider}</span>
+              <span style={{ color: "var(--text-muted)" }}>/ {currentRegistryModel?.displayName ?? selectedModel}</span>
+            </div>
+            {/* Switch Model button */}
+            <button onClick={() => setShowModelPanel(true)} className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "4px 10px", color: "var(--primary)" }}>
+              {tk("chat.switchModel")}
             </button>
-
           </div>
-
+          <div style={{ display: "flex", gap: 8 }}>
+            {activeConv && activeConv.messages.length > 0 && (
+              <button onClick={handleClearConversation} className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "4px 10px" }}>{tk("chat.clearConversation")}</button>
+            )}
+            <button onClick={() => setShowRightPanel(!showRightPanel)} className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "4px 10px" }}>
+              {showRightPanel ? tk("chat.hideInspector") : tk("chat.showInspector")}
+            </button>
+          </div>
         </div>
-
-
+        {/* ModelPickerPanel modal */}
+        {showModelPanel && (
+          <ModelPickerPanel
+            onClose={() => setShowModelPanel(false)}
+            onSelect={(pid: string, mid: string) => { setSelectedProvider(pid); setSelectedModel(mid); setShowModelPanel(false); }}
+            selectedProvider={selectedProvider}
+            selectedModel={selectedModel}
+            providerConfigs={providerConfigs}
+          />
+        )}
 
         {/* Messages */}
 
@@ -1014,150 +964,6 @@ export function ChatWorkspace() {
 
           <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center", flexWrap: "wrap" }}>
 
-            {/* Model picker button */}
-
-            <div ref={pickerRef} style={{ position: "relative" }}>
-
-              <button onClick={() => setShowModelPicker(!showModelPicker)}
-
-                style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 12px", fontSize: "0.8rem", cursor: "pointer", outline: "none", minWidth: 180 }}>
-
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: isProviderConfigured(selectedProvider) ? "var(--green)" : "var(--text-muted)", flexShrink: 0 }}></span>
-
-                <span style={{ fontWeight: 500 }}>{selectedProvider}</span>
-
-                <span style={{ color: "var(--text-muted)", fontSize: "0.7rem" }}>/ {currentRegistryModel?.displayName ?? selectedModel}</span>
-
-                <span style={{ marginLeft: "auto", fontSize: "0.6rem", color: "var(--text-muted)" }}>&#9654;</span>
-
-              </button>
-
-
-
-              {/* Model picker dropdown */}
-
-              {showModelPicker && (
-
-                <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, width: 320, maxHeight: 400, overflowY: "auto", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 30px rgba(0,0,0,0.2)", zIndex: 100, padding: "8px 0" }}>
-
-                  {/* Search */}
-
-                  <div style={{ padding: "0 12px 8px" }}>
-
-                    <input
-
-                      value={modelSearch} onChange={(e) => setModelSearch(e.target.value)}
-
-                      placeholder="Search models..." autoFocus
-
-                      style={{ width: "100%", background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", fontSize: "0.8rem", outline: "none" }}
-
-                    />
-
-                  </div>
-
-
-
-                  {modelSearch.trim().length >= 2 ? (
-
-                    /* Search results - cross provider */
-
-                    <>
-
-                      <div style={{ padding: "4px 12px", fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase" }}>Search results</div>
-
-                      {searchedModels.slice(0, 30).map((m) => (
-
-                        <div key={m.providerId + m.modelId} onClick={() => handleSelectModel(m.providerId, m.modelId)}
-
-                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", cursor: "pointer", fontSize: "0.8rem" }}
-
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-alt)")}
-
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-
-                        >
-
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: isProviderConfigured(m.providerId) ? "var(--green)" : "var(--text-muted)", flexShrink: 0 }}></span>
-
-                          <span style={{ fontWeight: 500, color: "var(--text)" }}>{m.displayName}</span>
-
-                          <span style={{ color: "var(--text-muted)", fontSize: "0.7rem", marginLeft: "auto" }}>{m.providerName}</span>
-
-                        </div>
-
-                      ))}
-
-                    </>
-
-                  ) : (
-
-                    /* Provider-grouped models */
-
-                    providerIds.map((pid) => {
-
-                      const models = getModelsForProvider(pid);
-
-                      if (models.length === 0) return null;
-
-                      const configured = isProviderConfigured(pid);
-
-                      return (
-
-                        <div key={pid}>
-
-                          <div onClick={() => { setSelectedProvider(pid); const d = getDefaultModelForProvider(pid); if (d) setSelectedModel(d.modelId); setShowModelPicker(false); setModelSearch(""); }}
-
-                            style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", cursor: "pointer", background: pid === selectedProvider ? "var(--surface-alt)" : "transparent", borderBottom: "1px solid var(--border)" }}>
-
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: configured ? "var(--green)" : "var(--text-muted)", flexShrink: 0 }}></span>
-
-                            <span style={{ fontWeight: 600, fontSize: "0.75rem", color: configured ? "var(--green)" : "var(--text-muted)" }}>{pid}</span>
-
-                            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginLeft: "auto" }}>{models.length} models</span>
-
-                          </div>
-
-                          {pid === selectedProvider && models.map((m) => (
-
-                            <div key={m.modelId} onClick={() => handleSelectModel(pid, m.modelId)}
-
-                              style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px 5px 24px", cursor: "pointer", background: m.modelId === selectedModel ? "var(--accent-faint, rgba(79,140,255,0.1))" : "transparent", fontSize: "0.75rem" }}
-
-                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-alt)")}
-
-                              onMouseLeave={(e) => { if (m.modelId !== selectedModel) e.currentTarget.style.background = "transparent"; }}
-
-                            >
-
-                              <span style={{ color: "var(--text)", flex: 1 }}>{m.displayName}</span>
-
-                              {m.isRecommended && <span style={{ fontSize: "0.6rem", background: "var(--primary)", color: "white", padding: "1px 5px", borderRadius: 8 }}>REC</span>}
-
-                              {m.isDefault && <span style={{ fontSize: "0.6rem", color: "var(--text-muted)" }}>default</span>}
-
-                              <span style={{ fontSize: "0.6rem", color: "var(--text-muted)" }}>{m.contextWindow ? (m.contextWindow >= 1000000 ? (m.contextWindow / 1000000).toFixed(1) + "M" : (m.contextWindow / 1000).toFixed(0) + "K") : ""}</span>
-
-                            </div>
-
-                          ))}
-
-                        </div>
-
-                      );
-
-                    })
-
-                  )}
-
-                </div>
-
-              )}
-
-            </div>
-
-
-
             {/* Guard toggle */}
 
             <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: "var(--text-secondary)", cursor: "pointer" }}>
@@ -1186,7 +992,7 @@ export function ChatWorkspace() {
 
             <button onClick={() => fileInputRef.current?.click()} className="btn btn-ghost" style={{ fontSize: "0.8rem", padding: "7px 12px" }}>
 
-              妫ｅ啯鎯?{tk("chat.attachFile")}
+              📎 {tk("chat.attachFile")}
 
             </button>
 
@@ -1374,7 +1180,7 @@ export function ChatWorkspace() {
 
               <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)" }}>
 
-                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>Active Model</div>
+                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{tk("chat.activeModel")}</div>
 
                 <div style={{ fontSize: "0.8rem", color: "var(--text)", fontWeight: 500 }}>{selectedProvider} / {currentRegistryModel?.displayName ?? selectedModel}</div>
 
@@ -1400,7 +1206,7 @@ export function ChatWorkspace() {
 
                   <div style={{ fontSize: "0.75rem", color: lastGuardResult.flagged ? "var(--amber)" : "var(--green)" }}>{lastGuardResult.flagged ? lastGuardResult.details : tk("chat.guardNoIssues")}</div>
 
-                ) : <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Send a message</div>}
+                ) : <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{tk("chat.sendMessageHint")}</div>}
 
               </div>
 
