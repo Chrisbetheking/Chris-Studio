@@ -1,6 +1,6 @@
 # TokenFence Studio
 
-**Languages:** [English](README.md) | [简体中文](README.zh-CN.md)
+**Languages:** [English](README.md) | [绠€浣撲腑鏂嘳(README.zh-CN.md)
 
 ![TokenFence Studio Banner](docs/images/banner.png)
 
@@ -11,11 +11,11 @@ Local-first prompt safety, document intelligence, multi-model routing, and Codex
 ## Latest Downloads
 
 - [Android APK](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.0/TokenFence-Studio-Android-v1.0.0-release.apk)
-- [Windows Portable ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.2.3/TokenFence-Studio-Windows-v1.2.3-portable.zip)
+- [Windows Portable ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.2.4/TokenFence-Studio-Windows-v1.2.4-portable.zip)
 
 > Windows users: download the portable ZIP, extract it first, then run `tokenfence-studio.exe` from the extracted folder. Do not run the EXE directly from inside the ZIP preview.
 
-[Releases](https://github.com/Chrisbetheking/tokenfence-studio/releases) | [Update Log](CHANGELOG.md) | [简体中文](README.zh-CN.md)
+[Releases](https://github.com/Chrisbetheking/tokenfence-studio/releases) | [Update Log](CHANGELOG.md) | [绠€浣撲腑鏂嘳(README.zh-CN.md)
 
 ---
 
@@ -77,7 +77,7 @@ It helps users work with prompts, files, context packs, model routing, token bud
 
 ## Windows Usage
 
-Download `TokenFence-Studio-Windows-v1.2.3-portable.zip`, extract it first, then run `tokenfence-studio.exe` from the extracted folder.
+Download `TokenFence-Studio-Windows-v1.2.4-portable.zip`, extract it first, then run `tokenfence-studio.exe` from the extracted folder.
 
 Do not run the EXE directly from inside the ZIP preview.
 

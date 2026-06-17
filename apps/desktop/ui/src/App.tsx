@@ -21,7 +21,7 @@ import { StorageScreen } from "./screens/StorageScreen";
 import { Dashboard } from "./screens/Dashboard";
 import { ToolboxScreen } from "./screens/ToolboxScreen";
 import { AgentPatchPanel } from "./components/AgentPatchPanel";
-import { AgentPatchPanel } from "./components/AgentPatchPanel";
+import { AppTitleBar } from "./components/AppTitleBar";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 
 type Screen = "chat" | "projects" | "models" | "toolbox" | "settings" | "about"
@@ -30,7 +30,7 @@ type Screen = "chat" | "projects" | "models" | "toolbox" | "settings" | "about"
 
 type FeatureStatus = "working" | "preview" | "coming_soon" | "needs_runtime";
 
-const VERSION = "v1.2.3";
+const VERSION = "v1.2.4";
 
 const primaryNav: { id: Screen; icon: string }[] = [
   { id: "chat", icon: "\u{1F4AC}" },
@@ -129,7 +129,7 @@ const screens: Record<string, React.ReactNode> = {
   toolbox: <ToolboxScreen />,
 };
 
-/* ---- ToolboxScreen —independent full-page layout ---- */
+/* ---- ToolboxScreen 鈥攊ndependent full-page layout ---- */
 function ToolboxLayout() {
   const [activeTool, setActiveTool] = useState<Screen | null>(null);
   if (activeTool && screens[activeTool]) {
@@ -235,8 +235,10 @@ function AppInner() {
 
   return (
     <div className="app-layout">
-      {/* Sidebar */}
-      <nav className="sidebar">
+      <AppTitleBar />
+      <div className="app-layout-body">
+        {/* Sidebar */}
+        <nav className="sidebar">
         <div className="sidebar-brand">
           <span className="sidebar-brand-icon">TF</span>
           <span className="sidebar-brand-text">TokenFence</span>
@@ -286,6 +288,7 @@ function AppInner() {
         title="Back to Chat"
       >
         <span style={{ fontSize: 48 }}>{String.fromCodePoint(0x1F916)}</span>
+      </div>
       </div>
     </div>
   );

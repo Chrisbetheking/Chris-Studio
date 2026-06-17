@@ -1,5 +1,5 @@
 /* ============================================================
-   TokenFence Studio — Master Stylesheet
+   TokenFence Studio 鈥?Master Stylesheet
    Import: tokens.css (design tokens) + ui.css (components)
    ============================================================ */
 @import "./styles/tokens.css";
@@ -17,6 +17,86 @@ body {
   overflow: hidden;
 }
 
+/* ---- Custom Titlebar ---- */
+.app-titlebar {
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  background: var(--tf-sidebar-bg);
+  border-bottom: 1px solid var(--tf-border);
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 200;
+  padding: 0 8px;
+  gap: 0;
+}
+
+.app-titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 8px;
+  flex-shrink: 0;
+}
+
+.app-titlebar-icon {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--tf-primary);
+  letter-spacing: -0.5px;
+}
+
+.app-titlebar-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tf-text-secondary);
+  white-space: nowrap;
+}
+
+.app-titlebar-spacer {
+  flex: 1;
+  -webkit-app-region: drag;
+}
+
+.app-titlebar-controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 100%;
+}
+
+.app-titlebar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--tf-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  -webkit-app-region: no-drag;
+  border-radius: 0;
+}
+
+.app-titlebar-btn:hover {
+  background: var(--tf-surface-hover);
+  color: var(--tf-text);
+}
+
+.app-titlebar-btn-close:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.app-layout-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
 /* ---- Scrollbar ---- */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--tf-scrollbar-track); }
@@ -26,6 +106,7 @@ body {
 /* ---- App Layout ---- */
 .app-layout {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   overflow: hidden;
 }
@@ -339,6 +420,86 @@ body {
 .settings-layout {
   display: flex; height: 100%; overflow: hidden;
 }
+
+/* ---- Custom Titlebar ---- */
+.app-titlebar {
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  background: var(--tf-sidebar-bg);
+  border-bottom: 1px solid var(--tf-border);
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 200;
+  padding: 0 8px;
+  gap: 0;
+}
+
+.app-titlebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 8px;
+  flex-shrink: 0;
+}
+
+.app-titlebar-icon {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--tf-primary);
+  letter-spacing: -0.5px;
+}
+
+.app-titlebar-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tf-text-secondary);
+  white-space: nowrap;
+}
+
+.app-titlebar-spacer {
+  flex: 1;
+  -webkit-app-region: drag;
+}
+
+.app-titlebar-controls {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 100%;
+}
+
+.app-titlebar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--tf-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  -webkit-app-region: no-drag;
+  border-radius: 0;
+}
+
+.app-titlebar-btn:hover {
+  background: var(--tf-surface-hover);
+  color: var(--tf-text);
+}
+
+.app-titlebar-btn-close:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.app-layout-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
 .settings-sidebar {
   width: 180px; flex-shrink: 0;
   border-right: 1px solid var(--tf-border);
@@ -372,7 +533,7 @@ body {
    RESPONSIVE BREAKPOINTS
    ============================================================ */
 
-/* 1024px — collapse sidebar, inspector hidden */
+/* 1024px 鈥?collapse sidebar, inspector hidden */
 @media (max-width: 1024px) {
   .sidebar { width: 64px; padding: 16px 8px; }
   .sidebar-brand-text { display: none; }
@@ -393,14 +554,14 @@ body {
   .settings-content { padding: 16px; }
 }
 
-/* 900px — tighter layout */
+/* 900px 鈥?tighter layout */
 @media (max-width: 900px) {
   .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
   .chat-message { max-width: 90%; }
   .model-picker-trigger { font-size: 11px; padding: 4px 8px; }
 }
 
-/* 768px — tablet, sidebar icons only */
+/* 768px 鈥?tablet, sidebar icons only */
 @media (max-width: 768px) {
   .sidebar { width: 52px; padding: 12px 6px; }
   .sidebar-item { padding: 8px 6px; }
@@ -412,7 +573,7 @@ body {
   .chat-input-area { padding: 8px 12px; }
 }
 
-/* 480px — phone, extremely compact */
+/* 480px 鈥?phone, extremely compact */
 @media (max-width: 480px) {
   .sidebar { width: 48px; padding: 8px 4px; }
   .stats-grid { grid-template-columns: 1fr; }
