@@ -270,9 +270,17 @@ export function ChatWorkspace() {
 
   const [manualCalcText, setManualCalcText] = useState("");
 
+  const isZh = tk("common.yes") !== "Yes";
   const [showModelPanel, setShowModelPanel] = useState(false);
   const [installedModels, setInstalledModels] = useState<InstalledModel[]>(() => getEnabledModels());
   const [projectTab, setProjectTab] = useState(false);
+  const [manualPath, setManualPath] = useState("");
+  const [projectSearchQ, setProjectSearchQ] = useState("");
+  const [savedProjects, setSavedProjects] = useState<any[]>(() => {
+    try { const ps = storeGet("tokenfence-projects"); return ps ? JSON.parse(ps) : []; } catch { return []; }
+  });
+
+  const [sidebarTab, setSidebarTab] = useState<"conversations" | "project">("conversations");
   const [dragOver, setDragOver] = useState(false);
 
 
@@ -763,6 +771,85 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
     return activeProject.files.filter((f: any) => f.name.toLowerCase().includes(q));
   }, [activeProject?.files, searchQ]);
 
+
+  const filteredProjectFiles = useMemo(() => {
+    if (!activeProject?.files) return [];
+    if (!projectSearchQ.trim()) return activeProject.files;
+    const q = projectSearchQ.toLowerCase();
+    return activeProject.files.filter((f: any) => f.name.toLowerCase().includes(q));
+  }, [activeProject?.files, projectSearchQ]);
+
+  const selectedFileCount = useMemo(() => {
+    return activeProject?.files?.filter((f: any) => f.selected).length ?? 0;
+  }, [activeProject?.files]);
+
+  const projectFilesInContext = useMemo(() => {
+    return attachedFiles.filter((f) => f.type === "project");
+  }, [attachedFiles]);
+
+  const toggleProjectFileSelection = (fileName: string) => {
+    if (!activeProject) return;
+    const updated = {
+      ...activeProject,
+      files: activeProject.files.map((f: any) =>
+        f.name === fileName ? { ...f, selected: !f.selected } : f
+      ),
+    };
+    setActiveProject(updated);
+    try { storeSet("tokenfence-active-project", updated.id); storeSet("tokenfence-projects", JSON.stringify(savedProjects.map((p: any) => p.id === updated.id ? updated : p))); } catch {}
+  };
+
+  const handleLoadManualPath = async () => {
+    const path = manualPath.trim();
+    if (!path) return;
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const result: any = await invoke("scan_project_files", { path });
+      if (result?.files) {
+        const proj = { id: "manual-" + Date.now(), name: path.split("\\").pop() || path, folderPath: path, files: result.files.map((f: any) => ({ ...f, selected: false })) };
+        setActiveProject(proj);
+        const updated = [proj, ...savedProjects.filter((p: any) => p.folderPath !== path)];
+        setSavedProjects(updated);
+        try { storeSet("tokenfence-active-project", proj.id); storeSet("tokenfence-projects", JSON.stringify(updated)); } catch {}
+      }
+    } catch {
+      // Fallback: create project stub for Tauri-unavailable mode
+      const proj = { id: "manual-" + Date.now(), name: path.split("\\").pop() || path, folderPath: path, files: [] };
+      setActiveProject(proj);
+    }
+  };
+
+  const handleLoadSavedProject = (proj: any) => {
+    setActiveProject(proj);
+    try { storeSet("tokenfence-active-project", proj.id); } catch {}
+  };
+
+  const handleAddSelectedToContext = async () => {
+    if (!activeProject) return;
+    const selected = activeProject.files?.filter((f: any) => f.selected) ?? [];
+    for (const f of selected) {
+      let content = `[Project: ${activeProject.name}]
+[File: ${f.name}]
+
+`;
+      try {
+        const filePath = activeProject.folderPath + "\\" + f.name;
+        const fileContent = await readFile(filePath);
+        content += fileContent || "(empty file)";
+      } catch {
+        content += "(unable to read file)";
+      }
+      setAttachedFiles((prev) => {
+        if (prev.find((x) => x.name === f.name && x.type === "project")) return prev;
+        return [...prev, { id: `proj-${f.name}`, name: f.name, size: content.length, type: "project", content }];
+      });
+    }
+  };
+
+  const handleRemoveAllProjectContext = () => {
+    setAttachedFiles((prev) => prev.filter((f) => f.type !== "project"));
+  };
+
   const toggleFile = async (fileName: string) => {
     if (!activeProject) return;
     const updated = {
@@ -1014,15 +1101,40 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
       <div style={{ width: 220, minWidth: 220, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", background: "var(--surface)" }}>
 
-        <div style={{ padding: "12px", borderBottom: "1px solid var(--border)" }}>
-
-          <button onClick={handleNewConversation} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "10px 12px", fontSize: "0.85rem" }}>
-
-            + {tk("chat.newConversation")}
-
+        {/* Sidebar tabs: Conversations / Project */}
+        <div style={{ display: "flex", borderBottom: "1px solid var(--border)" }}>
+          <button
+            onClick={() => setSidebarTab("conversations")}
+            style={{
+              flex: 1, padding: "10px 8px", fontSize: "0.78rem", fontWeight: sidebarTab === "conversations" ? 600 : 400,
+              color: sidebarTab === "conversations" ? "var(--primary)" : "var(--text-muted)",
+              background: "none", border: "none", borderBottom: sidebarTab === "conversations" ? "2px solid var(--primary)" : "2px solid transparent",
+              cursor: "pointer",
+            }}
+          >
+            {isZh ? "对话" : "Conversations"}
           </button>
-
+          <button
+            onClick={() => setSidebarTab("project")}
+            style={{
+              flex: 1, padding: "10px 8px", fontSize: "0.78rem", fontWeight: sidebarTab === "project" ? 600 : 400,
+              color: sidebarTab === "project" ? "var(--primary)" : "var(--text-muted)",
+              background: "none", border: "none", borderBottom: sidebarTab === "project" ? "2px solid var(--primary)" : "2px solid transparent",
+              cursor: "pointer",
+            }}
+          >
+            {isZh ? "项目" : "Project"}
+          </button>
         </div>
+
+        {/* Conversations tab */}
+        {sidebarTab === "conversations" && (
+          <>
+            <div style={{ padding: "12px", borderBottom: "1px solid var(--border)" }}>
+              <button onClick={handleNewConversation} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "10px 12px", fontSize: "0.85rem" }}>
+                + {tk("chat.newConversation")}
+              </button>
+            </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
 
@@ -1056,24 +1168,131 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
         </div>
 
-        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>v1.0.15</div>
+        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>{conversations.length} {isZh ? "个会话" : "conversations"}</div>
+          </>
+        )}
+
+        {/* Project tab */}
+        {sidebarTab === "project" && (
+          <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
+            {/* Active Project */}
+            {activeProject ? (
+              <div style={{ padding: "8px", background: "var(--surface-alt)", borderRadius: 8, marginBottom: 10 }}>
+                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{isZh ? "当前项目" : "Active Project"}</div>
+                <div style={{ fontWeight: 600, fontSize: "0.8rem", color: "var(--text)" }}>{activeProject.name}</div>
+                <div style={{ fontSize: "0.6rem", color: "var(--text-muted)", marginTop: 2, wordBreak: "break-all" }}>{activeProject.folderPath}</div>
+                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginTop: 4 }}>{activeProject.files?.length ?? 0} {isZh ? "个文件" : "files"}</div>
+              </div>
+            ) : (
+              <div style={{ padding: "8px", color: "var(--text-muted)", fontSize: "0.75rem", textAlign: "center", marginBottom: 10 }}>
+                {isZh ? "未加载项目" : "No project loaded"}
+              </div>
+            )}
+
+            {/* Manual Path input */}
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{isZh ? "手动路径" : "Manual Path"}</div>
+              <input
+                className="input"
+                value={manualPath}
+                onChange={(e) => setManualPath(e.target.value)}
+                placeholder={isZh ? "输入项目路径..." : "Enter project path..."}
+                style={{ width: "100%", boxSizing: "border-box", background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 8px", fontSize: "0.7rem", outline: "none" }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleLoadManualPath(); }}
+              />
+            </div>
+
+            <button onClick={handleLoadManualPath} className="btn btn-primary" style={{ width: "100%", fontSize: "0.75rem", padding: "6px 12px", marginBottom: 10 }}>
+              {isZh ? "加载项目" : "Load Project"}
+            </button>
+
+            {/* Recent Projects */}
+            {savedProjects.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{isZh ? "最近项目" : "Recent Projects"}</div>
+                {savedProjects.slice(0, 5).map((p: any) => (
+                  <div
+                    key={p.id}
+                    onClick={() => handleLoadSavedProject(p)}
+                    style={{ padding: "6px 8px", fontSize: "0.72rem", color: "var(--text)", cursor: "pointer", borderRadius: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-alt)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    {p.name}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Active project file tree */}
+            {activeProject && (
+              <>
+                {/* Search */}
+                <div style={{ marginBottom: 6 }}>
+                  <input
+                    className="input"
+                    value={projectSearchQ}
+                    onChange={(e) => setProjectSearchQ(e.target.value)}
+                    placeholder={isZh ? "搜索文件..." : "Search files..."}
+                    style={{ width: "100%", boxSizing: "border-box", background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 8px", fontSize: "0.7rem", outline: "none" }}
+                  />
+                </div>
+
+                {/* File tree */}
+                <div style={{ maxHeight: 260, overflowY: "auto", marginBottom: 6 }}>
+                  {filteredProjectFiles.length === 0 ? (
+                    <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", textAlign: "center", padding: 8 }}>
+                      {projectSearchQ.trim() ? (isZh ? "无匹配文件" : "No matching files") : (isZh ? "无文件" : "No files")}
+                    </div>
+                  ) : (
+                    filteredProjectFiles.map((f: any) => (
+                      <div
+                        key={f.name}
+                        onClick={() => toggleProjectFileSelection(f.name)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 4,
+                          padding: "4px 6px", cursor: "pointer", borderRadius: 4, fontSize: "0.72rem",
+                          background: f.selected ? "var(--accent-faint, rgba(79,140,255,0.1))" : "transparent",
+                          color: f.selected ? "var(--primary)" : "var(--text)",
+                        }}
+                      >
+                        <span style={{ fontSize: "0.6rem", flexShrink: 0 }}>{f.selected ? "◉" : "○"}</span>
+                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Selected count + actions */}
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>
+                    {selectedFileCount} {isZh ? "已选" : "selected"}
+                  </span>
+                  <button onClick={handleAddSelectedToContext} className="btn btn-primary" style={{ fontSize: "0.68rem", padding: "4px 10px" }}>
+                    {isZh ? "加入上下文" : "Add to Context"}
+                  </button>
+                  {projectFilesInContext.length > 0 && (
+                    <button onClick={handleRemoveAllProjectContext} className="btn btn-ghost" style={{ fontSize: "0.68rem", padding: "4px 10px", color: "var(--red)" }}>
+                      {isZh ? "清除项目上下文" : "Clear Project Context"}
+                    </button>
+                  )}
+                </div>
+
+                {/* Project Context files count */}
+                {projectFilesInContext.length > 0 && (
+                  <div style={{ fontSize: "0.65rem", color: "var(--primary)", marginTop: 6 }}>
+                    {projectFilesInContext.length} {isZh ? "个项目文件在上下文中" : "project files in context"}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
       </div>
 
 
 
-      {/* Project panel */}
-      {projectTab && (
-        <div style={{ width: 260, minWidth: 260, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", background: "var(--surface)", overflow: "hidden" }}>
-          <ProjectFilePanel
-            activeProject={activeProject}
-            setActiveProject={setActiveProject}
-            attachedFiles={attachedFiles}
-            setAttachedFiles={setAttachedFiles}
-            onClose={() => setProjectTab(false)}
-          />
-        </div>
-      )}
 
       {/* Center: Chat area */}
 
