@@ -21,15 +21,16 @@ import { StorageScreen } from "./screens/StorageScreen";
 import { Dashboard } from "./screens/Dashboard";
 import { ToolboxScreen } from "./screens/ToolboxScreen";
 import { AgentPatchPanel } from "./components/AgentPatchPanel";
+import { AgentPatchPanel } from "./components/AgentPatchPanel";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 
 type Screen = "chat" | "projects" | "models" | "toolbox" | "settings" | "about"
   | "guard" | "documents" | "matrix" | "providers" | "archive" | "storage"
-  | "agent-lab" | "plugins" | "output" | "mindmap" | "computer" | "routing" | "dashboard";
+  | "agent-lab" | "plugins" | "output" | "mindmap" | "computer" | "routing" | "dashboard" | "agent-edit";
 
 type FeatureStatus = "working" | "preview" | "coming_soon" | "needs_runtime";
 
-const VERSION = "v1.1.9";
+const VERSION = "v1.2.2";
 
 const primaryNav: { id: Screen; icon: string }[] = [
   { id: "chat", icon: "\u{1F4AC}" },
@@ -102,6 +103,7 @@ const screenLabels: Record<Screen, string> = {
   "agent-lab": "nav.agentLab", plugins: "nav.plugins", output: "nav.outputs",
   mindmap: "nav.mindMap", computer: "nav.computerUse", routing: "nav.routing",
   dashboard: "nav.dashboard",
+  "agent-edit": "nav.agentEdit",
 };
 
 const screens: Record<string, React.ReactNode> = {
@@ -123,11 +125,12 @@ const screens: Record<string, React.ReactNode> = {
   computer: <ComputerControlScreen />,
   routing: <RoutingScreen />,
   dashboard: <Dashboard />,
+  "agent-edit": <AgentPatchPanel selectedFiles={[]} onClose={() => {}} />,
   toolbox: <ToolboxScreen />,
 };
 
 /* ---- ToolboxScreen —independent full-page layout ---- */
-function ToolboxScreen() {
+function ToolboxLayout() {
   const [activeTool, setActiveTool] = useState<Screen | null>(null);
   if (activeTool && screens[activeTool]) {
     return (
@@ -228,7 +231,7 @@ function AppInner() {
     try { localStorage.setItem("tokenfence-mascot", next ? "visible" : "hidden"); } catch {}
   }, [mascotVisible]);
 
-  const currentContent = screen === "toolbox" ? <ToolboxScreen /> : screens[screen] ?? <ChatWorkspace />;
+  const currentContent = screen === "toolbox" ? <ToolboxLayout /> : screens[screen] ?? <ChatWorkspace />;
 
   return (
     <div className="app-layout">
