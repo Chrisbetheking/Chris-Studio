@@ -4,6 +4,7 @@ import { ThemeProvider, useTheme } from "./components/ThemeProvider";
 import { ChatWorkspace } from "./screens/ChatWorkspace";
 import { ProjectsScreen } from "./screens/ProjectsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { ProvidersScreen } from "./screens/ProvidersScreen";
 import { ModelsScreen } from "./screens/ModelsScreen";
 import { AboutScreen } from "./screens/AboutScreen";
 import { GuardScreen } from "./screens/GuardScreen";
@@ -26,7 +27,7 @@ type Screen = "chat" | "projects" | "models" | "toolbox" | "settings" | "about"
 
 type FeatureStatus = "working" | "preview" | "coming_soon" | "needs_runtime";
 
-const VERSION = "v1.0.22";
+const VERSION = "v1.0.23";
 
 const primaryNav: { id: Screen; icon: string }[] = [
   { id: "chat", icon: "\u{1F4AC}" },
