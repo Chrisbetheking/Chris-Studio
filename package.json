@@ -14,7 +14,9 @@
     "android:typecheck": "npm --workspace apps/android run typecheck",
     "android": "npm --workspace apps/android run android",
     "desktop:dev": "npm --workspace apps/desktop run dev",
-    "desktop:build": "npm --workspace apps/desktop run build"
+    "desktop:build": "npm --workspace apps/desktop run build",
+    "guard:source": "node scripts/source_guard.js",
+    "release:sanity": "node scripts/release_sanity.js"
   },
   "workspaces": [
     "apps/*",
