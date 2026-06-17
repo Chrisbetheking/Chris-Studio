@@ -4,6 +4,7 @@ import {
   applyPatch, undoLastPatch, createBackup, appendOperationLog,
   readFile, fileExists, executeCommand, CommandResult
 } from "../desktop-bridge";
+import { generateAgentPlan } from "../agentModelBridge";
 
 /* ============================================================
    AgentPatchPanel v1.2.0
@@ -30,6 +31,10 @@ interface AgentPatchPanelProps {
 
 let lastOperationId = "";
 
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
 export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateWithModel }: AgentPatchPanelProps) {
   const [step, setStep] = useState<AgentStep>("planning");
   const [planText, setPlanText] = useState("");
@@ -37,6 +42,7 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
   const [error, setError] = useState("");
   const [operationLog, setOperationLog] = useState<string[]>([]);
   const [pendingFiles, setPendingFiles] = useState<{ file: string; content: string }[]>([]);
+  const [fileContents, setFileContents] = useState<{ name: string; content: string }[]>([]);
   const [checkResult, setCheckResult] = useState<CommandResult | null>(null);
   const [gitStatus, setGitStatus] = useState("");
   const [copiedDiff, setCopiedDiff] = useState(false);
@@ -128,6 +134,7 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
     }
     setDiffBlocks(diffs);
     setPendingFiles(fileContents.map((fc) => ({ file: fc.name, content: fc.content })));
+    setFileContents(fileContents);
     setStep("waiting_approval");
     addLog(isZh ? "计划已生成，等待确认" : "Plan generated, waiting approval");
   }, [selectedFiles, generateWithModel, isZh]);
@@ -290,6 +297,20 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
         </div>
       )}
 
+      {/* Token budget bar */}
+      {fileContents.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#888" }}>
+          <span>{isZh ? "?????" : "Token Budget"}:</span>
+          <div style={{ flex: 1, height: 4, background: "#333", borderRadius: 2 }}>
+            <div style={{
+              height: "100%", borderRadius: 2,
+              width: Math.min(100, Math.ceil(estimateTokens(fileContents.map(f => f.content).join("\n")) / 4096 * 100)) + "%",
+              background: estimateTokens(fileContents.map(f => f.content).join("\n")) > 4096 ? "#ff9800" : "#4caf50",
+            }} />
+          </div>
+          <span>{estimateTokens(fileContents.map(f => f.content).join("\n"))} / 4096</span>
+        </div>
+      )}
       {/* Main content: diff preview */}
       {diffBlocks.length > 0 && (
         <div style={{ flex: 1, overflow: "auto", background: "#1a1a2e", borderRadius: 4, padding: 8 }}>
