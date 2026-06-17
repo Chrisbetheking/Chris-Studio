@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "TokenFence Studio",
-    "version": "1.2.0"
+    "version": "1.2.2"
   },
   "tauri": {
     "bundle": {

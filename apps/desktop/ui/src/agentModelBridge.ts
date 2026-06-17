@@ -1,5 +1,6 @@
-// Agent model bridge: calls the currently configured model to generate Agent plans and diffs.
-// Uses the same provider pattern as ChatWorkspace.
+// Agent model bridge v1.2.2
+// Calls the currently configured model to generate Agent plans and unified diffs.
+// Reads model config from localStorage (same key as ChatWorkspace).
 
 interface ModelConfig {
   provider: string;
@@ -10,84 +11,77 @@ interface ModelConfig {
   deployment?: string;
 }
 
-interface ProviderEndpoint {
-  baseUrl: string;
-  chatEndpoint: string;
-}
-
-const PROVIDER_ENDPOINTS: Record<string, ProviderEndpoint> = {
-  OpenAI: { baseUrl: "https://api.openai.com", chatEndpoint: "/v1/chat/completions" },
-  Claude: { baseUrl: "https://api.anthropic.com", chatEndpoint: "/v1/messages" },
-  Gemini: { baseUrl: "https://generativelanguage.googleapis.com", chatEndpoint: "/v1beta/models/{model}:generateContent" },
-  DeepSeek: { baseUrl: "https://api.deepseek.com", chatEndpoint: "/v1/chat/completions" },
-  Grok: { baseUrl: "https://api.x.ai", chatEndpoint: "/v1/chat/completions" },
-  Ollama: { baseUrl: "http://localhost:11434", chatEndpoint: "/api/chat" },
-  LMStudio: { baseUrl: "http://localhost:1234", chatEndpoint: "/v1/chat/completions" },
-  OpenRouter: { baseUrl: "https://openrouter.ai/api", chatEndpoint: "/v1/chat/completions" },
+const PROVIDERS: Record<string, { baseUrl: string; chatPath: string }> = {
+  OpenAI:       { baseUrl: "https://api.openai.com",                   chatPath: "/v1/chat/completions" },
+  DeepSeek:     { baseUrl: "https://api.deepseek.com",                 chatPath: "/v1/chat/completions" },
+  OpenRouter:   { baseUrl: "https://openrouter.ai/api",                chatPath: "/v1/chat/completions" },
+  Grok:         { baseUrl: "https://api.x.ai",                         chatPath: "/v1/chat/completions" },
+  Claude:       { baseUrl: "https://api.anthropic.com",                chatPath: "/v1/messages" },
+  Gemini:       { baseUrl: "https://generativelanguage.googleapis.com", chatPath: "/v1beta/models/{model}:generateContent" },
+  Ollama:       { baseUrl: "http://localhost:11434",                    chatPath: "/api/chat" },
+  LMStudio:     { baseUrl: "http://localhost:1234",                     chatPath: "/v1/chat/completions" },
 };
 
-export async function generateAgentPlan(
-  userRequest: string,
-  fileContents: { name: string; content: string }[]
-): Promise<string> {
-  // Read model config from localStorage (same key as ChatWorkspace)
-  let config: ModelConfig;
+function loadConfig(): ModelConfig {
   try {
     const raw = localStorage.getItem("tokenfence-chat-config");
-    config = raw ? JSON.parse(raw) : { provider: "OpenAI" };
+    return raw ? JSON.parse(raw) : { provider: "OpenAI" };
   } catch {
-    return "[Error] Model not configured. Please set up an API Key in Models page.";
+    return { provider: "OpenAI" };
   }
+}
 
-  const ep = PROVIDER_ENDPOINTS[config.provider] || PROVIDER_ENDPOINTS["OpenAI"];
-  if (!config.apiKey && config.deployment === "cloud") {
-    return "[Error] Model not configured. Please configure an API Key for " + config.provider + " in Models page.";
-  }
-  if (!config.apiKey) {
-    return "[Error] Model not configured. Please configure an API Key for " + config.provider + " in Models page.";
-  }
+function buildSystemPrompt(): string {
+  return `You are an expert code editor. Given file contents and a user request, produce exactly:
 
-  const mid = config.customModelId || config.model || "gpt-3.5-turbo";
-  const url = (config.baseUrl || ep.baseUrl) + ep.chatEndpoint.replace("{model}", mid);
-
-  // Build system + user prompt for Agent plan generation
-  const systemPrompt = `You are an expert code editor. Given file contents and a user request, produce:
-1. A concise Plan (3-5 bullet points)
-2. A list of Changed Files
-3. A Unified Diff for each file
-4. Risk Notes (1-2 lines)
-
-Format your response as:
 ## Plan
-- point 1
-- point 2
+- bullet points (3-5)
 
 ## Changed Files
-- file1.ts
-- file2.ts
+- file1
+- file2
 
 ## Unified Diff
 \`\`\`diff
---- a/file.ts
-+++ b/file.ts
-@@ -1,5 +1,5 @@
+--- a/file
++++ b/file
+@@ -line,count +line,count @@
 -old
 +new
 \`\`\`
 
 ## Risk Notes
-- risk note here`;
+- one or two notes`;
+}
 
-  const fileBlock = fileContents.map(f => `### ${f.name}\n\`\`\`\n${f.content.slice(0, 3000)}\n\`\`\``).join("\n\n");
-  const userMessage = `User Request: ${userRequest}\n\nFiles:\n${fileBlock}`;
+export async function generateAgentPlan(
+  userRequest: string,
+  fileContents: { name: string; content: string }[]
+): Promise<string> {
+  const config = loadConfig();
+  const prov = PROVIDERS[config.provider] || PROVIDERS["OpenAI"];
+
+  if (!config.apiKey) {
+    return "[Error] Model not configured. Please set an API Key for " + config.provider + " in Models page.";
+  }
+
+  const modelId = config.customModelId || config.model || "gpt-3.5-turbo";
+  const url = (config.baseUrl || prov.baseUrl) + prov.chatPath.replace("{model}", modelId);
+
+  const systemPrompt = buildSystemPrompt();
+  const fileBlock = fileContents
+    .map(function(f) { return "### " + f.name + "\n```\n" + f.content.slice(0, 3000) + "\n```"; })
+    .join("\n\n");
+  const userMessage = "User Request: " + userRequest + "\n\nFiles:\n" + fileBlock;
 
   const messages = [
     { role: "system", content: systemPrompt },
-    { role: "user", content: userMessage },
+    { role: "user",   content: userMessage },
   ];
 
   try {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
+
     if (config.provider === "Claude") {
       headers["x-api-key"] = config.apiKey;
       headers["anthropic-version"] = "2023-06-01";
@@ -99,35 +93,41 @@ Format your response as:
 
     let body: Record<string, unknown>;
     if (config.provider === "Claude") {
-      body = { model: mid, max_tokens: 2048, messages: messages.map(m => ({ role: m.role, content: m.content })) };
+      body = { model: modelId, max_tokens: 2048, messages: messages.map(function(m) { return { role: m.role, content: m.content }; }) };
     } else if (config.provider === "Gemini") {
-      body = { contents: messages.map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })) };
+      body = { contents: messages.map(function(m) { return { role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }; }) };
     } else {
-      body = { model: mid, messages, max_tokens: 2048 };
+      body = { model: modelId, messages: messages, max_tokens: 2048 };
     }
 
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 30000);
-    const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: ctrl.signal });
+    const t = setTimeout(function() { ctrl.abort(); }, 30000);
+    const resp = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body), signal: ctrl.signal });
     clearTimeout(t);
 
     if (!resp.ok) {
       const errText = await resp.text();
-      return "[Error] Model API returned " + resp.status + ": " + errText.slice(0, 200);
+      return "[Error] API returned " + resp.status + ": " + errText.slice(0, 200);
     }
 
     const data = await resp.json();
+
     if (config.provider === "Claude") {
-      return data?.content?.[0]?.text || "[Error] Empty response from model.";
-    } else if (config.provider === "Gemini") {
-      return data?.candidates?.[0]?.content?.parts?.[0]?.text || "[Error] Empty response from model.";
-    } else {
-      return data?.choices?.[0]?.message?.content || "[Error] Empty response from model.";
+      return data?.content?.[0]?.text || "[Error] Empty response from Claude.";
     }
+    if (config.provider === "Gemini") {
+      return data?.candidates?.[0]?.content?.parts?.[0]?.text || "[Error] Empty response from Gemini.";
+    }
+    // OpenAI-compatible (OpenAI, DeepSeek, OpenRouter, Grok, Ollama, LMStudio)
+    return data?.choices?.[0]?.message?.content || "[Error] Empty response from model.";
+
   } catch (e: any) {
     if (e.name === "AbortError") {
-      return "[Error] Model request timed out (30s). Try again.";
+      return "[Error] Request timed out (30s).";
     }
     return "[Error] Model call failed: " + String(e.message || e);
   }
 }
+
+// Note: CORS restrictions apply in browser context.
+// Desktop (Tauri) may need the Tauri HTTP plugin for production use.

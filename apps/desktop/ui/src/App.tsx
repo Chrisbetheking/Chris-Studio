@@ -21,6 +21,7 @@ import { StorageScreen } from "./screens/StorageScreen";
 import { Dashboard } from "./screens/Dashboard";
 import { ToolboxScreen } from "./screens/ToolboxScreen";
 import { AgentPatchPanel } from "./components/AgentPatchPanel";
+import { AgentPatchPanel } from "./components/AgentPatchPanel";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 
 type Screen = "chat" | "projects" | "models" | "toolbox" | "settings" | "about"
@@ -29,7 +30,7 @@ type Screen = "chat" | "projects" | "models" | "toolbox" | "settings" | "about"
 
 type FeatureStatus = "working" | "preview" | "coming_soon" | "needs_runtime";
 
-const VERSION = "v1.2.1";
+const VERSION = "v1.2.2";
 
 const primaryNav: { id: Screen; icon: string }[] = [
   { id: "chat", icon: "\u{1F4AC}" },
@@ -129,7 +130,7 @@ const screens: Record<string, React.ReactNode> = {
 };
 
 /* ---- ToolboxScreen —independent full-page layout ---- */
-function ToolboxScreen() {
+function ToolboxLayout() {
   const [activeTool, setActiveTool] = useState<Screen | null>(null);
   if (activeTool && screens[activeTool]) {
     return (
@@ -216,9 +217,6 @@ function ThemeToggle() {
 function AppInner() {
   const [screen, setScreen] = useState<Screen>("chat");
   const [, forceRender] = useState(0);
-  const [showAgentPatch, setShowAgentPatch] = useState(false);
-  const [agentFiles, setAgentFiles] = useState<{ name: string; path: string }[]>([]);
-  const [activeProject, setActiveProject] = useState<{ folderPath?: string } | null>(null);
   const [mascotVisible, setMascotVisible] = useState(() => {
     try { const v = localStorage.getItem("tokenfence-mascot"); return v !== "hidden"; } catch { return true; }
   });
@@ -233,7 +231,7 @@ function AppInner() {
     try { localStorage.setItem("tokenfence-mascot", next ? "visible" : "hidden"); } catch {}
   }, [mascotVisible]);
 
-  const currentContent = screen === "toolbox" ? <ToolboxScreen /> : screen === "agent-edit" ? <div style={{padding:16}}><AgentPatchPanel projectPath={activeProject?.folderPath} selectedFiles={agentFiles} onClose={() => setScreen("chat")} /></div> : screens[screen] ?? <ChatWorkspace />;
+  const currentContent = screen === "toolbox" ? <ToolboxLayout /> : screens[screen] ?? <ChatWorkspace />;
 
   return (
     <div className="app-layout">
