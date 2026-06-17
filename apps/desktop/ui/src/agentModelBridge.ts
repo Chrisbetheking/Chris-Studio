@@ -1,4 +1,4 @@
-﻿// Agent model bridge: calls the currently configured model to generate Agent plans and diffs.
+// Agent model bridge: calls the currently configured model to generate Agent plans and diffs.
 // Uses the same provider pattern as ChatWorkspace.
 
 interface ModelConfig {
