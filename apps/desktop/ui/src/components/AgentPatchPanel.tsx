@@ -52,7 +52,7 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
   const isZh = tk("common.yes") !== "Yes";
 
   /* ---- i18n helpers ---- */
-    const L = {
+  const L = {
     planning: isZh ? "规划中" : "Planning",
     reading: isZh ? "读取文件" : "Reading files",
     generatingDiff: isZh ? "生成 Diff" : "Generating diff",
@@ -63,6 +63,17 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
     failed: isZh ? "失败" : "Failed",
     rolledBack: isZh ? "已回滚" : "Rolled back",
     modelNotConfigured: isZh ? "模型未配置，无法生成真实计划。请在模型页配置 API Key。" : "Model not configured. Please configure an API Key in Models.",
+    manualFallback: isZh ? "可使用下方编辑器手动编写 Diff。" : "You can edit the diff manually below.",
+    generatePlan: isZh ? "生成计划" : "Generate Plan",
+    applyPatch: isZh ? "确认应用补丁" : "Apply Patch",
+    reject: isZh ? "拒绝" : "Reject",
+    undoLast: isZh ? "撤销上次操作" : "Undo Last Operation",
+    copyDiff: isZh ? "复制 Diff" : "Copy Diff",
+    runCheck: isZh ? "运行检查" : "Run Check",
+    runBuild: isZh ? "构建" : "Run Build",
+    runTests: isZh ? "运行测试" : "Run Tests",
+    customCmd: isZh ? "自定义命令" : "Custom Command",
+  };
 
   const stepLabel = (s: AgentStep): string => {
     const map: Record<AgentStep, string> = {
@@ -81,17 +92,17 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
   const handleGeneratePlan = useCallback(async () => {
     setStep("reading");
     setError("");
-    addLog(isZh ? "瀵偓婵顕伴崣鏍偓澶夎厬閺傚洣娆?.." : "Reading selected files...");
+    addLog(isZh ? "开始读取选中文件..." : "Reading selected files...");
 
     const fileContents: { name: string; content: string }[] = [];
     for (const f of selectedFiles) {
       try {
         const content = await readFile(f.path);
         fileContents.push({ name: f.name, content });
-        addLog(`${isZh ? "瀹歌尪顕伴崣? : "Read"}: ${f.name}`);
+        addLog(`${isZh ? "已读取" : "Read"}: ${f.name}`);
       } catch (e: any) {
-        addLog(`${isZh ? "鐠囪褰囨径杈Е" : "Failed to read"}: ${f.name}`);
-        setError(`${isZh ? "鐠囪褰囬弬鍥︽婢惰精瑙? : "Failed to read file"}: ${f.name}`);
+        addLog(`${isZh ? "读取失败" : "Failed to read"}: ${f.name}`);
+        setError(`${isZh ? "读取文件失败" : "Failed to read file"}: ${f.name}`);
         setStep("failed");
         return;
       }
@@ -101,14 +112,14 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
 
     if (generateWithModel && fileContents.length > 0) {
       try {
-        addLog(isZh ? "鐠嬪啰鏁ゅΟ鈥崇€烽悽鐔稿灇鐠佲€冲灊..." : "Calling model to generate plan...");
+        addLog(isZh ? "调用模型生成计划..." : "Calling model to generate plan...");
         const prompt = `You are editing a local project. Analyze the files and generate a concise plan with unified diff.`;
         const raw = await generateWithModel(prompt, fileContents);
         setPlanText(raw || L.modelNotConfigured);
       } catch {
         setPlanText(L.modelNotConfigured);
         setError(L.modelNotConfigured);
-        addLog(isZh ? "濡€崇€风拫鍐暏婢惰精瑙? : "Model call failed");
+        addLog(isZh ? "模型调用失败" : "Model call failed");
       }
     } else {
       setPlanText(L.modelNotConfigured);
@@ -125,13 +136,13 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
     setPendingFiles(fileContents.map((fc) => ({ file: fc.name, content: fc.content })));
     setFileContents(fileContents);
     setStep("waiting_approval");
-    addLog(isZh ? "鐠佲€冲灊瀹歌尙鏁撻幋鎰剁礉缁涘绶熺涵顔款吇" : "Plan generated, waiting approval");
+    addLog(isZh ? "计划已生成，等待确认" : "Plan generated, waiting approval");
   }, [selectedFiles, generateWithModel, isZh]);
 
   /* ---- Apply Patch safely ---- */
   const handleApply = useCallback(async () => {
     setStep("applying");
-    addLog(isZh ? "瀵偓婵鐣ㄩ崗銊ョ安閻劏藟娑?.." : "Applying patch safely...");
+    addLog(isZh ? "开始安全应用补丁.." : "Applying patch safely...");
     const opId = `op_${Date.now()}`;
     lastOperationId = opId;
 
@@ -143,11 +154,11 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
       const p = pf.file.toLowerCase();
       if (p.includes(".git") || p.includes("node_modules") || p.includes("target") ||
           p.includes("dist") || p.includes(".env") || p.includes("secret") || p.includes("key")) {
-        failedFiles.push(`${pf.file} (${isZh ? "鐠侯垰绶炴稉宥呯暔閸? : "unsafe path"})`);
+        failedFiles.push(`${pf.file} (${isZh ? "路径不安全" : "unsafe path"})`);
         continue;
       }
       if (pf.content.length > 300 * 1024) {
-        failedFiles.push(`${pf.file} (${isZh ? "閺傚洣娆㈡潻鍥с亣" : "file too large"})`);
+        failedFiles.push(`${pf.file} (${isZh ? "文件过大" : "file too large"})`);
         continue;
       }
 
@@ -155,7 +166,7 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
         await createBackup(pf.file);
         backedUp.push(pf.file);
         await applyPatch(pf.file, pf.content);
-        addLog(`${isZh ? "瀹告彃鍟撻崗? : "Applied"}: ${pf.file}`);
+        addLog(`${isZh ? "已写入" : "Applied"}: ${pf.file}`);
       } catch (e: any) {
         failedFiles.push(`${pf.file} - ${e.message}`);
         break;
@@ -164,13 +175,13 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
 
     if (failedFiles.length > 0) {
       // Rollback backed up files
-      addLog(isZh ? "濡偓濞村鍩屾径杈Е閿涘本顒滈崷銊ユ礀濠?.." : "Failure detected, rolling back...");
+      addLog(isZh ? "检测到失败，正在回滚.." : "Failure detected, rolling back...");
       for (const f of backedUp) {
         try {
           await undoLastPatch(f);
-          addLog(`${isZh ? "瀹告彃娲栧? : "Rolled back"}: ${f}`);
+          addLog(`${isZh ? "已回滚" : "Rolled back"}: ${f}`);
         } catch (e: any) {
-          addLog(`${isZh ? "閸ョ偞绮存径杈Е" : "Rollback failed"}: ${f}`);
+          addLog(`${isZh ? "回滚失败" : "Rollback failed"}: ${f}`);
         }
       }
       setStep("rolled_back");
@@ -179,31 +190,31 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
     } else {
       setStep("done");
       await appendOperationLog(opId, "applied", pendingFiles.map((f) => f.file).join(", "));
-      addLog(isZh ? "鐞涖儰绔垫惔鏃傛暏閹存劕濮? : "Patch applied successfully");
+      addLog(isZh ? "补丁应用成功" : "Patch applied successfully");
     }
   }, [pendingFiles, isZh]);
 
   /* ---- Undo Last Operation ---- */
   const handleUndo = useCallback(async () => {
     if (!lastOperationId) {
-      setError(isZh ? "濞屸剝婀侀崣顖涙寵闁库偓閻ㄥ嫭鎼锋担? : "No operation to undo");
+      setError(isZh ? "没有可撤销的操作" : "No operation to undo");
       return;
     }
-    addLog(isZh ? "濮濓絽婀幘銈夋敘娑撳﹥顐奸幙宥勭稊..." : "Undoing last operation...");
+    addLog(isZh ? "正在撤销上次操作..." : "Undoing last operation...");
     const files = pendingFiles.map((f) => f.file);
     let ok = true;
     for (const f of files) {
       try {
         await undoLastPatch(f);
-        addLog(`${isZh ? "瀹稿弶浠径? : "Restored"}: ${f}`);
+        addLog(`${isZh ? "已恢复" : "Restored"}: ${f}`);
       } catch (e: any) {
-        addLog(`${isZh ? "閹垹顦叉径杈Е" : "Restore failed"}: ${f}`);
+        addLog(`${isZh ? "恢复失败" : "Restore failed"}: ${f}`);
         ok = false;
       }
     }
     if (ok) {
       setStep("rolled_back");
-      addLog(isZh ? "閹垮秳缍斿鍙夋寵闁库偓" : "Operation undone");
+      addLog(isZh ? "操作已撤销" : "Operation undone");
     }
     lastOperationId = "";
   }, [pendingFiles, isZh]);
@@ -231,14 +242,14 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
   /* ---- Run Checks ---- */
   const runCommand = useCallback(async (cmd: string, args: string[], label: string) => {
     setStep("running_checks");
-    addLog(`${isZh ? "鏉╂劘顢? : "Running"}: ${label}`);
+    addLog(`${isZh ? "运行" : "Running"}: ${label}`);
     try {
       const result = await executeCommand(cmd, args, projectPath || ".", 120000);
       setCheckResult(result);
       addLog(`${label}: exit=${result.exit_code}`);
     } catch (e: any) {
       setCheckResult({ exit_code: -1, stdout: "", stderr: String(e), killed: false, duration_ms: 0 });
-      addLog(`${label}: ${isZh ? "澶辫触" : "failed"} - ${e.message}`);
+      addLog(`${label}: ${isZh ? "失败" : "failed"} - ${e.message}`);
     }
     setStep("done");
   }, [projectPath, isZh]);
@@ -251,7 +262,7 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
   useEffect(() => {
     if (projectPath) {
       executeCommand("git", ["status", "--short"], projectPath).then((r) => {
-        setGitStatus(r.stdout || (isZh ? "闂?Git 娴犳挸绨? : "Not a Git repository"));
+        setGitStatus(r.stdout || (isZh ? "非Git 仓库" : "Not a Git repository"));
       }).catch(() => {});
     }
   }, [projectPath, step]);
@@ -354,7 +365,7 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
       {step === "generating_diff" && planText && (
         <div style={{ background: "#1e1e2e", borderRadius: 4, padding: 8, maxHeight: 120, overflow: "auto" }}>
           <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>
-            {isZh ? "濡€崇€锋潏鎾冲毉" : "Model Output"}
+            {isZh ? "模型输出" : "Model Output"}
           </div>
           <pre style={{ margin: 0, fontSize: 12, color: "#ccc", whiteSpace: "pre-wrap" }}>{planText}</pre>
         </div>
@@ -364,7 +375,7 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
       {checkResult && (
         <div style={{ background: "#1e1e2e", borderRadius: 4, padding: 8, maxHeight: 150, overflow: "auto" }}>
           <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>
-            {isZh ? "濡偓閺屻儳绮ㄩ弸? : "Check Result"} (exit: {checkResult.exit_code}, {checkResult.duration_ms}ms)
+            {isZh ? "检查结果" : "Check Result"} (exit: {checkResult.exit_code}, {checkResult.duration_ms}ms)
           </div>
           {checkResult.stdout && (
             <pre style={{ margin: 0, fontSize: 11, color: "#81c784", whiteSpace: "pre-wrap" }}>{checkResult.stdout}</pre>
@@ -379,7 +390,7 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
       {gitStatus && (
         <div style={{ background: "#1e1e2e", borderRadius: 4, padding: 8, maxHeight: 80, overflow: "auto" }}>
           <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>
-            {isZh ? "Git 閻樿埖鈧? : "Git Status"}
+            {isZh ? "Git 状态" : "Git Status"}
           </div>
           <pre style={{ margin: 0, fontSize: 11, color: "#ccc", whiteSpace: "pre-wrap" }}>{gitStatus}</pre>
         </div>
@@ -402,13 +413,13 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
         {step === "waiting_approval" && (
           <>
             <button onClick={handleApply} style={{ ...btnStyle, background: "#2e7d32" }}>{L.applyPatch}</button>
-            <button onClick={() => { setStep("rolled_back"); addLog(isZh ? "瀹稿弶瀚嗙紒? : "Rejected"); }} style={{ ...btnStyle, background: "#c62828" }}>{L.reject}</button>
-            <button onClick={handleCopyDiff} style={btnStyle}>{copiedDiff ? (isZh ? "瀹告彃顦查崚? : "Copied!") : L.copyDiff}</button>
+            <button onClick={() => { setStep("rolled_back"); addLog(isZh ? "已拒绝" : "Rejected"); }} style={{ ...btnStyle, background: "#c62828" }}>{L.reject}</button>
+            <button onClick={handleCopyDiff} style={btnStyle}>{copiedDiff ? (isZh ? "已复制" : "Copied!") : L.copyDiff}</button>
           </>
         )}
         {step === "done" && (
           <>
-            <button onClick={() => setStep("waiting_approval")} style={btnStyle}>{isZh ? "闁插秵鏌婇悽鐔稿灇" : "Regenerate"}</button>
+            <button onClick={() => setStep("waiting_approval")} style={btnStyle}>{isZh ? "重新生成" : "Regenerate"}</button>
             <button onClick={handleUndo} style={{ ...btnStyle, background: "#ff9800" }}>{L.undoLast}</button>
             <button onClick={handleRunCheck} style={btnStyle}>{L.runCheck}</button>
             <button onClick={handleRunBuild} style={btnStyle}>{L.runBuild}</button>
@@ -418,14 +429,14 @@ export function AgentPatchPanel({ projectPath, selectedFiles, onClose, generateW
         {step === "failed" && (
           <>
             <button onClick={handleUndo} style={{ ...btnStyle, background: "#ff9800" }}>{L.undoLast}</button>
-            <button onClick={handleGeneratePlan} style={btnStyle}>{isZh ? "闁插秷鐦? : "Retry"}</button>
+            <button onClick={handleGeneratePlan} style={btnStyle}>{isZh ? "重试" : "Retry"}</button>
           </>
         )}
         {step === "rolled_back" && (
-          <button onClick={handleGeneratePlan} style={btnStyle}>{isZh ? "闁插秷鐦? : "Retry"}</button>
+          <button onClick={handleGeneratePlan} style={btnStyle}>{isZh ? "重试" : "Retry"}</button>
         )}
         <button onClick={onClose} style={{ ...btnStyle, background: "#555", marginLeft: "auto" }}>
-          {isZh ? "閸忔娊妫? : "Close"}
+          {isZh ? "关闭" : "Close"}
         </button>
       </div>
     </div>
