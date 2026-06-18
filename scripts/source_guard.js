@@ -60,6 +60,43 @@ for (var i = 0; i < coreFiles.length; i++) {
 }
 ok("BOM/encoding checks done");
 
+
+// ===== 2.5. Capabilities check =====
+console.log("\n--- Capabilities check ---");
+var capPath = path.join(ROOT, "apps/desktop/src-tauri/capabilities/default.json");
+if (!fs.existsSync(capPath)) {
+  fail("capabilities/default.json: NOT FOUND");
+} else {
+  var capContent = fs.readFileSync(capPath, "utf-8");
+  var requiredPerms = [
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-unmaximize",
+    "core:window:allow-close"
+  ];
+  for (var rp = 0; rp < requiredPerms.length; rp++) {
+    if (capContent.indexOf(requiredPerms[rp]) >= 0) {
+      ok("capabilities contains " + requiredPerms[rp]);
+    } else {
+      fail("capabilities MISSING " + requiredPerms[rp]);
+    }
+  }
+}
+// Check AppTitleBar has proper API calls
+var atbPath = path.join(ROOT, "apps/desktop/ui/src/components/AppTitleBar.tsx");
+if (fs.existsSync(atbPath)) {
+  var atbContent = fs.readFileSync(atbPath, "utf-8");
+  var requiredCalls = ["startDragging", "minimize", "maximize", "unmaximize", "close"];
+  for (var rc = 0; rc < requiredCalls.length; rc++) {
+    if (atbContent.indexOf(requiredCalls[rc]) >= 0) {
+      ok("AppTitleBar contains " + requiredCalls[rc]);
+    } else {
+      fail("AppTitleBar MISSING " + requiredCalls[rc]);
+    }
+  }
+}
+
 // ===== 3. Bad pattern check (mojibake, leaked i18n keys) =====
 console.log("\n--- Bad pattern check ---");
 var badKeys = ["providersPage.title", "computerUse.enabledLabel", "chat.agentStep"];
@@ -146,4 +183,4 @@ console.log("\n=== RESULT: " + errors.length + " error(s) ===");
 if (errors.length > 0) { console.log("Failures:"); errors.forEach(function(e) { console.log("  - " + e); }); process.exit(1); }
 else { console.log("All checks passed."); process.exit(0);
 }
-// source_guard.js v1.3.2 - protects against flattened/minified source files
+// source_guard.js v1.3.3 - protects against flattened/minified source files
