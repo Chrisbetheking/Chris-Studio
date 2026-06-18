@@ -50,7 +50,7 @@ export function AppTitleBar() {
           break;
       }
     } catch (e) {
-      console.error("Window action "" + action + "" failed:", e);
+      console.error(`Window action "${action}" failed:`, e);
     }
   }
 
