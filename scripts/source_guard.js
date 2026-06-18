@@ -146,4 +146,4 @@ console.log("\n=== RESULT: " + errors.length + " error(s) ===");
 if (errors.length > 0) { console.log("Failures:"); errors.forEach(function(e) { console.log("  - " + e); }); process.exit(1); }
 else { console.log("All checks passed."); process.exit(0);
 }
-// source_guard.js v1.3.1 - protects against flattened/minified source files
+// source_guard.js v1.3.2 - protects against flattened/minified source files

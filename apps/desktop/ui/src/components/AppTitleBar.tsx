@@ -7,24 +7,30 @@ export function AppTitleBar() {
 
   useEffect(() => {
     let cancelled = false;
+    let unlisten: (() => void) | undefined;
+
     import("@tauri-apps/api/window")
       .then(async ({ getCurrentWindow }) => {
         if (cancelled) return;
         try {
           const win = getCurrentWindow();
-          setIsMaximized(await win.isMaximized());
-          const unlisten = await win.onResized(async () => {
+          const maximized = await win.isMaximized();
+          if (!cancelled) setIsMaximized(maximized);
+          unlisten = await win.onResized(async () => {
             if (!cancelled) {
-              try { setIsMaximized(await win.isMaximized()); } catch {}
+              try { setIsMaximized(await win.isMaximized()); } catch (e) { console.error("Failed to read maximized state:", e); }
             }
           });
-          return () => { unlisten(); };
-        } catch {
-          // Tauri API unavailable - keep native decorations fallback
+        } catch (e) {
+          console.error("Tauri window API unavailable:", e);
         }
       })
-      .catch(() => {});
-    return () => { cancelled = true; };
+      .catch((e) => { console.error("Failed to load window API:", e); });
+
+    return () => {
+      cancelled = true;
+      if (unlisten) unlisten();
+    };
   }, []);
 
   async function handleAction(action: TitlebarButton) {
@@ -43,14 +49,14 @@ export function AppTitleBar() {
           await win.close();
           break;
       }
-    } catch {
-      // Silently ignore if Tauri API unavailable
+    } catch (e) {
+      console.error("Window action "" + action + "" failed:", e);
     }
   }
 
   return (
-    <div className="app-titlebar" data-tauri-drag-region>
-      <div className="app-titlebar-brand">
+    <div className="app-titlebar">
+      <div className="app-titlebar-brand" data-tauri-drag-region>
         <span className="app-titlebar-icon">TF</span>
         <span className="app-titlebar-text">TokenFence Studio</span>
       </div>
