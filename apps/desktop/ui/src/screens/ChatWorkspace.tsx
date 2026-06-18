@@ -1102,7 +1102,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
               cursor: "pointer",
             }}
           >
-            {isZh ? "对话" : "Conversations"}
+            {isZh ? "\u5BF9\u8BDD" : "Conversations"}
           </button>
           <button
             onClick={() => setSidebarTab("project")}
@@ -1113,7 +1113,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
               cursor: "pointer",
             }}
           >
-            {isZh ? "项目" : "Project"}
+            {isZh ? "\u9879\u76EE" : "Project"}
           </button>
         </div>
 
@@ -1271,7 +1271,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
                 {/* Project Context files count */}
                 {projectFilesInContext.length > 0 && (
                   <div style={{ fontSize: "0.65rem", color: "var(--primary)", marginTop: 6 }}>
-                    {projectFilesInContext.length} {isZh ? "个项目文件在上下文中" : "project files in context"}
+                    {projectFilesInContext.length} {isZh ? "\u9879\u76EE\u6587\u4EF6\u5728\u4E0A\u4E0B\u6587\u4E2D" : "project files in context"}
                   </div>
                 )}
               </>
@@ -1403,7 +1403,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
                 <span key={f.id} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", background: "var(--surface-alt)", border: "1px solid var(--border)", borderRadius: 6, fontSize: "0.7rem", color: "var(--text-secondary)" }}>
 
-                  妫ｅ啯鎯?{f.name}
+                  {String.fromCodePoint(0x1F4C4)} {f.name}
 
                   <button onClick={() => handleRemoveFile(f.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.75rem", padding: 0, lineHeight: 1 }}>x</button>
 
@@ -1632,25 +1632,30 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
           {!collapsedSections.has("inspector") && (
 
             <>
-
               <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)" }}>
 
                 <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{tk("chat.activeModel")}</div>
-
-                <div style={{ fontSize: "0.8rem", color: "var(--text)", fontWeight: 500 }}>{selectedProvider} / {currentRegistryModel?.displayName ?? selectedModel}</div>
-
-                <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: isProviderConfigured(selectedProvider) ? "var(--green)" : "var(--text-muted)" }}></span>
-
-                  <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
-
-                    {isProviderConfigured(selectedProvider) ? tk("common.configured") : tk("common.notConfigured")}
-
-                  </span>
-
-                </div>
-
+                {hasConfigured ? (
+                  <>
+                    <div style={{ fontSize: "0.8rem", color: "var(--text)", fontWeight: 500 }}>{selectedProvider} / {currentRegistryModel?.displayName ?? selectedModel}</div>
+                    <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: isProviderConfigured(selectedProvider) ? "var(--green)" : "var(--text-muted)" }}></span>
+                      <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                        {isProviderConfigured(selectedProvider) ? tk("common.configured") : tk("common.notConfigured")}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: "0.8rem", color: "var(--text)", fontWeight: 500 }}>{tk("chat.noConfiguredModel")}</div>
+                    <div style={{ marginTop: 4, fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                      {tk("status.notConfigured")}
+                    </div>
+                    <button onClick={() => { window.dispatchEvent(new CustomEvent('tokenfence:navigate', { detail: { screen: 'models' } })) }} className="btn btn-ghost" style={{ marginTop: 6, fontSize: "0.7rem", padding: "3px 10px", color: "var(--primary)" }}>
+                      {tk("chat.configureProvider")} &rarr;
+                    </button>
+                  </>
+                )}
               </div>
 
               <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)" }}>
