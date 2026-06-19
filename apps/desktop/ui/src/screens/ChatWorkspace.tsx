@@ -1341,7 +1341,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
           <ModelPickerPanel
             onClose={() => setShowModelPanel(false)}
             onSelect={(pid: string, mid: string) => { handleSetActiveModel(pid, mid); setShowModelPanel(false); dispatchActiveModelChanged(); }}
-            selectedProvider={viewState.providerLabel}
+            selectedProvider={viewState.resolved?.providerId || ""}
             selectedModel={viewState.modelLabel}
             providerConfigs={providerConfigs}
           />

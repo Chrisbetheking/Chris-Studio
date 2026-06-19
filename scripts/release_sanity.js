@@ -188,6 +188,31 @@ if (fs.existsSync(gaPath)) {
   fail(".gitattributes: FILE NOT FOUND");
 }
 
+// 9. i18n consistency check
+console.log("\n--- i18n consistency ---");
+const i18nPairs = [
+  { file: "packages/shared/src/i18n/zh-CN.ts", key: "\u672A\u914D\u7F6E\u6A21\u578B", label: "no-configured-model label" },
+  { file: "packages/shared/src/i18n/zh-CN.ts", key: "\u8BBE\u4E3A\u5F53\u524D\u6A21\u578B", label: "set-as-active label" },
+  { file: "packages/shared/src/i18n/zh-CN.ts", key: "\u6B63\u5728\u4F7F\u7528", label: "in-use label" },
+  { file: "packages/shared/src/i18n/en.ts", key: "No configured model", label: "no-configured-model label" },
+  { file: "packages/shared/src/i18n/en.ts", key: "Set as active", label: "set-as-active label" },
+  { file: "packages/shared/src/i18n/en.ts", key: "In use", label: "in-use label" },
+];
+for (const item of i18nPairs) {
+  const fp = path.join(ROOT, item.file);
+  if (!fs.existsSync(fp)) { fail(item.file + ": NOT FOUND"); continue; }
+  const content = fs.readFileSync(fp, "utf-8");
+  if (content.includes(item.key)) { ok(item.file + ": contains " + item.label); }
+  else { fail(item.file + ": MISSING " + item.label); }
+}
+const amPath = path.join(ROOT, "apps/desktop/ui/src/data/active-model.ts");
+if (fs.existsSync(amPath)) {
+  const am = fs.readFileSync(amPath, "utf-8");
+  if (am.includes("NO_CONFIGURED_MODEL_LABEL_EN") && am.includes("NO_CONFIGURED_MODEL_LABEL_ZH")) {
+    ok("active-model.ts contains both i18n label constants");
+  } else { fail("active-model.ts MISSING i18n label constant(s)"); }
+}
+
 // Final
 console.log("\n=== RESULT: " + errors.length + " error(s) ===");
 if (errors.length > 0) {

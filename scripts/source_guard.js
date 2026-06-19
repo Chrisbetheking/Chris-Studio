@@ -244,6 +244,12 @@ if (fs.existsSync(selfTestPath)) {
   if (stContent.indexOf("Active model apply indicator is consistent") < 0) fail("ModelRuntimeSelfTest.tsx MISSING active model apply indicator consistency test");
   else ok("ModelRuntimeSelfTest has active model apply indicator test");
 }
+var mppPath = path.join(ROOT, "apps/desktop/ui/src/components/ModelPickerPanel.tsx");
+if (fs.existsSync(mppPath)) {
+  var mppContent = fs.readFileSync(mppPath, "utf-8");
+  if (mppContent.indexOf("chat.setAsActive") < 0 && mppContent.indexOf("chat.inUse") < 0) fail("ModelPickerPanel.tsx MISSING setAsActive or inUse i18n");
+  else ok("ModelPickerPanel has setAsActive/inUse i18n");
+}
 // ===== 8. i18n file checks =====
 console.log("\n--- i18n file checks ---");
 var zhCNPath = path.join(ROOT, "packages/shared/src/i18n/zh-CN.ts");
@@ -251,12 +257,16 @@ if (fs.existsSync(zhCNPath)) {
   var zhContent = fs.readFileSync(zhCNPath, "utf-8");
   if (zhContent.indexOf("\u672A\u914D\u7F6E\u6A21\u578B") < 0) fail("zh-CN.ts MISSING no-configured-model label");
   else ok("zh-CN.ts contains no-configured-model label");
+  if (zhContent.indexOf("\u8BBE\u4E3A\u5F53\u524D\u6A21\u578B") < 0) fail("zh-CN.ts MISSING set-as-active label");
+  else ok("zh-CN.ts contains set-as-active label");
 } else { fail("zh-CN.ts NOT FOUND"); }
 var enPath = path.join(ROOT, "packages/shared/src/i18n/en.ts");
 if (fs.existsSync(enPath)) {
   var enContent = fs.readFileSync(enPath, "utf-8");
   if (enContent.indexOf("No configured model") < 0) fail("en.ts MISSING No configured model");
   else ok("en.ts contains No configured model");
+  if (enContent.indexOf("Set as active") < 0) fail("en.ts MISSING Set as active");
+  else ok("en.ts contains Set as active");
 } else { fail("en.ts NOT FOUND"); }
 
 // ===== Final =====
