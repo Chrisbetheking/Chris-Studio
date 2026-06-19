@@ -356,7 +356,6 @@ function buildTestCases(): TestCase[] {
     // --- 9. setActiveModel produces valid state ---
     {
       id: "set_active_model",
-      id: "set_active_model",
       name: "setActiveModelV2 writes localStorage and dispatches event",
       fn: () => {
         try {
@@ -395,10 +394,6 @@ function buildTestCases(): TestCase[] {
           }
           
           return { pass: true, detail: "setActiveModelV2 writes localStorage AND dispatches event: " + result.displayLabel };
-        } catch (e: any) {
-          return { pass: false, detail: `Error: ${e.message}` };
-        }
-      },
         } catch (e: any) {
           return { pass: false, detail: `Error: ${e.message}` };
         }

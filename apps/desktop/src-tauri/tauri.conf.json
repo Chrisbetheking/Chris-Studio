@@ -1,4 +1,4 @@
-﻿{
+{
     "build":  {
                   "distDir": "../ui/dist",
                   "devPath": "http://localhost:1420",
