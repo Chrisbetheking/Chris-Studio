@@ -104,7 +104,7 @@ export const NO_CONFIGURED_MODEL_LABEL_EN = "No configured model";
 export const NO_CONFIGURED_MODEL_LABEL_ZH = "未配置模型";
 
 export function getNoConfiguredModelLabel(): string {
-  const lang = localStorage.getItem("tokenfence.language") || "";
+  const lang = localStorage.getItem("tokenfence-lang") || "";
   return lang.toLowerCase().startsWith("zh")
     ? NO_CONFIGURED_MODEL_LABEL_ZH
     : NO_CONFIGURED_MODEL_LABEL_EN;
