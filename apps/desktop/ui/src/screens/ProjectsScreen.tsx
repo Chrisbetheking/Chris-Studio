@@ -19,7 +19,7 @@ const STORAGE_KEY = "tokenfence-projects";
 const ACTIVE_KEY = "tokenfence-active-project";
 
 function uid(): string { return Date.now().toString(36) + Math.random().toString(36).slice(2, 9); }
-function loadProjects(): Project[] { try { const r = storeGet(STORAGE_KEY); return r ? JSON.parse(r) : []; } catch { return []; } }
+function loadProjects(): Project[] { try { const r = storeGet(STORAGE_KEY); if (!r) return []; const parsed = JSON.parse(r); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
 function saveProjects(p: Project[]) { storeSet(STORAGE_KEY, JSON.stringify(p)); }
 function getActiveProjectId(): string | null { try { return storeGet(ACTIVE_KEY) || null; } catch { return null; } }
 function setActiveProjectId(id: string | null) { if (id) storeSet(ACTIVE_KEY, id); else storeSet(ACTIVE_KEY, ""); }
@@ -29,13 +29,15 @@ export function ProjectsScreen() {
   useEffect(() => { return onLangChange(() => forceRender((n) => n + 1)); }, []);
 
 
-  const [projects, setProjects] = useState<Project[]>(() => loadProjects());
-  const [activeId, setActiveId] = useState<string | null>(() => getActiveProjectId());
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [newPath, setNewPath] = useState("");
   const [scanning, setScanning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [projectLoadError, setProjectLoadError] = useState(false);
   const [isTauri, setIsTauri] = useState(false);
+  const isZh = tk("common.yes") !== "Yes";
 
   useEffect(() => {
     setIsTauri(!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
@@ -117,6 +119,21 @@ export function ProjectsScreen() {
 
   return (
     <div style={{ padding: "28px 32px", height: "100%", overflowY: "auto" }}>
+      {projectLoadError && (
+        <div className="card" style={{ marginBottom: 16, padding: 16, background: "rgba(255,0,0,0.06)", border: "1px solid var(--red)" }}>
+          <div style={{ fontWeight: 600, color: "var(--red)", marginBottom: 8 }}>{isZh ? "项目页面加载失败" : "Project page failed to load"}</div>
+          <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: 12 }}>{isZh ? "本地项目数据可能已损坏。清除后重新打开即可。" : "Local project data may be corrupted. Clear it and open a project again."}</p>
+          <button className="btn btn-primary" onClick={() => { try { storeSet(STORAGE_KEY, "[]"); storeSet(ACTIVE_KEY, ""); } catch {} setProjects([]); setActiveId(null); setProjectLoadError(false); }} style={{ fontSize: "0.75rem" }}>
+            {isZh ? "清除项目状态" : "Clear project state"}
+          </button>
+        </div>
+      )}
+      {!projectLoadError && projects.length === 0 && (
+        <div className="card" style={{ marginBottom: 16, padding: 20, textAlign: "center" }}>
+          <div style={{ fontSize: "1rem", fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>{isZh ? "还没有打开过项目" : "No project opened yet"}</div>
+          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{isZh ? "添加一个项目文件夹开始使用。" : "Add a project folder to get started."}</p>
+        </div>
+      )}
       <h2 className="page-title">{tk("common.projects")}</h2>
       <p className="page-subtitle">{activeProject ? `Active: ${activeProject.name} — ${activeProject.folderPath}` : "No active project"}</p>
 

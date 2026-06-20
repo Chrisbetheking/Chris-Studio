@@ -1,3 +1,9 @@
+
+function safeParseJson(raw: string | null): unknown {
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
 import { storeGet, storeSet } from "@tokenfence/shared/src/agent-runtime/safeStorage";
 
 /* ============================================================
@@ -44,7 +50,7 @@ export function loadRecentProjects(): RecentProject[] {
   try {
     const raw = storeGet(RECENT_PROJECTS_KEY);
     if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
+    const parsed = safeParseJson(raw);
     if (!Array.isArray(parsed)) return [];
     return sortProjects(parsed as RecentProject[]);
   } catch {
@@ -132,7 +138,7 @@ export function loadActiveProject(): RecentProject | null {
   try {
     const raw = storeGet(ACTIVE_PROJECT_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as RecentProject;
+    const p = safeParseJson(raw); return p as RecentProject;
   } catch {
     return null;
   }

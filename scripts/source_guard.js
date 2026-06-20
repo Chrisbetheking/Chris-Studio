@@ -348,7 +348,7 @@ console.log("\n--- v1.4.1 version checks ---");
 var appPath = path.join(ROOT, "apps/desktop/ui/src/App.tsx");
 if (fs.existsSync(appPath)) {
   var appContent = fs.readFileSync(appPath, "utf-8");
-  if (appContent.indexOf('"v1.4.1"') >= 0) ok("App.tsx VERSION is v1.4.1");
+  if (appContent.indexOf('"v1.4.2"') >= 0) ok("App.tsx VERSION is v1.4.1");
   else fail("App.tsx VERSION is NOT v1.4.1");
 } else { fail("App.tsx NOT FOUND"); }
 
@@ -406,6 +406,36 @@ if (fs.existsSync(ssPath)) {
   var ssContent2 = fs.readFileSync(ssPath, "utf-8");
   if (ssContent2.indexOf("Storage") >= 0 || ssContent2.indexOf("存储") >= 0) ok("StorageScreen contains Storage/存储");
   else fail("StorageScreen MISSING Storage/存储");
+}
+
+
+// ===== 12. v1.4.2 project resilience checks =====
+console.log("\n--- v1.4.2 project resilience checks ---");
+var pwPath2 = path.join(ROOT, "apps/desktop/ui/src/data/project-workspace.ts");
+if (fs.existsSync(pwPath2)) {
+  var pw2 = fs.readFileSync(pwPath2, "utf-8");
+  if (pw2.indexOf("safeParseJson") >= 0) ok("project-workspace.ts contains safeParseJson");
+  else fail("project-workspace.ts MISSING safeParseJson");
+  if (pw2.indexOf("tokenfence.recentProjects") >= 0) ok("project-workspace.ts contains tokenfence.recentProjects");
+  else fail("project-workspace.ts MISSING tokenfence.recentProjects");
+  if (pw2.indexOf("tokenfence.activeProject") >= 0) ok("project-workspace.ts contains tokenfence.activeProject");
+  else fail("project-workspace.ts MISSING tokenfence.activeProject");
+}
+var psPath = path.join(ROOT, "apps/desktop/ui/src/screens/ProjectsScreen.tsx");
+if (fs.existsSync(psPath)) {
+  var psContent = fs.readFileSync(psPath, "utf-8");
+  if (psContent.indexOf("Page failed to load") >= 0 || psContent.indexOf("页面加载失败") >= 0) ok("ProjectsScreen contains Page failed to load/页面加载失败");
+  else fail("ProjectsScreen MISSING error recovery text");
+  if (psContent.indexOf("Clear project state") >= 0 || psContent.indexOf("清除项目状态") >= 0) ok("ProjectsScreen contains Clear project state/清除项目状态");
+  else fail("ProjectsScreen MISSING clear state button");
+  if (psContent.indexOf("No project opened yet") >= 0 || psContent.indexOf("还没有打开过项目") >= 0) ok("ProjectsScreen contains No project opened yet/还没有打开过项目");
+  else fail("ProjectsScreen MISSING empty state text");
+}
+var appPath = path.join(ROOT, "apps/desktop/ui/src/App.tsx");
+if (fs.existsSync(appPath)) {
+  var appContent2 = fs.readFileSync(appPath, "utf-8");
+  if (appContent2.indexOf("ErrorBoundary") >= 0) ok("App.tsx contains ErrorBoundary");
+  else fail("App.tsx MISSING ErrorBoundary");
 }
 
 console.log("\n=== RESULT: " + errors.length + " error(s) ===");

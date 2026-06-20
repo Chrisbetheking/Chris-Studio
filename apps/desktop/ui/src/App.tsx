@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Component } from "react";
 import { tk, onLangChange } from "@tokenfence/shared/src/i18n";
 import { ThemeProvider, useTheme } from "./components/ThemeProvider";
 import { ChatWorkspace } from "./screens/ChatWorkspace";
@@ -29,7 +29,7 @@ type Screen = "chat" | "projects" | "models" | "toolbox" | "settings" | "about"
 
 type FeatureStatus = "working" | "preview" | "coming_soon" | "needs_runtime";
 
-export const VERSION = "v1.4.1";
+export const VERSION = "v1.4.2";
 
 const primaryNav: { id: Screen; icon: string }[] = [
   { id: "chat", icon: "\u{1F4AC}" },
@@ -212,6 +212,39 @@ function ThemeToggle() {
   );
 }
 
+
+
+/* ---- ErrorBoundary ---- */
+type EBState = { hasError: boolean; error: string | null };
+class ErrorBoundary extends Component<{ children: React.ReactNode }, EBState> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error): EBState {
+    return { hasError: true, error: error.message || String(error) };
+  }
+  render() {
+    if (this.state.hasError) {
+      const isZh = tk("common.yes") !== "Yes";
+      return (
+        <div style={{ padding: "40px", textAlign: "center", color: "var(--tf-text)" }}>
+          <h2 style={{ fontSize: 20, marginBottom: 12 }}>{isZh ? "页面加载失败" : "Page failed to load"}</h2>
+          <p style={{ fontSize: 14, color: "var(--tf-text-muted)", marginBottom: 16 }}>{this.state.error}</p>
+          <button
+            className="btn btn-primary"
+            onClick={() => { this.setState({ hasError: false, error: null }); }}
+            style={{ fontSize: 14, padding: "8px 20px" }}
+          >
+            {isZh ? "重试" : "Retry"}
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 /* ---- App Inner ---- */
 function AppInner() {
   const [screen, setScreen] = useState<Screen>("chat");
@@ -240,7 +273,7 @@ function AppInner() {
     try { localStorage.setItem("tokenfence-mascot", next ? "visible" : "hidden"); } catch {}
   }, [mascotVisible]);
 
-  const currentContent = screen === "toolbox" ? <ToolboxLayout /> : screens[screen] ?? <ChatWorkspace />;
+  const currentContent = <ErrorBoundary key={screen}>{(screen === "toolbox" ? <ToolboxLayout /> : screens[screen] ?? <ChatWorkspace />)}</ErrorBoundary>;
 
   return (
     <div className="app-layout">
