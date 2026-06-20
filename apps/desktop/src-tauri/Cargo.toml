@@ -6,14 +6,14 @@ authors = ["TokenFence"]
 edition = "2021"
 
 [build-dependencies]
-tauri-build = { version = "1.4.0", features = [] }
+tauri-build = { version = "1.0.20", features = [] }
 
 [dependencies]
-tauri = { version = "1.4.0", features = [] }
-serde = { version = "1.4.0", features = ["derive"] }
+tauri = { version = "1.0.20", features = [] }
+serde = { version = "1.0.20", features = ["derive"] }
 serde_json = "1"
 chrono = "0.4"
-ureq = { version = "1.4.0", features = ["json"] }
+ureq = { version = "1.0.20", features = ["json"] }
 
 [features]
 default = ["custom-protocol"]

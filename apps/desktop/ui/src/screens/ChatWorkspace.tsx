@@ -1184,7 +1184,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
         </div>
 
-        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>{conversations.length} {isZh ? "婵炴垶鎼╂禍娆戞閹殿喗瀚? : "conversations"}</div>
+        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>{conversations.length} {isZh ? "个会话" : "conversations"}</div>
           </>
         )}
 
@@ -1194,32 +1194,32 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
             {/* Active Project */}
             {activeProject ? (
               <div style={{ padding: "8px", background: "var(--surface-alt)", borderRadius: 8, marginBottom: 10 }}>
-                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{isZh ? "閻熸粎澧楅幐鍛婃櫠閻樼偨浜滈柛锔诲幗缁? : "Active Project"}</div>
+                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{isZh ? "当前项目" : "Active Project"}</div>
                 <div style={{ fontWeight: 600, fontSize: "0.8rem", color: "var(--text)" }}>{activeProject.name}</div>
                 <div style={{ fontSize: "0.6rem", color: "var(--text-muted)", marginTop: 2, wordBreak: "break-all" }}>{activeProject.folderPath}</div>
-                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginTop: 4 }}>{activeProject.files?.length ?? 0} {isZh ? "婵炴垶鎼╂禍婵嬪几閸愨晝顩? : "files"}</div>
+                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginTop: 4 }}>{activeProject.files?.length ?? 0} {isZh ? "个文件" : "files"}</div>
               </div>
             ) : (
               <div style={{ padding: "8px", color: "var(--text-muted)", fontSize: "0.75rem", textAlign: "center", marginBottom: 10 }}>
-                {isZh ? "闂佸搫鐗滄禍婊勬叏閻愬瓨濮滃ù鐘差儍閳ь剙绉归幆? : "No project loaded"}
+                {isZh ? "未加载项目" : "No project loaded"}
               </div>
             )}
 
             {/* Manual Path input */}
             <div style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{isZh ? "闂佸綊娼ч鍛叏閳哄啯宕夋い鏍ㄦ皑缁? : "Manual Path"}</div>
+              <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{isZh ? "手动路径" : "Manual Path"}</div>
               <input
                 className="input"
                 value={manualPath}
                 onChange={(e) => setManualPath(e.target.value)}
-                placeholder={isZh ? "闁哄鐗婇幐鎼佸矗閸℃ǜ浜滈柛锔诲幗缁愭鎮规笟顖氱仩缂?.." : "Enter project path..."}
+                placeholder={isZh ? "输入项目路径..." : "Enter project path..."}
                 style={{ width: "100%", boxSizing: "border-box", background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 8px", fontSize: "0.7rem", outline: "none" }}
                 onKeyDown={(e) => { if (e.key === "Enter") handleLoadManualPath(); }}
               />
             </div>
 
             <button onClick={handleLoadManualPath} className="btn btn-primary" style={{ width: "100%", fontSize: "0.75rem", padding: "6px 12px", marginBottom: 10 }}>
-              {isZh ? "闂佸憡姊绘慨鎯归崶銊ｄ簻闁革富鍘界粣? : "Load Project"}
+              {isZh ? "加载项目" : "Load Project"}
             </button>
 
             {/* Recent Projects */}
@@ -1234,7 +1234,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
                     className="input"
                     value={projectSearchQ}
                     onChange={(e) => setProjectSearchQ(e.target.value)}
-                    placeholder={isZh ? "闂佺懓鍚嬬划搴ㄥ磼閵娾晛妫橀柛銉檮椤?.." : "Search files..."}
+                    placeholder={isZh ? "搜索文件..." : "Search files..."}
                     style={{ width: "100%", boxSizing: "border-box", background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 8px", fontSize: "0.7rem", outline: "none" }}
                   />
                 </div>
@@ -1243,7 +1243,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
                 <div style={{ maxHeight: 260, overflowY: "auto", marginBottom: 6 }}>
                   {filteredProjectFiles.length === 0 ? (
                     <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", textAlign: "center", padding: 8 }}>
-                      {projectSearchQ.trim() ? (isZh ? "闂佸搫鍟版慨瀵镐焊椤曗偓閺屽﹤顓奸崱妯尖偓顔济? : "No matching files") : (isZh ? "闂佸搫鍟版慨鐢稿几閸愨晝顩? : "No files")}
+                      {projectSearchQ.trim() ? (isZh ? "无匹配文件" : "No matching files") : (isZh ? "无文件" : "No files")}
                     </div>
                   ) : (
                     filteredProjectFiles.map((f: any) => (
@@ -1257,7 +1257,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
                           color: f.selected ? "var(--primary)" : "var(--text)",
                         }}
                       >
-                        <span style={{ fontSize: "0.6rem", flexShrink: 0 }}>{f.selected ? "闂? : "闂?}</span>
+                        <span style={{ fontSize: "0.6rem", flexShrink: 0 }}>{f.selected ? "●" : "○"}</span>
                         <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
                       </div>
                     ))
@@ -1267,14 +1267,14 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
                 {/* Selected count + actions */}
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
                   <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>
-                    {selectedFileCount} {isZh ? "閻庣懓鎲￠悡锟犲焵椤掆偓椤︽壆鈧? : "selected"}
+                    {selectedFileCount} {isZh ? "已选择" : "selected"}
                   </span>
                   <button onClick={handleAddSelectedToContext} className="btn btn-primary" style={{ fontSize: "0.68rem", padding: "4px 10px" }}>
-                    {isZh ? "闂佸憡姊绘慨鎾矗閸℃鈻斿┑鐘辫兌閻熸捇鏌? : "Add to Context"}
+                    {isZh ? "加入上下文" : "Add to Context"}
                   </button>
                   {projectFilesInContext.length > 0 && (
                     <button onClick={handleRemoveAllProjectContext} className="btn btn-ghost" style={{ fontSize: "0.68rem", padding: "4px 10px", color: "var(--red)" }}>
-                      {isZh ? "濠电偞鎸搁幊妯衡枍鎼搭潿浜滈柛锔诲幗缁愭鈽夐幘绛规缂佹鎳樺? : "Clear Project Context"}
+                      {isZh ? "清除项目上下文" : "Clear Project Context"}
                     </button>
                   )}
                 </div>
@@ -1458,7 +1458,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
             <button onClick={() => fileInputRef.current?.click()} className="btn btn-ghost" style={{ fontSize: "0.8rem", padding: "7px 12px" }}>
 
-              濡絽鍟幆?{tk("chat.attachFile")}
+              📎 {tk("chat.attachFile")}
 
             </button>
 
@@ -1508,7 +1508,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
             <h4 style={{ margin: 0, color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.tokenBudget")}</h4>
 
-            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("budget") ? "闂? : "闂?}</span>
+            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("budget") ? "▶" : "▼"}</span>
 
           </div>
 
@@ -1550,7 +1550,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
               {budgetRatio > 0.7 && (
 
-                <div style={{ marginTop: 6, fontSize: "0.7rem", color: budgetColor, fontWeight: 500 }}>闂佸疇宕佃tk("chat.budgetWarning")}</div>
+                <div style={{ marginTop: 6, fontSize: "0.7rem", color: budgetColor, fontWeight: 500 }}>▶{tk("chat.budgetWarning")}</div>
 
               )}
 
@@ -1636,7 +1636,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
             <h4 style={{ margin: 0, color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.inspector")}</h4>
 
-            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("inspector") ? "闂? : "闂?}</span>
+            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("inspector") ? "▶" : "▼"}</span>
 
           </div>
 
@@ -1709,7 +1709,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
                       <div style={{ color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</div>
 
-                      <div style={{ color: "var(--text-muted)", fontSize: "0.6rem" }}>{f.type} 閻?{(f.size / 1024).toFixed(1)} KB</div>
+                      <div style={{ color: "var(--text-muted)", fontSize: "0.6rem" }}>{f.type} · {(f.size / 1024).toFixed(1)} KB</div>
 
                     </div>
 
