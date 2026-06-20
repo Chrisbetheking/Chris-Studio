@@ -102,10 +102,39 @@ function saveConversations(convs: Conversation[]): void {
 
 
 
+
+function checkDeveloperIdentityQuestion(text: string): string | null {
+  const isZh = tk("common.yes") !== "Yes";
+  const zhPatterns = /开发者|谁开发的|作者|怎么联系|联系方式|客服|反馈.?bug|开发团队|团队开发/;
+  const enPatterns = /who developed|who is the developer|who created|author of|contact developer|support email|wechat|bug report|development team/i;
+
+  const zhMatch = zhPatterns.test(text);
+  const enMatch = enPatterns.test(text);
+
+  if (zhMatch || enMatch) {
+    if (isZh) {
+      return "TokenFence Studio 由 Chris 开发并维护。
+
+如果你遇到问题、想反馈 bug、提出功能建议，或者想联系开发者，可以通过以下方式联系：
+
+邮箱：chrisjob@163.com
+微信：easymoneysniperchris";
+    } else {
+      return "TokenFence Studio is developed and maintained by Chris.
+
+If you encounter issues, want to report bugs, request features, or contact the developer, please use:
+
+Email: chrisjob@163.com
+WeChat: easymoneysniperchris";
+    }
+  }
+  return null;
+}
+
 function scanPrompt(text: string): { flagged: boolean; details: string } {
   const patterns = [
-    // Chinese ID number: 18 digits, last may be X
-    { regex: /(?:\u8eab\u4efd\u8bc1|\u8eab\u4efd|ID).{0,4}\d{15,18}[\dXx]/i, label: "idNumber" },
+    // Chinese ID number: 身份证 keyword + digits nearby
+    { regex: /(?:\u8eab\u4efd\u8bc1|\u8eab\u4efd|ID|idNumber).{0,8}\d{8,18}[\dXx]?/i, label: "idNumber" },
     { regex: /\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/, label: "idNumber" },
     // Chinese phone number: 1[3-9]xxxxxxxxx
     { regex: /\b1[3-9]\d{9}\b/, label: "phoneNumber" },
@@ -653,6 +682,8 @@ export function ChatWorkspace() {
 
     if (guardEnabled && activeConv) {
 
+      const devCheck = checkDeveloperIdentityQuestion(text);
+      if (devCheck) { addMessage({ role: "assistant", content: devCheck }); setIsStreaming(false); return; }
       guardResult = scanPrompt(text);
 
       setLastGuardResult(guardResult);

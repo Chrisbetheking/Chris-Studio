@@ -343,13 +343,13 @@ if (fs.existsSync(routingPath)) {
   var enAsk = fs.existsSync(enPath2) ? fs.readFileSync(enPath2, "utf-8").indexOf("Ask before switching") >= 0 : false; var zhAsk = fs.existsSync(zhPath2) ? fs.readFileSync(zhPath2, "utf-8").indexOf("切换前询问") >= 0 : false; if (enAsk && zhAsk) ok("i18n files contain Ask before switching/切换前询问"); else fail("i18n files MISSING Ask before switching/切换前询问");
 } else { fail("RoutingScreen.tsx NOT FOUND"); }
 
-// ===== 11. v1.4.1 version checks =====
+// ===== 11. v1.4.3 version checks =====
 console.log("\n--- v1.4.1 version checks ---");
 var appPath = path.join(ROOT, "apps/desktop/ui/src/App.tsx");
 if (fs.existsSync(appPath)) {
   var appContent = fs.readFileSync(appPath, "utf-8");
-  if (appContent.indexOf('"v1.4.2"') >= 0) ok("App.tsx VERSION is v1.4.1");
-  else fail("App.tsx VERSION is NOT v1.4.1");
+  if (appContent.indexOf('"v1.4.3"') >= 0) ok("App.tsx VERSION is v1.4.3");
+  else fail("App.tsx VERSION is NOT v1.4.3");
 } else { fail("App.tsx NOT FOUND"); }
 
 // Check ChatWorkspace for developer identity
@@ -436,6 +436,36 @@ if (fs.existsSync(appPath)) {
   var appContent2 = fs.readFileSync(appPath, "utf-8");
   if (appContent2.indexOf("ErrorBoundary") >= 0) ok("App.tsx contains ErrorBoundary");
   else fail("App.tsx MISSING ErrorBoundary");
+}
+
+
+// ===== 13. v1.4.3 project load + developer identity + sensitive checks =====
+console.log("\n--- v1.4.3 project load + developer identity + sensitive checks ---");
+var cwPath4 = path.join(ROOT, "apps/desktop/ui/src/screens/ChatWorkspace.tsx");
+if (fs.existsSync(cwPath4)) {
+  var cw4 = fs.readFileSync(cwPath4, "utf-8");
+  if (cw4.indexOf("checkDeveloperIdentityQuestion") >= 0) ok("ChatWorkspace contains developer identity interceptor");
+  else fail("ChatWorkspace MISSING developer identity interceptor");
+  if (cw4.indexOf("TokenFence Studio 由 Chris 开发并维护") >= 0) ok("Developer interceptor contains ZH identity");
+  else fail("Developer interceptor MISSING ZH identity");
+  if (cw4.indexOf("developed and maintained by Chris") >= 0) ok("Developer interceptor contains EN identity");
+  else fail("Developer interceptor MISSING EN identity");
+  if (cw4.indexOf("chrisjob@163.com") >= 0) ok("Developer interceptor contains email");
+  else fail("Developer interceptor MISSING email");
+  if (cw4.indexOf("easymoneysniperchris") >= 0) ok("Developer interceptor contains WeChat");
+  else fail("Developer interceptor MISSING WeChat");
+  if (cw4.indexOf("\u8eab\u4efd") >= 0 && cw4.indexOf("idNumber") >= 0) ok("scanPrompt contains 身份证/idNumber detection");
+  else fail("scanPrompt MISSING 身份证/idNumber detection");
+  if (cw4.indexOf("phoneNumber") >= 0) ok("scanPrompt contains phone detection");
+  else fail("scanPrompt MISSING phone detection");
+  if (cw4.indexOf("bankCard") >= 0) ok("scanPrompt contains bank card detection");
+  else fail("scanPrompt MISSING bank card detection");
+  if (cw4.indexOf("email") >= 0 && cw4.indexOf("regex") >= 0) ok("scanPrompt contains email detection");
+  else fail("scanPrompt MISSING email detection");
+  if (cw4.indexOf("apiKey") >= 0) ok("scanPrompt contains API key/token/password detection");
+  else fail("scanPrompt MISSING API key/token detection");
+  if (cw4.indexOf("检测到敏感数据") >= 0 || cw4.indexOf("Sensitive data detected") >= 0) ok("scanPrompt contains sensitive detected message");
+  else fail("scanPrompt MISSING sensitive detected message");
 }
 
 console.log("\n=== RESULT: " + errors.length + " error(s) ===");

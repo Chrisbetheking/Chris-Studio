@@ -40,6 +40,12 @@ export function ProjectsScreen() {
   const isZh = tk("common.yes") !== "Yes";
 
   useEffect(() => {
+    try { setProjects(loadProjects()); } catch { setProjectLoadError(true); }
+  }, []);
+  useEffect(() => {
+    try { setActiveId(getActiveProjectId()); } catch {}
+  }, []);
+  useEffect(() => {
     setIsTauri(!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
   }, []);
 
@@ -129,24 +135,12 @@ export function ProjectsScreen() {
         </div>
       )}
       {!projectLoadError && projects.length === 0 && (
-        <div className="card" style={{ marginBottom: 16, padding: 20, textAlign: "center" }}>
-          <div style={{ fontSize: "1rem", fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>{isZh ? "还没有打开过项目" : "No project opened yet"}</div>
-          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{isZh ? "添加一个项目文件夹开始使用。" : "Add a project folder to get started."}</p>
+        <div className="card" style={{ marginBottom: 16, padding: 28, textAlign: "center" }}>
+          <div style={{ fontSize: "2rem", marginBottom: 12 }}>&#128193;</div>
+          <div style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>{isZh ? "还没有打开过项目" : "No project opened yet"}</div>
+          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", maxWidth: 400, margin: "0 auto" }}>{isZh ? "打开一个本地文件夹，开始构建项目上下文。" : "Open a local folder to start building project context."}</p>
         </div>
       )}
-      <h2 className="page-title">{tk("common.projects")}</h2>
-      <p className="page-subtitle">{activeProject ? `Active: ${activeProject.name} — ${activeProject.folderPath}` : "No active project"}</p>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div className="card-title" style={{ marginBottom: 12 }}>Add Project</div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Project name"
-            style={{ flex: 1, background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", fontSize: "0.85rem", outline: "none" }} />
-          <input value={newPath} onChange={e => setNewPath(e.target.value)} placeholder="Folder path (e.g. D:\myproject)"
-            style={{ flex: 2, background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", fontSize: "0.85rem", outline: "none" }} />
-          <button onClick={addProject} className="btn btn-primary" style={{ fontSize: "0.85rem", padding: "8px 18px" }}>+ Add</button>
-        </div>
-        {error && <div style={{ fontSize: "0.8rem", color: error.includes("Desktop runtime") ? "var(--amber)" : "var(--red)", marginTop: 4 }}>{error}</div>}
       </div>
 
       <h3 style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>Recent Projects</h3>
