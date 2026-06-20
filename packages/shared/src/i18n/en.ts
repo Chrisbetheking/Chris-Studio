@@ -1,4 +1,4 @@
-/* English translations for TokenFence Studio */
+﻿/* English translations for TokenFence Studio */
 
 const en = {
   app: {
@@ -492,7 +492,32 @@ settings: {
     redactionVault: 'Redaction Vault',
   },
 
-  modelsPage: {
+
+  about: {
+    title: "About TokenFence Studio",
+    subtitle: "Local-first AI safety workstation",
+    repository: "Repository",
+    license: "License",
+    privacyLabel: "Privacy",
+    privacyText: "All keys and archives stay on your machine. Nothing sent to external servers without explicit configuration.",
+    releaseInfo: "Release Info",
+    developer: "Developer",
+    devName: "Chris",
+    contact: "Contact",
+    emailLabel: "Email",
+    wechatLabel: "WeChat",
+    support: "Support",
+    supportText: "TokenFence Studio is developed and maintained by Chris. If you encounter issues, want to report bugs, request features, or give feedback, please contact the developer.",
+  },
+
+  routing: {
+    edit: "Edit",
+    editRule: "Edit routing rule",
+    fileType: "File type",
+    primaryModel: "Primary model",
+    fallbackModel: "Fallback model",
+    askBeforeSwitch: "Ask before switching",
+  },  modelsPage: {
     noInstalledModels: 'No models installed yet',
     goToLibrary: 'Go to Model Library to add models',
     installedModels: 'Installed Models',

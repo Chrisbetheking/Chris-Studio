@@ -50,6 +50,20 @@ for (const item of checks) {
   }
 }
 
+// 1.5. About page version check
+console.log("\n--- About page version check ---");
+var aboutPath = path.join(ROOT, "apps/desktop/ui/src/screens/AboutScreen.tsx");
+if (fs.existsSync(aboutPath)) {
+  var aboutContent = fs.readFileSync(aboutPath, "utf-8");
+  if (aboutContent.indexOf("v0.5.0-dev") >= 0) fail("AboutScreen.tsx still contains v0.5.0-dev");
+  else ok("AboutScreen.tsx does not contain v0.5.0-dev");
+  if (aboutContent.indexOf('import { VERSION }') >= 0) ok("AboutScreen.tsx imports VERSION from App");
+  else fail("AboutScreen.tsx MISSING VERSION import");
+  if (aboutContent.indexOf("chrisjob@163.com") >= 0) ok("AboutScreen.tsx contains contact email");
+  else fail("AboutScreen.tsx MISSING contact email");
+  if (aboutContent.indexOf("easymoneysniperchris") >= 0) ok("AboutScreen.tsx contains WeChat");
+  else fail("AboutScreen.tsx MISSING WeChat");
+} else { fail("AboutScreen.tsx NOT FOUND"); }
 // 2. README download links
 console.log("\n--- README download links ---");
 const zipName = "TokenFence-Studio-Windows-" + vTag + "-portable.zip";

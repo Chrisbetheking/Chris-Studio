@@ -1,4 +1,4 @@
-/* Simplified Chinese translations for TokenFence Studio */
+﻿/* Simplified Chinese translations for TokenFence Studio */
 
 import type { Translations } from "./en";
 
@@ -388,7 +388,32 @@ const zhCN: Translations = {
   },
   },
 
-  modelsPage: {
+
+  about: {
+    title: "关于 TokenFence Studio",
+    subtitle: "本地优先 AI 安全工作区",
+    repository: "仓库",
+    license: "许可证",
+    privacyLabel: "隐私",
+    privacyText: "所有密钥和存档保留在您的机器上。未经明确配置，不会发送任何内容到外部服务器。",
+    releaseInfo: "发布信息",
+    developer: "开发者",
+    devName: "Chris",
+    contact: "联系方式",
+    emailLabel: "邮箱",
+    wechatLabel: "微信",
+    support: "支持与反馈",
+    supportText: "TokenFence Studio 由 Chris 开发并维护。如果你遇到问题、想反馈 bug、提出功能建议，或者想联系开发者，可以通过以上方式联系。",
+  },
+
+  routing: {
+    edit: "编辑",
+    editRule: "编辑路由规则",
+    fileType: "文件类型",
+    primaryModel: "主模型",
+    fallbackModel: "备用模型",
+    askBeforeSwitch: "切换前询问",
+  },  modelsPage: {
     noInstalledModels: '尚未添加模型',
     goToLibrary: '前往模型库添加模型',
     installedModels: '已添加模型',

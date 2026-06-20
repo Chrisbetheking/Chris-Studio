@@ -314,6 +314,34 @@ if (fs.existsSync(cwPath)) {
 }
 
 
+// ===== 9. About page checks =====
+console.log("\n--- About page checks ---");
+var aboutPath = path.join(ROOT, "apps/desktop/ui/src/screens/AboutScreen.tsx");
+if (fs.existsSync(aboutPath)) {
+  var aboutContent = fs.readFileSync(aboutPath, "utf-8");
+  if (aboutContent.indexOf("v0.5.0-dev") >= 0) fail("AboutScreen.tsx still contains v0.5.0-dev");
+  else ok("AboutScreen.tsx does not contain v0.5.0-dev");
+  if (aboutContent.indexOf("chrisjob@163.com") >= 0) ok("AboutScreen.tsx contains chrisjob@163.com");
+  else fail("AboutScreen.tsx MISSING chrisjob@163.com");
+  if (aboutContent.indexOf("easymoneysniperchris") >= 0) ok("AboutScreen.tsx contains easymoneysniperchris");
+  else fail("AboutScreen.tsx MISSING easymoneysniperchris");
+  if (aboutContent.indexOf("Chris") >= 0) ok("AboutScreen.tsx contains Chris");
+  else fail("AboutScreen.tsx MISSING Chris");
+  var enPath2 = path.join(ROOT, "packages/shared/src/i18n/en.ts"); var zhPath2 = path.join(ROOT, "packages/shared/src/i18n/zh-CN.ts"); var enDev = fs.existsSync(enPath2) ? fs.readFileSync(enPath2, "utf-8").indexOf("Developer") >= 0 : false; var zhDev = fs.existsSync(zhPath2) ? fs.readFileSync(zhPath2, "utf-8").indexOf("开发者") >= 0 : false; if (enDev && zhDev) ok("i18n files contain Developer/开发者"); else fail("i18n files MISSING Developer/开发者");
+  var enCon = fs.existsSync(enPath2) ? fs.readFileSync(enPath2, "utf-8").indexOf("Contact") >= 0 : false; var zhCon = fs.existsSync(zhPath2) ? fs.readFileSync(zhPath2, "utf-8").indexOf("联系方式") >= 0 : false; if (enCon && zhCon) ok("i18n files contain Contact/联系方式"); else fail("i18n files MISSING Contact/联系方式");
+} else { fail("AboutScreen.tsx NOT FOUND"); }
+
+// ===== 10. Routing UI checks =====
+console.log("\n--- Routing UI checks ---");
+var routingPath = path.join(ROOT, "apps/desktop/ui/src/screens/RoutingScreen.tsx");
+if (fs.existsSync(routingPath)) {
+  var routingContent = fs.readFileSync(routingPath, "utf-8");
+  if (routingContent.indexOf("Edit") >= 0 || routingContent.indexOf("编辑") >= 0) ok("RoutingScreen.tsx contains Edit/编辑");
+  else fail("RoutingScreen.tsx MISSING Edit/编辑");
+  var enPrim = fs.existsSync(enPath2) ? fs.readFileSync(enPath2, "utf-8").indexOf("Primary model") >= 0 : false; var zhPrim = fs.existsSync(zhPath2) ? fs.readFileSync(zhPath2, "utf-8").indexOf("主模型") >= 0 : false; if (enPrim && zhPrim) ok("i18n files contain Primary model/主模型"); else fail("i18n files MISSING Primary model/主模型");
+  var enFall = fs.existsSync(enPath2) ? fs.readFileSync(enPath2, "utf-8").indexOf("Fallback model") >= 0 : false; var zhFall = fs.existsSync(zhPath2) ? fs.readFileSync(zhPath2, "utf-8").indexOf("备用模型") >= 0 : false; if (enFall && zhFall) ok("i18n files contain Fallback model/备用模型"); else fail("i18n files MISSING Fallback model/备用模型");
+  var enAsk = fs.existsSync(enPath2) ? fs.readFileSync(enPath2, "utf-8").indexOf("Ask before switching") >= 0 : false; var zhAsk = fs.existsSync(zhPath2) ? fs.readFileSync(zhPath2, "utf-8").indexOf("切换前询问") >= 0 : false; if (enAsk && zhAsk) ok("i18n files contain Ask before switching/切换前询问"); else fail("i18n files MISSING Ask before switching/切换前询问");
+} else { fail("RoutingScreen.tsx NOT FOUND"); }
 console.log("\n=== RESULT: " + errors.length + " error(s) ===");
 if (errors.length > 0) { console.log("Failures:"); errors.forEach(function(e) { console.log("  - " + e); }); process.exit(1); }
 else { console.log("All checks passed."); process.exit(0);
