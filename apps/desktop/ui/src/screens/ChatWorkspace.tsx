@@ -138,8 +138,6 @@ function scanPrompt(text: string): { flagged: boolean; details: string } {
 }
 
 
-}
-
 
 
 async function callProviderAPI(
