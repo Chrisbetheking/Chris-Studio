@@ -193,8 +193,8 @@ function buildTestCases(): TestCase[] {
             return { pass: false, detail: `schemaVersion is ${(parsed as Record<string, unknown>).schemaVersion}, expected 2` };
           }
           return { pass: true, detail: "schemaVersion = 2" };
-        } catch {
-          return { pass: false, detail: "Failed to parse localStorage" };
+        } catch (e) {
+          return { pass: false, detail: `Failed to parse localStorage: ${e instanceof Error ? e.message : String(e)}` };
         }
       },
     },
@@ -252,8 +252,8 @@ function buildTestCases(): TestCase[] {
             return { pass: false, detail: `displayLabel "${m.displayLabel}" !== expected "${expected}"` };
           }
           return { pass: true, detail: `displayLabel = "${m.displayLabel}"` };
-        } catch {
-          return { pass: false, detail: "Failed to parse localStorage" };
+        } catch (e) {
+          return { pass: false, detail: `Failed to parse localStorage: ${e instanceof Error ? e.message : String(e)}` };
         }
       },
     },
