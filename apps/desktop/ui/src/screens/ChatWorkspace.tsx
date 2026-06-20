@@ -105,7 +105,7 @@ function saveConversations(convs: Conversation[]): void {
 
 function checkDeveloperIdentityQuestion(text: string): string | null {
   const isZh = tk("common.yes") !== "Yes";
-  const zhPatterns = /开发者|谁开发的|作者|怎么联系|联系方式|客服|反馈.?bug|开发团队|团队开发/;
+  const zhPatterns = /???|????|??|????|????|??|??.?bug|????|????/;
   const enPatterns = /who developed|who is the developer|who created|author of|contact developer|support email|wechat|bug report|development team/i;
   const zhMatch = zhPatterns.test(text);
   const enMatch = enPatterns.test(text);
@@ -330,6 +330,25 @@ export function ChatWorkspace() {
   const [savedProjects, setSavedProjects] = useState<any[]>(() => {
     try { const ps = storeGet("tokenfence-projects"); return ps ? JSON.parse(ps) : []; } catch { return []; }
   });
+
+  const handleLoadManualPath = async () => {
+    const path = manualPath.trim();
+    if (!path) return;
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const result: any = await invoke("scan_project_files", { path });
+      if (result?.files) {
+        const proj = { id: "manual-" + Date.now(), name: path.split("\\").pop() || path, folderPath: path, files: result.files.map((f: any) => ({ ...f, selected: false })) };
+        setActiveProject(proj);
+        const updated = [proj, ...savedProjects.filter((p: any) => p.folderPath !== path)];
+        setSavedProjects(updated);
+        try { storeSet("tokenfence-active-project", proj.id); storeSet("tokenfence-projects", JSON.stringify(updated)); } catch {}
+      }
+    } catch {
+      const proj = { id: "manual-" + Date.now(), name: path.split("\\").pop() || path, folderPath: path, files: [] };
+      setActiveProject(proj);
+    }
+  };
 
   const [sidebarTab, setSidebarTab] = useState<"conversations" | "project">("conversations");
   const [dragOver, setDragOver] = useState(false);
@@ -668,10 +687,10 @@ export function ChatWorkspace() {
 
     let guardResult: { flagged: boolean; details: string } | undefined;
 
-    if (guardEnabled && activeConv) {
+    if (guardEnabled) {
 
       const devCheck = checkDeveloperIdentityQuestion(text);
-      if (devCheck) { addMessage({ role: "assistant", content: devCheck }); setIsStreaming(false); return; }
+      if (devCheck && activeConv) { addMessage({ role: "assistant", content: devCheck }); setIsStreaming(false); return; }
       guardResult = scanPrompt(text);
 
       setLastGuardResult(guardResult);
