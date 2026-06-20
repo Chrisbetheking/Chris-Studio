@@ -64,6 +64,20 @@ if (fs.existsSync(aboutPath)) {
   if (aboutContent.indexOf("easymoneysniperchris") >= 0) ok("AboutScreen.tsx contains WeChat");
   else fail("AboutScreen.tsx MISSING WeChat");
 } else { fail("AboutScreen.tsx NOT FOUND"); }
+
+// 1.6. Developer identity checks
+console.log("\n--- Developer identity checks ---");
+var cwPath3 = path.join(ROOT, "apps/desktop/ui/src/screens/ChatWorkspace.tsx");
+if (fs.existsSync(cwPath3)) {
+  var cw3 = fs.readFileSync(cwPath3, "utf-8");
+  if (cw3.indexOf("chrisjob@163.com") >= 0) ok("ChatWorkspace.tsx contains developer email");
+  else fail("ChatWorkspace.tsx MISSING developer email");
+  if (cw3.indexOf("easymoneysniperchris") >= 0) ok("ChatWorkspace.tsx contains developer WeChat");
+  else fail("ChatWorkspace.tsx MISSING developer WeChat");
+  if (cw3.indexOf("developed and maintained by Chris") >= 0) ok("ChatWorkspace.tsx contains developer identity EN");
+  else fail("ChatWorkspace.tsx MISSING developer identity EN");
+} else { fail("ChatWorkspace.tsx NOT FOUND"); }
+
 // 2. README download links
 console.log("\n--- README download links ---");
 const zipName = "TokenFence-Studio-Windows-" + vTag + "-portable.zip";

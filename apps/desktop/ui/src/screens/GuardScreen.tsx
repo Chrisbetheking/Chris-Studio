@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { tk, onLangChange } from "@tokenfence/shared/src/i18n";
 
 export function GuardScreen() {

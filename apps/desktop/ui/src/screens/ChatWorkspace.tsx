@@ -103,24 +103,40 @@ function saveConversations(convs: Conversation[]): void {
 
 
 function scanPrompt(text: string): { flagged: boolean; details: string } {
-
   const patterns = [
-
-    { regex: /\b\d{16}\b/, label: "Potential credit card number" },
-
-    { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/, label: "Email address" },
-
-    { regex: /\b\d{3}[-.]?\d{2}[-.]?\d{4}\b/, label: "Potential SSN" },
-
-    { regex: /\b(sk-[A-Za-z0-9]{20,})\b/, label: "Potential API key" },
-
+    // Chinese ID number: 18 digits, last may be X
+    { regex: /(?:\u8eab\u4efd\u8bc1|\u8eab\u4efd|ID).{0,4}\d{15,18}[\dXx]/i, label: "idNumber" },
+    { regex: /\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/, label: "idNumber" },
+    // Chinese phone number: 1[3-9]xxxxxxxxx
+    { regex: /\b1[3-9]\d{9}\b/, label: "phoneNumber" },
+    // Bank card number: 16-19 continuous digits
+    { regex: /\b\d{16,19}\b/, label: "bankCard" },
+    // Email address
+    { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/, label: "email" },
+    // API key / token patterns
+    { regex: /\b(sk-[A-Za-z0-9]{20,})\b/, label: "apiKey" },
+    { regex: /\b(ghp_[A-Za-z0-9]{36,})\b/, label: "apiKey" },
+    { regex: /\b(gho_[A-Za-z0-9]{36,})\b/, label: "apiKey" },
+    { regex: /api[_\-]?key\s*[:=]\s*['\"]?\w+/i, label: "apiKey" },
+    { regex: /token\s*[:=]\s*['\"]?[A-Za-z0-9]{16,}/i, label: "apiKey" },
+    { regex: /password\s*[:=]\s*['\"]?[^\s]{4,}/i, label: "apiKey" },
+    { regex: /secret\s*[:=]\s*['\"]?\w+/i, label: "apiKey" },
   ];
 
   const hits: string[] = [];
-
   for (const p of patterns) { if (p.regex.test(text)) hits.push(p.label); }
 
-  return { flagged: hits.length > 0, details: hits.length ? `Guard flagged: ${hits.join(", ")}` : tk("chat.guardNoSensitive") };
+  if (hits.length > 0) {
+    const isZh = typeof tk === "function" && tk("guardPage.sensitiveDetected") !== "guardPage.sensitiveDetected";
+    const uniqueLabels = [...new Set(hits)];
+    const translated = uniqueLabels.map(l => {
+      try { return tk("guardPage." + l) || l; } catch { return l; }
+    }).join(", ");
+    return { flagged: true, details: (isZh ? "检测到敏感数据" : "Sensitive data detected") + (translated ? " (" + translated + ")" : "") };
+  }
+  return { flagged: false, details: tk("chat.guardNoSensitive") };
+}
+
 
 }
 
@@ -717,7 +733,7 @@ export function ChatWorkspace() {
 
     const apiMessages: { role: string; content: string }[] = [];
 
-    if (withUserMsg.messages.length === 1) apiMessages.push({ role: "system", content: "You are an AI assistant in TokenFence Studio. Be helpful and concise." });
+    if (withUserMsg.messages.length === 1) apiMessages.push({ role: "system", content: (isZh ? "你是 TokenFence Studio 内置助手。TokenFence Studio 由 Chris 开发并维护。如果你遇到问题、想反馈 bug、提出功能建议，或者想联系开发者，可以通过以下方式联系：邮箱 chrisjob@163.com，微信 easymoneysniperchris。请提供有帮助且简洁的回复。" : "You are an AI assistant in TokenFence Studio. TokenFence Studio is developed and maintained by Chris. If you encounter issues, want to report bugs, request features, or contact the developer, please email chrisjob@163.com or use WeChat: easymoneysniperchris. Be helpful and concise.") });
 
     for (const m of withUserMsg.messages) apiMessages.push({ role: m.role, content: m.content });
 

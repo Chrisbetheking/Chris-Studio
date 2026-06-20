@@ -342,6 +342,72 @@ if (fs.existsSync(routingPath)) {
   var enFall = fs.existsSync(enPath2) ? fs.readFileSync(enPath2, "utf-8").indexOf("Fallback model") >= 0 : false; var zhFall = fs.existsSync(zhPath2) ? fs.readFileSync(zhPath2, "utf-8").indexOf("备用模型") >= 0 : false; if (enFall && zhFall) ok("i18n files contain Fallback model/备用模型"); else fail("i18n files MISSING Fallback model/备用模型");
   var enAsk = fs.existsSync(enPath2) ? fs.readFileSync(enPath2, "utf-8").indexOf("Ask before switching") >= 0 : false; var zhAsk = fs.existsSync(zhPath2) ? fs.readFileSync(zhPath2, "utf-8").indexOf("切换前询问") >= 0 : false; if (enAsk && zhAsk) ok("i18n files contain Ask before switching/切换前询问"); else fail("i18n files MISSING Ask before switching/切换前询问");
 } else { fail("RoutingScreen.tsx NOT FOUND"); }
+
+// ===== 11. v1.4.1 version checks =====
+console.log("\n--- v1.4.1 version checks ---");
+var appPath = path.join(ROOT, "apps/desktop/ui/src/App.tsx");
+if (fs.existsSync(appPath)) {
+  var appContent = fs.readFileSync(appPath, "utf-8");
+  if (appContent.indexOf('"v1.4.1"') >= 0) ok("App.tsx VERSION is v1.4.1");
+  else fail("App.tsx VERSION is NOT v1.4.1");
+} else { fail("App.tsx NOT FOUND"); }
+
+// Check ChatWorkspace for developer identity
+var cwPath3 = path.join(ROOT, "apps/desktop/ui/src/screens/ChatWorkspace.tsx");
+if (fs.existsSync(cwPath3)) {
+  var cw3 = fs.readFileSync(cwPath3, "utf-8");
+  if (cw3.indexOf("chrisjob@163.com") >= 0) ok("ChatWorkspace contains chrisjob@163.com");
+  else fail("ChatWorkspace MISSING chrisjob@163.com");
+  if (cw3.indexOf("easymoneysniperchris") >= 0) ok("ChatWorkspace contains easymoneysniperchris");
+  else fail("ChatWorkspace MISSING easymoneysniperchris");
+  if (cw3.indexOf("developed and maintained by Chris") >= 0) ok("ChatWorkspace contains developed and maintained by Chris");
+  else fail("ChatWorkspace MISSING developer identity EN");
+  if (cw3.indexOf("由 Chris 开发并维护") >= 0) ok("ChatWorkspace contains 由 Chris 开发并维护");
+  else fail("ChatWorkspace MISSING developer identity ZH");
+} else { fail("ChatWorkspace NOT FOUND"); }
+
+// Check sensitive detection patterns
+if (fs.existsSync(cwPath3)) {
+  var cw3 = fs.readFileSync(cwPath3, "utf-8");
+  if (cw3.indexOf("idNumber") >= 0) ok("ChatWorkspace scanPrompt contains idNumber detection");
+  else fail("ChatWorkspace scanPrompt MISSING idNumber detection");
+  if (cw3.indexOf("phoneNumber") >= 0) ok("ChatWorkspace scanPrompt contains phoneNumber detection");
+  else fail("ChatWorkspace scanPrompt MISSING phoneNumber detection");
+  if (cw3.indexOf("bankCard") >= 0) ok("ChatWorkspace scanPrompt contains bankCard detection");
+  else fail("ChatWorkspace scanPrompt MISSING bankCard detection");
+  if (cw3.indexOf("email") >= 0) ok("ChatWorkspace scanPrompt contains email detection");
+  else fail("ChatWorkspace scanPrompt MISSING email detection");
+  if (cw3.indexOf("apiKey") >= 0) ok("ChatWorkspace scanPrompt contains apiKey detection");
+  else fail("ChatWorkspace scanPrompt MISSING apiKey detection");
+  if (cw3.indexOf("检测到敏感数据") >= 0 || cw3.indexOf("Sensitive data detected") >= 0) ok("ChatWorkspace contains sensitive detected message");
+  else fail("ChatWorkspace MISSING sensitive detected message");
+}
+
+// Check GuardScreen and StorageScreen have React imports
+var gsPath = path.join(ROOT, "apps/desktop/ui/src/screens/GuardScreen.tsx");
+if (fs.existsSync(gsPath)) {
+  var gsContent = fs.readFileSync(gsPath, "utf-8");
+  if (gsContent.indexOf('import { useState, useEffect } from "react"') >= 0) ok("GuardScreen imports React hooks");
+  else fail("GuardScreen MISSING React hooks import");
+} else { fail("GuardScreen NOT FOUND"); }
+var ssPath = path.join(ROOT, "apps/desktop/ui/src/screens/StorageScreen.tsx");
+if (fs.existsSync(ssPath)) {
+  var ssContent = fs.readFileSync(ssPath, "utf-8");
+  if (ssContent.indexOf('import { useState, useEffect } from "react"') >= 0) ok("StorageScreen imports React hooks");
+  else fail("StorageScreen MISSING React hooks import");
+} else { fail("StorageScreen NOT FOUND"); }
+
+// Check toolbox detail pages exist
+if (fs.existsSync(gsPath)) {
+  var gsContent2 = fs.readFileSync(gsPath, "utf-8");
+  var enGuard = fs.existsSync(enPath2) ? fs.readFileSync(enPath2, "utf-8").indexOf("Prompt Shield") >= 0 : false; var zhGuard = fs.existsSync(zhPath2) ? fs.readFileSync(zhPath2, "utf-8").indexOf("提示词防护") >= 0 : false; if (enGuard && zhGuard) ok("i18n files contain Prompt Shield/提示词防护"); else fail("i18n files MISSING Prompt Shield/提示词防护");
+}
+if (fs.existsSync(ssPath)) {
+  var ssContent2 = fs.readFileSync(ssPath, "utf-8");
+  if (ssContent2.indexOf("Storage") >= 0 || ssContent2.indexOf("存储") >= 0) ok("StorageScreen contains Storage/存储");
+  else fail("StorageScreen MISSING Storage/存储");
+}
+
 console.log("\n=== RESULT: " + errors.length + " error(s) ===");
 if (errors.length > 0) { console.log("Failures:"); errors.forEach(function(e) { console.log("  - " + e); }); process.exit(1); }
 else { console.log("All checks passed."); process.exit(0);

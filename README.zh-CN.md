@@ -20,7 +20,7 @@ TokenFence Studio 是一。Windows 桌面应用，提供以下功能：
 
 | 平台 | 文件 | 类型 |
 |------|------|------|
-| Windows | [TokenFence-Studio-Windows-v1.4.0-portable.zip](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-Windows-v1.4.0-portable.zip) | 便携。|
+| Windows | [TokenFence-Studio-Windows-v1.4.1-portable.zip](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-Windows-v1.4.1-portable.zip) | 便携。|
 
 ## 系统要求
 
