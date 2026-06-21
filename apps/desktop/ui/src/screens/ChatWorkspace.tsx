@@ -924,12 +924,6 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
   }, [activeProject?.files, searchQ]);
 
 
-  const panelFiles = useMemo(() => {
-    if (!activeProject?.files) return [];
-    if (!projectSearchQ.trim()) return activeProject.files;
-    const q = projectSearchQ.toLowerCase();
-    return activeProject.files.filter((f: any) => f.name.toLowerCase().includes(q));
-  }, [activeProject?.files, projectSearchQ]);
 
   const selectedFileCount = useMemo(() => {
     return activeProject?.files?.filter((f: any) => f.selected).length ?? 0;
@@ -1378,15 +1372,15 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
                 {/* File tree */}
                 <div style={{ maxHeight: 260, overflowY: "auto", marginBottom: 6 }}>
-                  {panelFiles.length === 0 ? (
+                  {activeProject.files.filter((f) => !projectSearchQ.trim() || f.name.toLowerCase().includes(projectSearchQ.toLowerCase())).length === 0 ? (
                     <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", textAlign: "center", padding: 8 }}>
                       {projectSearchQ.trim() ? (isZh ? "无匹配文件" : "No matching files") : (isZh ? "无文件" : "No files")}
                     </div>
                   ) : (
-                    panelFiles.map((f: any) => (
+                    activeProject.files.filter((f) => !projectSearchQ.trim() || f.name.toLowerCase().includes(projectSearchQ.toLowerCase())).map((f) => (
                       <div
                         key={f.name}
-                        onClick={() => toggleProjectFileSelection(f.name)}
+                        onClick={() => { if (!activeProject) return; const upd = { ...activeProject, files: activeProject.files.map((pf) => pf.name === f.name ? { ...pf, selected: !pf.selected } : pf) }; setActiveProject(upd); }}
                         style={{
                           display: "flex", alignItems: "center", gap: 4,
                           padding: "4px 6px", cursor: "pointer", borderRadius: 4, fontSize: "0.72rem",
@@ -1404,22 +1398,23 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
                 {/* Selected count + actions */}
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
                   <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>
-                    {selectedFileCount} {isZh ? "已选择" : "selected"}
+                    {activeProject?.files?.filter((sf) => sf.selected).length ?? 0} {isZh ? "已选择" : "selected"}
                   </span>
-                  <button onClick={handleAddSelectedToContext} className="btn btn-primary" style={{ fontSize: "0.68rem", padding: "4px 10px" }}>
+                  <button onClick={() => { if (!activeProject) return; const sel = activeProject.files?.filter((sf) => sf.selected) ?? []; for (const sf of sel) { setAttachedFiles((prev) => { if (prev.find((x) => x.name === sf.name && x.type === "project")) return prev; return [...prev, { id: `proj-${sf.name}`, name: sf.name, size: 0, type: "project", content: `[Project: ${activeProject.name}]
+[File: ${sf.name}]` }]; }); } }} className="btn btn-primary" style={{ fontSize: "0.68rem", padding: "4px 10px" }}>
                     {isZh ? "加入上下文" : "Add to Context"}
                   </button>
-                  {projectFilesInContext.length > 0 && (
-                    <button onClick={handleRemoveAllProjectContext} className="btn btn-ghost" style={{ fontSize: "0.68rem", padding: "4px 10px", color: "var(--red)" }}>
+                  {attachedFiles.filter((f) => f.type === "project").length > 0 && (
+                    <button onClick={() => setAttachedFiles((prev) => prev.filter((f) => f.type !== "project"))} className="btn btn-ghost" style={{ fontSize: "0.68rem", padding: "4px 10px", color: "var(--red)" }}>
                       {isZh ? "清除项目上下文" : "Clear Project Context"}
                     </button>
                   )}
                 </div>
 
                 {/* Project Context files count */}
-                {projectFilesInContext.length > 0 && (
+                {attachedFiles.filter((f) => f.type === "project").length > 0 && (
                   <div style={{ fontSize: "0.65rem", color: "var(--primary)", marginTop: 6 }}>
-                    {projectFilesInContext.length} {isZh ? "\u9879\u76EE\u6587\u4EF6\u5728\u4E0A\u4E0B\u6587\u4E2D" : "project files in context"}
+                    {attachedFiles.filter((f) => f.type === "project").length} {isZh ? "\u9879\u76EE\u6587\u4EF6\u5728\u4E0A\u4E0B\u6587\u4E2D" : "project files in context"}
                   </div>
                 )}
               </>
