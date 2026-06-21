@@ -46,6 +46,8 @@ export function ProjectsScreen() {
   const [projectFileTree, setProjectFileTree] = useState<ReturnType<typeof buildMockFileTree>>([]);
   const [isRealTree, setIsRealTree] = useState(false);
   const [scanningTree, setScanningTree] = useState(false);
+  const [projectScanError, setProjectScanError] = useState<string | null>(null);
+  const [projectScanStatus, setProjectScanStatus] = useState<"idle" | "scanning" | "done" | "failed">("idle");
   const isZh = tk("common.yes") !== "Yes";
 
   useEffect(() => {
@@ -58,6 +60,18 @@ export function ProjectsScreen() {
     setIsTauri(!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
   }, []);
 
+  const projectFileCount = useMemo(() => {
+    function countAll(nodes: any[]): number {
+      let n = 0;
+      for (const node of nodes) {
+        if (node.type === "file") n++;
+        if (node.children) n += countAll(node.children);
+      }
+      return n;
+    }
+    return countAll(projectFileTree);
+  }, [projectFileTree]);
+
   const activeProject = projects.find(p => p.id === activeId) ?? null;
   const selectedFiles = activeProject?.files.filter(f => f.selected) ?? [];
   const selectedTokens = selectedFiles.reduce((sum, f) => sum + estimateTokens(f.path + f.name), 0);
@@ -68,27 +82,36 @@ export function ProjectsScreen() {
       setProjectFileTree([]);
       setIsRealTree(false);
       setScanningTree(false);
+      setProjectScanStatus("idle");
+      setProjectScanError(null);
       return;
     }
     let cancelled = false;
     async function loadTree() {
       setScanningTree(true);
+      setProjectScanStatus("scanning");
+      setProjectScanError(null);
       try {
         const nodes = await scanProjectDirectory(activeProject!.folderPath);
         if (!cancelled) {
           if (nodes && nodes.length > 0) {
             setProjectFileTree(nodes);
             setIsRealTree(true);
+            setProjectScanStatus("done");
           } else {
-            setProjectFileTree(buildMockFileTree(activeProject!.folderPath));
+            setProjectFileTree([]);
             setIsRealTree(false);
+            setProjectScanStatus("failed");
+            setProjectScanError(isZh ? "扫描完成，但未找到可显示文件。请确认路径是否为具体项目文件夹。" : "Scan completed, but no displayable files were found. Please make sure the path points to a specific project folder.");
           }
         }
-      } catch (e) {
+      } catch (e: any) {
         if (!cancelled) {
-          console.error("File tree scan failed, using mock fallback:", e);
-          setProjectFileTree(buildMockFileTree(activeProject!.folderPath));
+          console.error("File tree scan failed:", e);
+          setProjectFileTree([]);
           setIsRealTree(false);
+          setProjectScanStatus("failed");
+          setProjectScanError(e?.message ?? String(e));
         }
       }
       if (!cancelled) setScanningTree(false);
@@ -226,12 +249,26 @@ export function ProjectsScreen() {
         <div style={{ marginTop: 20 }}>
           <div className="card" style={{ padding: 16 }}>
             <h3 style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>
-              {tk("project.projectFiles")}: {activeProject.name}{scanningTree ? " (scanning...)" : isRealTree ? "" : " (preview)"}
+              {tk("project.projectFiles")}: {activeProject.name}{projectScanStatus === "scanning" ? (isZh ? " (正在扫描...)" : " (scanning...)") : projectScanStatus === "done" ? ` (${projectFileCount} ${isZh ? "个文件" : "files"})` : projectScanStatus === "failed" ? (isZh ? " (扫描失败)" : " (scan failed)") : ""}
             </h3>
-            <ProjectFileTree
-              nodes={projectFileTree}
-              onAddToContext={handleAddToContext}
-            />
+            {projectScanStatus === "failed" && projectScanError ? (
+              <div style={{ padding: 12, marginBottom: 8, background: "var(--surface-alt)", borderRadius: 6, fontSize: "0.78rem", color: "var(--amber)", border: "1px solid var(--border)" }}>
+                {projectScanError}
+              </div>
+            ) : projectFileTree.length > 0 ? (
+              <ProjectFileTree
+                nodes={projectFileTree}
+                onAddToContext={handleAddToContext}
+              />
+            ) : projectScanStatus === "done" ? (
+              <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                {isZh ? "扫描完成，但未找到可显示文件。请确认路径是否为具体项目文件夹。" : "Scan completed, but no displayable files found. Please make sure the path points to a specific project folder."}
+              </div>
+            ) : (
+              <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                {projectScanStatus === "idle" ? (isZh ? "选择或扫描一个项目以查看文件树" : "Select or scan a project to view its file tree") : (isZh ? "正在加载..." : "Loading...")}
+              </div>
+            )}
           </div>
           <div style={{ marginTop: 12 }}>
             <ContextPackPanel key={cpKey} />
