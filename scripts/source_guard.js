@@ -348,8 +348,8 @@ console.log("\n--- v1.4.1 version checks ---");
 var appPath = path.join(ROOT, "apps/desktop/ui/src/App.tsx");
 if (fs.existsSync(appPath)) {
   var appContent = fs.readFileSync(appPath, "utf-8");
-  if (appContent.indexOf('"v1.4.4"') >= 0) ok("App.tsx VERSION is v1.4.4");
-  else fail("App.tsx VERSION is NOT v1.4.4");
+  if (appContent.indexOf('"v1.4.5"') >= 0) ok("App.tsx VERSION is v1.4.5");
+  else fail("App.tsx VERSION is NOT v1.4.5");
 } else { fail("App.tsx NOT FOUND"); }
 
 // Check ChatWorkspace for developer identity
@@ -501,7 +501,7 @@ if (fs.existsSync(cw5Path)) {
 
 
 // ==== v1.4.4 email check ====
-console.log("\n--- v1.4.4 contact email check ---");
+console.log("\n--- v1.4.5 contact email check ---");
 var emailCheckFiles = [
   path.join(ROOT, "apps/desktop/ui/src/screens/ChatWorkspace.tsx"),
   path.join(ROOT, "apps/desktop/ui/src/screens/AboutScreen.tsx"),
@@ -527,6 +527,39 @@ emailCheckFiles.forEach(function(fp) {
 });
 if (newEmailFound) ok("New email chriswangjob@163.com found in source");
 else fail("New email chriswangjob@163.com MISSING");
+
+
+// ==== v1.4.5 diagnostics checks ====
+console.log("\n--- v1.4.5 release diagnostics checks ---");
+var diagPath = path.join(ROOT, "apps/desktop/ui/src/components/ReleaseDiagnosticsPanel.tsx");
+if (fs.existsSync(diagPath)) ok("ReleaseDiagnosticsPanel exists");
+else fail("ReleaseDiagnosticsPanel MISSING");
+
+if (fs.existsSync(diagPath)) {
+  var dc = fs.readFileSync(diagPath, "utf-8");
+  if (dc.indexOf("Expected install path") >= 0 || dc.indexOf("expectedPath") >= 0) ok("Release diagnostics contains Expected install path");
+  else fail("Release diagnostics MISSING Expected install path");
+  if (dc.indexOf("TokenFence-Studio-Windows") >= 0) ok("Release diagnostics contains ZIP reference");
+  else fail("Release diagnostics MISSING ZIP reference");
+  if (dc.indexOf("tokenfence.recentProjects") >= 0) ok("Release diagnostics contains tokenfence.recentProjects");
+  else fail("Release diagnostics MISSING tokenfence.recentProjects");
+  if (dc.indexOf("tokenfence.activeProject") >= 0) ok("Release diagnostics contains tokenfence.activeProject");
+  else fail("Release diagnostics MISSING tokenfence.activeProject");
+  if (dc.indexOf("tokenfence.activeModel") >= 0) ok("Release diagnostics contains tokenfence.activeModel");
+  else fail("Release diagnostics MISSING tokenfence.activeModel");
+}
+
+var checkSc = path.join(ROOT, "scripts/check_shortcuts.ps1");
+if (fs.existsSync(checkSc)) ok("check_shortcuts.ps1 exists");
+else fail("check_shortcuts.ps1 MISSING");
+if (fs.existsSync(checkSc) && fs.readFileSync(checkSc, "utf-8").indexOf("v1.4.5") >= 0) ok("check_shortcuts.ps1 contains v1.4.5");
+else fail("check_shortcuts.ps1 MISSING v1.4.5");
+
+var updateSc = path.join(ROOT, "scripts/update_shortcuts.ps1");
+if (fs.existsSync(updateSc)) ok("update_shortcuts.ps1 exists");
+else fail("update_shortcuts.ps1 MISSING");
+if (fs.existsSync(updateSc) && fs.readFileSync(updateSc, "utf-8").indexOf("v1.4.5") >= 0) ok("update_shortcuts.ps1 contains v1.4.5");
+else fail("update_shortcuts.ps1 MISSING v1.4.5");
 
 console.log("\n=== RESULT: " + errors.length + " error(s) ===");
 if (errors.length > 0) { console.log("Failures:"); errors.forEach(function(e) { console.log("  - " + e); }); process.exit(1); }

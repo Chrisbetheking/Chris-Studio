@@ -1,5 +1,6 @@
 import { VERSION } from "../App";
 import { tk } from "@tokenfence/shared/src/i18n";
+import { ReleaseDiagnosticsPanel } from "../components/ReleaseDiagnosticsPanel";
 
 export function AboutScreen() {
   return (
@@ -50,6 +51,8 @@ export function AboutScreen() {
         <div className="card-title" style={{marginBottom:12}}>{tk("about.support")}</div>
         <p style={{fontSize:"0.9rem",color:"var(--text-secondary)",lineHeight:1.6}}>{tk("about.supportText")}</p>
       </div>
+
+      <ReleaseDiagnosticsPanel />
     </div>
   );
 }
