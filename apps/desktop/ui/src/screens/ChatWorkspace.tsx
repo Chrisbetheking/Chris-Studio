@@ -42,6 +42,8 @@ interface ChatMessage {
 
   id: string; role: "user" | "assistant" | "system"; content: string;
 
+  displayContent?: string;
+
   timestamp: number; provider?: string; model?: string;
 
   guardResult?: { flagged: boolean; details: string };
@@ -119,40 +121,63 @@ function checkDeveloperIdentityQuestion(text: string): string | null {
   return null;
 }
 
-function scanPrompt(text: string): { flagged: boolean; details: string } {
-  const patterns = [
-    // Chinese ID number: 身份证 keyword + digits nearby
-    { regex: /(?:\u8eab\u4efd\u8bc1|\u8eab\u4efd|ID|idNumber).{0,8}\d{8,18}[\dXx]?/i, label: "idNumber" },
-    { regex: /\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/, label: "idNumber" },
-    // Chinese phone number: 1[3-9]xxxxxxxxx
-    { regex: /\b1[3-9]\d{9}\b/, label: "phoneNumber" },
-    // Bank card number: 16-19 continuous digits
-    { regex: /\b\d{16,19}\b/, label: "bankCard" },
-    // Email address
-    { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/, label: "email" },
-    // API key / token patterns
-    { regex: /\b(sk-[A-Za-z0-9]{20,})\b/, label: "apiKey" },
-    { regex: /\b(ghp_[A-Za-z0-9]{36,})\b/, label: "apiKey" },
-    { regex: /\b(gho_[A-Za-z0-9]{36,})\b/, label: "apiKey" },
-    { regex: /api[_\-]?key\s*[:=]\s*['\"]?\w+/i, label: "apiKey" },
-    { regex: /token\s*[:=]\s*['\"]?[A-Za-z0-9]{16,}/i, label: "apiKey" },
-    { regex: /password\s*[:=]\s*['\"]?[^\s]{4,}/i, label: "apiKey" },
-    { regex: /secret\s*[:=]\s*['\"]?\w+/i, label: "apiKey" },
+interface SensitiveFinding {
+  type: string;
+  label: string;
+  match: string;
+  start: number;
+  end: number;
+}
+
+function scanAndRedact(text: string): {
+  flagged: boolean;
+  sanitizedText: string;
+  findings: SensitiveFinding[];
+  details: string;
+} {
+  const patterns: { regex: RegExp; label: string; replacement: (match: string) => string }[] = [
+    { regex: /(?:\u8eab\u4efd\u8bc1|\u8eab\u4efd|ID|idNumber).{0,8}\d{8,18}[\dXx]?/i, label: "idNumber", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1a\u8eab\u4efd\u8bc1\u53f7" : "Redacted: ID number") + "]" },
+    { regex: /\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/, label: "idNumber", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1a\u8eab\u4efd\u8bc1\u53f7" : "Redacted: ID number") + "]" },
+    { regex: /\b1[3-9]\d{9}\b/, label: "phoneNumber", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1a\u624b\u673a\u53f7" : "Redacted: phone") + "]" },
+    { regex: /\b\d{16,19}\b/, label: "bankCard", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1a\u94f6\u884c\u5361" : "Redacted: bank card") + "]" },
+    { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/, label: "email", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1a\u90ae\u7bb1" : "Redacted: email") + "]" },
+    { regex: /\b(sk-[A-Za-z0-9]{20,})\b/, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1aAPI key" : "Redacted: API key") + "]" },
+    { regex: /\b(ghp_[A-Za-z0-9]{36,})\b/, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1aAPI key" : "Redacted: API key") + "]" },
+    { regex: /\b(gho_[A-Za-z0-9]{36,})\b/, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1aAPI key" : "Redacted: API key") + "]" },
+    { regex: /api[_\-]?key\s*[:=]\s*['\"]?\w+/i, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1aAPI key" : "Redacted: API key") + "]" },
+    { regex: /token\s*[:=]\s*['\"]?[A-Za-z0-9]{16,}/i, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1atoken" : "Redacted: token") + "]" },
+    { regex: /password\s*[:=]\s*['\"]?[^\s]{4,}/i, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1a\u5bc6\u7801" : "Redacted: password") + "]" },
+    { regex: /secret\s*[:=]\s*['\"]?\w+/i, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1asecret" : "Redacted: secret") + "]" },
   ];
 
-  const hits: string[] = [];
-  for (const p of patterns) { if (p.regex.test(text)) hits.push(p.label); }
+  const findings: SensitiveFinding[] = [];
+  let sanitizedText = text;
 
-  if (hits.length > 0) {
-    const isZh = typeof tk === "function" && tk("guardPage.sensitiveDetected") !== "guardPage.sensitiveDetected";
-    const uniqueLabels = [...new Set(hits)];
-    const translated = uniqueLabels.map(l => {
-      try { return tk("guardPage." + l) || l; } catch { return l; }
-    }).join(", ");
-    return { flagged: true, details: (isZh ? "检测到敏感数据" : "Sensitive data detected") + (translated ? " (" + translated + ")" : "") };
+  for (const p of patterns) {
+    let match;
+    p.regex.lastIndex = 0;
+    while ((match = p.regex.exec(text)) !== null) {
+      const finding: SensitiveFinding = {
+        type: p.label,
+        label: p.label,
+        match: match[0],
+        start: match.index,
+        end: match.index + match[0].length,
+      };
+      findings.push(finding);
+      sanitizedText = sanitizedText.replace(match[0], p.replacement(match[0]));
+    }
   }
-  return { flagged: false, details: tk("chat.guardNoSensitive") };
+
+  const flagged = findings.length > 0;
+  const isZh = typeof tk === "function" && tk("guardPage.sensitiveDetected") !== "guardPage.sensitiveDetected";
+  const details = flagged
+    ? (isZh ? "\u68c0\u6d4b\u5230\u654f\u611f\u6570\u636e\uff0c\u5df2\u81ea\u52a8\u8131\u654f" : "Sensitive data detected and redacted")
+    : tk("chat.guardNoSensitive");
+
+  return { flagged, sanitizedText, findings, details };
 }
+
 
 
 
@@ -626,7 +651,7 @@ export function ChatWorkspace() {
 
     const updated = conversations.map((c) => c.id === activeConvId ? { ...c, messages: [], updatedAt: Date.now() } : c);
 
-    setConversations(updated); saveConversations(updated); setLastGuardResult(null); setTaskStatus("idle"); clearAttachedFiles();
+    setConversations(updated); saveConversations(updated); setLastGuardResult(null); setTaskStatus("idle"); clearAttachedFiles(); setSending(false);
 
   }, [activeConv, activeConvId, conversations, clearAttachedFiles]);
 
@@ -673,6 +698,7 @@ export function ChatWorkspace() {
 
 
     setSending(true); setTaskStatus("scanning"); setRoutingNote(null);
+    try {
 
     setTaskSteps([
       { id: 'scan', label: tk("chat.agentStepScan"), status: 'running' },
@@ -686,16 +712,15 @@ export function ChatWorkspace() {
 
 
     let guardResult: { flagged: boolean; details: string } | undefined;
+    let redactResult: ReturnType<typeof scanAndRedact> | undefined;
 
     if (guardEnabled) {
 
       const devCheck = checkDeveloperIdentityQuestion(text);
       if (devCheck && activeConv) { addMessage({ role: "assistant", content: devCheck }); setIsStreaming(false); return; }
-      guardResult = scanPrompt(text);
+      redactResult = scanAndRedact(text); guardResult = { flagged: redactResult.flagged, details: redactResult.details };
 
       setLastGuardResult(guardResult);
-
-      if (guardResult.flagged) { setTaskStatus("idle"); setSending(false); return; }
 
     }
 
@@ -703,7 +728,7 @@ export function ChatWorkspace() {
 
     setTaskStatus("preparing"); setTaskSteps(prev => prev.map(s => s.id==="scan" ? {...s,status:"done"} : s.id==="prepare" ? {...s,status:"running"} : s));
 
-    let fullContent = text;
+    let fullContent = redactResult?.sanitizedText ?? text;
 
     if (attachedFiles.length > 0) {
 
@@ -721,7 +746,7 @@ export function ChatWorkspace() {
 
 
 
-    const userMsg: ChatMessage = { id: uid(), role: "user", content: fullContent, timestamp: Date.now(), provider: viewState.providerLabel, model: viewState.modelLabel, guardResult };
+    const userMsg: ChatMessage = { id: uid(), role: "user", content: fullContent, timestamp: Date.now(), provider: viewState.providerLabel, model: viewState.modelLabel, guardResult, displayContent: redactResult?.flagged ? text : undefined };
 
 
 
@@ -793,11 +818,10 @@ export function ChatWorkspace() {
     setConversations((prev) => { const next = prev.map((c) => (c.id === finalConv.id ? finalConv : c)); saveConversations(next); return next; });
 
 
-
-    setSending(false);
-
-    setTimeout(() => setTaskStatus("idle"), 2000);
-
+    } finally {
+      setSending(false);
+      setTimeout(() => setTaskStatus("idle"), 2000);
+    }
   }, [composerText, sending, guardEnabled, activeConv, viewState.providerLabel, viewState.modelLabel, conversations, attachedFiles, isProviderConfigured]);
 
 
@@ -1422,7 +1446,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
               </div>
 
-              <div style={{ padding: "12px 16px", borderRadius: "var(--radius-lg)", background: msg.role === "user" ? "var(--surface)" : "var(--surface-alt)", border: "1px solid var(--border)", color: "var(--text)", fontSize: "0.85rem", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{msg.content}</div>
+              <div style={{ padding: "12px 16px", borderRadius: "var(--radius-lg)", background: msg.role === "user" ? "var(--surface)" : "var(--surface-alt)", border: "1px solid var(--border)", color: "var(--text)", fontSize: "0.85rem", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{(msg as any).displayContent || msg.content}</div>
 
               {msg.guardResult && <div style={{ fontSize: "0.7rem", color: msg.guardResult.flagged ? "var(--amber)" : "var(--green)", marginTop: 4 }}>{msg.guardResult.details}</div>}
 
