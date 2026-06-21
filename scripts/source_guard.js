@@ -321,8 +321,8 @@ if (fs.existsSync(aboutPath)) {
   var aboutContent = fs.readFileSync(aboutPath, "utf-8");
   if (aboutContent.indexOf("v0.5.0-dev") >= 0) fail("AboutScreen.tsx still contains v0.5.0-dev");
   else ok("AboutScreen.tsx does not contain v0.5.0-dev");
-  if (aboutContent.indexOf("chrisjob@163.com") >= 0) ok("AboutScreen.tsx contains chrisjob@163.com");
-  else fail("AboutScreen.tsx MISSING chrisjob@163.com");
+  if (aboutContent.indexOf("chriswangjob@163.com") >= 0) ok("AboutScreen.tsx contains chriswangjob@163.com");
+  else fail("AboutScreen.tsx MISSING chriswangjob@163.com");
   if (aboutContent.indexOf("easymoneysniperchris") >= 0) ok("AboutScreen.tsx contains easymoneysniperchris");
   else fail("AboutScreen.tsx MISSING easymoneysniperchris");
   if (aboutContent.indexOf("Chris") >= 0) ok("AboutScreen.tsx contains Chris");
@@ -348,16 +348,16 @@ console.log("\n--- v1.4.1 version checks ---");
 var appPath = path.join(ROOT, "apps/desktop/ui/src/App.tsx");
 if (fs.existsSync(appPath)) {
   var appContent = fs.readFileSync(appPath, "utf-8");
-  if (appContent.indexOf('"v1.4.3"') >= 0) ok("App.tsx VERSION is v1.4.3");
-  else fail("App.tsx VERSION is NOT v1.4.3");
+  if (appContent.indexOf('"v1.4.4"') >= 0) ok("App.tsx VERSION is v1.4.4");
+  else fail("App.tsx VERSION is NOT v1.4.4");
 } else { fail("App.tsx NOT FOUND"); }
 
 // Check ChatWorkspace for developer identity
 var cwPath3 = path.join(ROOT, "apps/desktop/ui/src/screens/ChatWorkspace.tsx");
 if (fs.existsSync(cwPath3)) {
   var cw3 = fs.readFileSync(cwPath3, "utf-8");
-  if (cw3.indexOf("chrisjob@163.com") >= 0) ok("ChatWorkspace contains chrisjob@163.com");
-  else fail("ChatWorkspace MISSING chrisjob@163.com");
+  if (cw3.indexOf("chriswangjob@163.com") >= 0) ok("ChatWorkspace contains chriswangjob@163.com");
+  else fail("ChatWorkspace MISSING chriswangjob@163.com");
   if (cw3.indexOf("easymoneysniperchris") >= 0) ok("ChatWorkspace contains easymoneysniperchris");
   else fail("ChatWorkspace MISSING easymoneysniperchris");
   if (cw3.indexOf("developed and maintained by Chris") >= 0) ok("ChatWorkspace contains developed and maintained by Chris");
@@ -450,7 +450,7 @@ if (fs.existsSync(cwPath4)) {
   else fail("Developer interceptor MISSING ZH identity");
   if (cw4.indexOf("developed and maintained by Chris") >= 0) ok("Developer interceptor contains EN identity");
   else fail("Developer interceptor MISSING EN identity");
-  if (cw4.indexOf("chrisjob@163.com") >= 0) ok("Developer interceptor contains email");
+  if (cw4.indexOf("chriswangjob@163.com") >= 0) ok("Developer interceptor contains email");
   else fail("Developer interceptor MISSING email");
   if (cw4.indexOf("easymoneysniperchris") >= 0) ok("Developer interceptor contains WeChat");
   else fail("Developer interceptor MISSING WeChat");
@@ -498,6 +498,35 @@ if (fs.existsSync(cw5Path)) {
   if (cw5.indexOf("Phase 1") >= 0 && cw5.indexOf("Phase 2") >= 0 && cw5.indexOf("Phase 3") >= 0) ok("Detector has safe phased scanning");
   else fail("Detector MISSING phased scanning");
 }
+
+
+// ==== v1.4.4 email check ====
+console.log("\n--- v1.4.4 contact email check ---");
+var emailCheckFiles = [
+  path.join(ROOT, "apps/desktop/ui/src/screens/ChatWorkspace.tsx"),
+  path.join(ROOT, "apps/desktop/ui/src/screens/AboutScreen.tsx"),
+  path.join(ROOT, "README.md"),
+  path.join(ROOT, "README.zh-CN.md"),
+  path.join(ROOT, "scripts/release_sanity.js"),
+  
+  path.join(ROOT, "CHANGELOG.md")
+];
+var badEmailFiles = [];
+emailCheckFiles.forEach(function(fp) {
+  if (fs.existsSync(fp)) {
+    var fc = fs.readFileSync(fp, "utf-8");
+    if (fc.indexOf("chrisjob@163.com") >= 0) badEmailFiles.push(fp);
+  }
+});
+if (badEmailFiles.length === 0) ok("No file contains old email chrisjob@163.com");
+else fail("OLD EMAIL still in: " + badEmailFiles.join(", "));
+
+var newEmailFound = false;
+emailCheckFiles.forEach(function(fp) {
+  if (fs.existsSync(fp) && fs.readFileSync(fp, "utf-8").indexOf("chriswangjob@163.com") >= 0) newEmailFound = true;
+});
+if (newEmailFound) ok("New email chriswangjob@163.com found in source");
+else fail("New email chriswangjob@163.com MISSING");
 
 console.log("\n=== RESULT: " + errors.length + " error(s) ===");
 if (errors.length > 0) { console.log("Failures:"); errors.forEach(function(e) { console.log("  - " + e); }); process.exit(1); }

@@ -37,7 +37,7 @@ export function AboutScreen() {
         <div className="section-list">
           <div className="section-item">
             <div className="section-item-title">{tk("about.emailLabel")}</div>
-            <div className="section-item-desc">chrisjob@163.com</div>
+            <div className="section-item-desc">chriswangjob@163.com</div>
           </div>
           <div className="section-item">
             <div className="section-item-title">{tk("about.wechatLabel")}</div>

@@ -113,9 +113,9 @@ function checkDeveloperIdentityQuestion(text: string): string | null {
   const enMatch = enPatterns.test(text);
   if (zhMatch || enMatch) {
     if (isZh) {
-      return "TokenFence Studio 由 Chris 开发并维护。\n\n如果你遇到问题、想反馈 bug、提出功能建议，或者想联系开发者，可以通过以下方式联系：\n\n邮箱：chrisjob@163.com\n微信：easymoneysniperchris";
+      return "TokenFence Studio 由 Chris 开发并维护。\n\n如果你遇到问题、想反馈 bug、提出功能建议，或者想联系开发者，可以通过以下方式联系：\n\n邮箱：chriswangjob@163.com\n微信：easymoneysniperchris";
     } else {
-      return "TokenFence Studio is developed and maintained by Chris.\n\nIf you encounter issues, want to report bugs, request features, or contact the developer, please use:\n\nEmail: chrisjob@163.com\nWeChat: easymoneysniperchris";
+      return "TokenFence Studio is developed and maintained by Chris.\n\nIf you encounter issues, want to report bugs, request features, or contact the developer, please use:\n\nEmail: chriswangjob@163.com\nWeChat: easymoneysniperchris";
     }
   }
   return null;
@@ -853,7 +853,7 @@ export function ChatWorkspace() {
 
     const apiMessages: { role: string; content: string }[] = [];
 
-    if (withUserMsg.messages.length === 1) apiMessages.push({ role: "system", content: (isZh ? "你是 TokenFence Studio 内置助手。TokenFence Studio 由 Chris 开发并维护。如果你遇到问题、想反馈 bug、提出功能建议，或者想联系开发者，可以通过以下方式联系：邮箱 chrisjob@163.com，微信 easymoneysniperchris。请提供有帮助且简洁的回复。" : "You are an AI assistant in TokenFence Studio. TokenFence Studio is developed and maintained by Chris. If you encounter issues, want to report bugs, request features, or contact the developer, please email chrisjob@163.com or use WeChat: easymoneysniperchris. Be helpful and concise.") });
+    if (withUserMsg.messages.length === 1) apiMessages.push({ role: "system", content: (isZh ? "你是 TokenFence Studio 内置助手。TokenFence Studio 由 Chris 开发并维护。如果你遇到问题、想反馈 bug、提出功能建议，或者想联系开发者，可以通过以下方式联系：邮箱 chriswangjob@163.com，微信 easymoneysniperchris。请提供有帮助且简洁的回复。" : "You are an AI assistant in TokenFence Studio. TokenFence Studio is developed and maintained by Chris. If you encounter issues, want to report bugs, request features, or contact the developer, please email chriswangjob@163.com or use WeChat: easymoneysniperchris. Be helpful and concise.") });
 
     for (const m of withUserMsg.messages) apiMessages.push({ role: m.role, content: m.content });
 

@@ -59,7 +59,7 @@ if (fs.existsSync(aboutPath)) {
   else ok("AboutScreen.tsx does not contain v0.5.0-dev");
   if (aboutContent.indexOf('import { VERSION }') >= 0) ok("AboutScreen.tsx imports VERSION from App");
   else fail("AboutScreen.tsx MISSING VERSION import");
-  if (aboutContent.indexOf("chrisjob@163.com") >= 0) ok("AboutScreen.tsx contains contact email");
+  if (aboutContent.indexOf("chriswangjob@163.com") >= 0) ok("AboutScreen.tsx contains contact email");
   else fail("AboutScreen.tsx MISSING contact email");
   if (aboutContent.indexOf("easymoneysniperchris") >= 0) ok("AboutScreen.tsx contains WeChat");
   else fail("AboutScreen.tsx MISSING WeChat");
@@ -70,7 +70,7 @@ console.log("\n--- Developer identity checks ---");
 var cwPath3 = path.join(ROOT, "apps/desktop/ui/src/screens/ChatWorkspace.tsx");
 if (fs.existsSync(cwPath3)) {
   var cw3 = fs.readFileSync(cwPath3, "utf-8");
-  if (cw3.indexOf("chrisjob@163.com") >= 0) ok("ChatWorkspace.tsx contains developer email");
+  if (cw3.indexOf("chriswangjob@163.com") >= 0) ok("ChatWorkspace.tsx contains developer email");
   else fail("ChatWorkspace.tsx MISSING developer email");
   if (cw3.indexOf("easymoneysniperchris") >= 0) ok("ChatWorkspace.tsx contains developer WeChat");
   else fail("ChatWorkspace.tsx MISSING developer WeChat");
