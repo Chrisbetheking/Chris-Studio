@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { VERSION } from "../App";
+import { BUILD_INFO } from "../data/build-info";
 import { tk } from "@tokenfence/shared/src/i18n";
 
 function getLsStatus(key: string): "ok" | "missing" | "invalid" {
@@ -80,6 +81,14 @@ export function ReleaseDiagnosticsPanel() {
         <div className="section-item">
           <div className="section-item-title">{tk("diagnostics.expectedZip")}</div>
           <div className="section-item-desc">{expectedZip}</div>
+        </div>
+        <div className="section-item">
+          <div className="section-item-title">{tk("diagnostics.buildCommit")}</div>
+          <div className="section-item-desc" style={{ fontFamily: "monospace", fontSize: "0.7rem" }}>{BUILD_INFO.commit}</div>
+        </div>
+        <div className="section-item">
+          <div className="section-item-title">{tk("diagnostics.buildTime")}</div>
+          <div className="section-item-desc" style={{ fontSize: "0.7rem" }}>{BUILD_INFO.builtAt}</div>
         </div>
       </div>
 

@@ -486,6 +486,8 @@ const zhCN: Translations = {
     currentVersion: "当前 UI 版本",
     expectedPath: "预期安装路径",
     expectedZip: "预期 ZIP",
+    buildCommit: "构建 Commit",
+    buildTime: "构建时间",
     desktopShortcut: "桌面快捷方式",
     startMenuShortcut: "开始菜单快捷方式",
     taskbarReminder: "任务栏提醒",

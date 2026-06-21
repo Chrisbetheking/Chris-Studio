@@ -572,6 +572,8 @@ settings: {
     currentVersion: "Current UI version",
     expectedPath: "Expected install path",
     expectedZip: "Expected ZIP",
+    buildCommit: "Build Commit",
+    buildTime: "Build Time",
     desktopShortcut: "Desktop shortcut",
     startMenuShortcut: "Start Menu shortcut",
     taskbarReminder: "Taskbar reminder",
