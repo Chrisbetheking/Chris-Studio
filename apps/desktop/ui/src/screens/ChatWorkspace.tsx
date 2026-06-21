@@ -135,39 +135,92 @@ function scanAndRedact(text: string): {
   findings: SensitiveFinding[];
   details: string;
 } {
+  const MAX_SCAN_LENGTH = 8000;
+  const MAX_FINDINGS = 20;
   const isZh = typeof tk === "function" && tk("common.yes") !== "Yes";
-  const patterns: { regex: RegExp; label: string; replacement: string }[] = [
-    { regex: /(?:\u8eab\u4efd\u8bc1|\u8eab\u4efd|ID|idNumber).{0,8}\d{8,18}[\dXx]?/i, label: "idNumber", replacement: "[" + (isZh ? "已隐藏：身份证号" : "Redacted: ID number") + "]" },
-    { regex: /\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/, label: "idNumber", replacement: "[" + (isZh ? "已隐藏：身份证号" : "Redacted: ID number") + "]" },
-    { regex: /\b1[3-9]\d{9}\b/, label: "phoneNumber", replacement: "[" + (isZh ? "已隐藏：手机号" : "Redacted: phone") + "]" },
-    { regex: /\b\d{16,19}\b/, label: "bankCard", replacement: "[" + (isZh ? "已隐藏：银行卡" : "Redacted: bank card") + "]" },
-    { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/, label: "email", replacement: "[" + (isZh ? "已隐藏：邮箱" : "Redacted: email") + "]" },
-    { regex: /\b(sk-[A-Za-z0-9]{20,})\b/, label: "apiKey", replacement: "[" + (isZh ? "已隐藏：API key" : "Redacted: API key") + "]" },
-    { regex: /\b(ghp_[A-Za-z0-9]{36,})\b/, label: "apiKey", replacement: "[" + (isZh ? "已隐藏：API key" : "Redacted: API key") + "]" },
-    { regex: /\b(gho_[A-Za-z0-9]{36,})\b/, label: "apiKey", replacement: "[" + (isZh ? "已隐藏：API key" : "Redacted: API key") + "]" },
-    { regex: /api[_\-]?key\s*[:=]\s*['\"]?\w+/i, label: "apiKey", replacement: "[" + (isZh ? "已隐藏：API key" : "Redacted: API key") + "]" },
-    { regex: /token\s*[:=]\s*['\"]?[A-Za-z0-9]{16,}/i, label: "apiKey", replacement: "[" + (isZh ? "已隐藏：token" : "Redacted: token") + "]" },
-    { regex: /password\s*[:=]\s*['\"]?[^\s]{4,}/i, label: "apiKey", replacement: "[" + (isZh ? "已隐藏：密码" : "Redacted: password") + "]" },
-    { regex: /secret\s*[:=]\s*['\"]?\w+/i, label: "apiKey", replacement: "[" + (isZh ? "已隐藏：secret" : "Redacted: secret") + "]" },
+
+  const original = String(text || "");
+  const scanText = original.slice(0, MAX_SCAN_LENGTH);
+
+  // Safe patterns - all with /g flag, no catastrophic backtracking
+  const patterns: { regex: RegExp; type: string; replacement: string }[] = [
+    { regex: /\b1[3-9]\d{9}\b/g, type: "phoneNumber", replacement: "[" + (isZh ? "已隐藏：手机号" : "Redacted: phone") + "]" },
+    { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/gi, type: "email", replacement: "[" + (isZh ? "已隐藏：邮箱" : "Redacted: email") + "]" },
+    { regex: /\b(sk-[A-Za-z0-9_-]{8,})\b/g, type: "apiKey", replacement: "[" + (isZh ? "已隐藏：API key" : "Redacted: API key") + "]" },
+    { regex: /\b(ghp_[A-Za-z0-9_]{8,})\b/g, type: "apiKey", replacement: "[" + (isZh ? "已隐藏：API key" : "Redacted: API key") + "]" },
+    { regex: /\b(gho_[A-Za-z0-9_]{8,})\b/g, type: "apiKey", replacement: "[" + (isZh ? "已隐藏：API key" : "Redacted: API key") + "]" },
+    { regex: /\b\d{16,19}\b/g, type: "bankCard", replacement: "[" + (isZh ? "已隐藏：银行卡" : "Redacted: bank card") + "]" },
+    { regex: /\b\d{15,18}[0-9Xx]?\b/g, type: "idNumber", replacement: "[" + (isZh ? "已隐藏：身份证号" : "Redacted: ID number") + "]" },
+    { regex: /\b(password|pwd)\s*[:=]\s*[^\s,;]{4,}/gi, type: "password", replacement: "$1=[" + (isZh ? "已隐藏：密码" : "Redacted: password") + "]" },
+    { regex: /\b(token|secret|api[_-]?key)\s*[:=]\s*[^\s,;]{6,}/gi, type: "token", replacement: "$1=[" + (isZh ? "已隐藏：token" : "Redacted: token") + "]" },
   ];
 
-  const findings: SensitiveFinding[] = [];
-  let sanitizedText = text;
-
+  // Phase 1: Collect findings from scanText
+  const rawFindings: SensitiveFinding[] = [];
   for (const p of patterns) {
+    if (rawFindings.length >= MAX_FINDINGS) break;
     let match;
-    p.regex.lastIndex = 0;
-    while ((match = p.regex.exec(text)) !== null) {
-      const finding: SensitiveFinding = {
-        type: p.label,
-        label: p.label,
+    while ((match = p.regex.exec(scanText)) !== null) {
+      if (rawFindings.length >= MAX_FINDINGS) break;
+      rawFindings.push({
+        type: p.type,
+        label: p.type,
         match: match[0],
         start: match.index,
         end: match.index + match[0].length,
-      };
-      findings.push(finding);
-      sanitizedText = sanitizedText.replace(match[0], p.replacement);
+      });
     }
+  }
+
+  // Phase 2: Chinese ID context detection (safe string search, no regex backtracking)
+  if (rawFindings.length < MAX_FINDINGS) {
+    const idKeywords = ["身份证", "身份证号", "证件号", "身份号码", "ID", "idNumber", "ID Number"];
+    for (const kw of idKeywords) {
+      if (rawFindings.length >= MAX_FINDINGS) break;
+      let idx = scanText.indexOf(kw);
+      while (idx >= 0 && rawFindings.length < MAX_FINDINGS) {
+        const windowStart = Math.max(0, idx - 5);
+        const windowEnd = Math.min(scanText.length, idx + kw.length + 50);
+        const window = scanText.slice(windowStart, windowEnd);
+        const digitMatch = window.match(/\d{8,18}/);
+        if (digitMatch) {
+          const globalStart = windowStart + (digitMatch.index || 0);
+          const dup = rawFindings.some(f => f.start === globalStart && f.type === "idNumber");
+          if (!dup) {
+            rawFindings.push({
+              type: "idNumber",
+              label: "idNumber",
+              match: digitMatch[0],
+              start: globalStart,
+              end: globalStart + digitMatch[0].length,
+            });
+          }
+        }
+        idx = scanText.indexOf(kw, idx + 1);
+      }
+    }
+  }
+
+  // Phase 3: Deduplicate by start position, sort by start descending
+  const seen = new Set<number>();
+  const findings: SensitiveFinding[] = [];
+  for (const f of rawFindings) {
+    if (findings.length >= MAX_FINDINGS) break;
+    if (!seen.has(f.start)) {
+      seen.add(f.start);
+      findings.push(f);
+    }
+  }
+  findings.sort((a, b) => b.start - a.start);
+
+  // Phase 4: Build sanitizedText by replacing from end to start
+  let sanitizedText = original;
+  for (const f of findings) {
+    const pattern = patterns.find(p => p.type === f.type);
+    const replacement = pattern ? pattern.replacement : "[" + (isZh ? "已隐藏" : "Redacted") + "]";
+    const before = sanitizedText.slice(0, f.start);
+    const after = sanitizedText.slice(f.end);
+    sanitizedText = before + replacement + after;
   }
 
   const flagged = findings.length > 0;
@@ -177,7 +230,6 @@ function scanAndRedact(text: string): {
 
   return { flagged, sanitizedText, findings, details };
 }
-
 
 
 

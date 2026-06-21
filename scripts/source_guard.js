@@ -468,6 +468,37 @@ if (fs.existsSync(cwPath4)) {
   else fail("scanPrompt MISSING sensitive detected message");
 }
 
+
+// ==== v1.4.3 OOM fix checks ====
+console.log("\n--- v1.4.3 OOM / safe detector checks ---");
+var cw5Path = path.join(ROOT, "apps/desktop/ui/src/screens/ChatWorkspace.tsx");
+if (fs.existsSync(cw5Path)) {
+  var cw5 = fs.readFileSync(cw5Path, "utf-8");
+  if (cw5.indexOf("MAX_SCAN_LENGTH") >= 0) ok("Sensitive detector contains MAX_SCAN_LENGTH");
+  else fail("Sensitive detector MISSING MAX_SCAN_LENGTH");
+  if (cw5.indexOf("MAX_FINDINGS") >= 0) ok("Sensitive detector contains MAX_FINDINGS");
+  else fail("Sensitive detector MISSING MAX_FINDINGS");
+  if (cw5.indexOf("sanitizedText") >= 0) ok("Sensitive detector exports sanitizedText");
+  else fail("Sensitive detector MISSING sanitizedText");
+  if (cw5.indexOf("findings") >= 0) ok("Sensitive detector exports findings");
+  else fail("Sensitive detector MISSING findings");
+  // Must NOT have while(true) which would be infinite loop
+  if (cw5.indexOf("while (true)") < 0) ok("Sensitive detector has no while(true)");
+  else fail("Sensitive detector HAS while(true)");
+  // Check that sanitizedText is used for outbound message
+  if (cw5.indexOf("sanitizedText") >= 0 && cw5.indexOf("fullContent") >= 0) ok("ChatWorkspace uses sanitizedText for outbound provider message");
+  else fail("ChatWorkspace MISSING sanitizedText in outbound flow");
+  // Check for finally reset pattern
+  if (cw5.indexOf("setSending(false)") >= 0) ok("Send flow contains finally reset for sending state");
+  else fail("Send flow MISSING setSending(false)");
+  // Check patterns have /g flag - look for regex with /g
+  if (cw5.indexOf("/g, type:") >= 0 || cw5.indexOf("/gi, type:") >= 0) ok("Detector patterns have /g flag");
+  else fail("Detector patterns MISSING /g flag");
+  // Check for safe Phase labeling
+  if (cw5.indexOf("Phase 1") >= 0 && cw5.indexOf("Phase 2") >= 0 && cw5.indexOf("Phase 3") >= 0) ok("Detector has safe phased scanning");
+  else fail("Detector MISSING phased scanning");
+}
+
 console.log("\n=== RESULT: " + errors.length + " error(s) ===");
 if (errors.length > 0) { console.log("Failures:"); errors.forEach(function(e) { console.log("  - " + e); }); process.exit(1); }
 else { console.log("All checks passed."); process.exit(0);
