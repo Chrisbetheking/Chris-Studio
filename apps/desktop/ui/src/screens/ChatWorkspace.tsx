@@ -135,19 +135,20 @@ function scanAndRedact(text: string): {
   findings: SensitiveFinding[];
   details: string;
 } {
-  const patterns: { regex: RegExp; label: string; replacement: (match: string) => string }[] = [
-    { regex: /(?:\u8eab\u4efd\u8bc1|\u8eab\u4efd|ID|idNumber).{0,8}\d{8,18}[\dXx]?/i, label: "idNumber", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1a\u8eab\u4efd\u8bc1\u53f7" : "Redacted: ID number") + "]" },
-    { regex: /\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/, label: "idNumber", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1a\u8eab\u4efd\u8bc1\u53f7" : "Redacted: ID number") + "]" },
-    { regex: /\b1[3-9]\d{9}\b/, label: "phoneNumber", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1a\u624b\u673a\u53f7" : "Redacted: phone") + "]" },
-    { regex: /\b\d{16,19}\b/, label: "bankCard", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1a\u94f6\u884c\u5361" : "Redacted: bank card") + "]" },
-    { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/, label: "email", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1a\u90ae\u7bb1" : "Redacted: email") + "]" },
-    { regex: /\b(sk-[A-Za-z0-9]{20,})\b/, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1aAPI key" : "Redacted: API key") + "]" },
-    { regex: /\b(ghp_[A-Za-z0-9]{36,})\b/, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1aAPI key" : "Redacted: API key") + "]" },
-    { regex: /\b(gho_[A-Za-z0-9]{36,})\b/, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1aAPI key" : "Redacted: API key") + "]" },
-    { regex: /api[_\-]?key\s*[:=]\s*['\"]?\w+/i, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1aAPI key" : "Redacted: API key") + "]" },
-    { regex: /token\s*[:=]\s*['\"]?[A-Za-z0-9]{16,}/i, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1atoken" : "Redacted: token") + "]" },
-    { regex: /password\s*[:=]\s*['\"]?[^\s]{4,}/i, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1a\u5bc6\u7801" : "Redacted: password") + "]" },
-    { regex: /secret\s*[:=]\s*['\"]?\w+/i, label: "apiKey", replacement: (m) => "[" + (tk("common.yes") !== "Yes" ? "\u5df2\u9690\u85cf\uff1asecret" : "Redacted: secret") + "]" },
+  const isZh = typeof tk === "function" && tk("common.yes") !== "Yes";
+  const patterns: { regex: RegExp; label: string; replacement: string }[] = [
+    { regex: /(?:\u8eab\u4efd\u8bc1|\u8eab\u4efd|ID|idNumber).{0,8}\d{8,18}[\dXx]?/i, label: "idNumber", replacement: "[" + (isZh ? "????????" : "Redacted: ID number") + "]" },
+    { regex: /\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/, label: "idNumber", replacement: "[" + (isZh ? "????????" : "Redacted: ID number") + "]" },
+    { regex: /\b1[3-9]\d{9}\b/, label: "phoneNumber", replacement: "[" + (isZh ? "???????" : "Redacted: phone") + "]" },
+    { regex: /\b\d{16,19}\b/, label: "bankCard", replacement: "[" + (isZh ? "???????" : "Redacted: bank card") + "]" },
+    { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/, label: "email", replacement: "[" + (isZh ? "??????" : "Redacted: email") + "]" },
+    { regex: /\b(sk-[A-Za-z0-9]{20,})\b/, label: "apiKey", replacement: "[" + (isZh ? "????API key" : "Redacted: API key") + "]" },
+    { regex: /\b(ghp_[A-Za-z0-9]{36,})\b/, label: "apiKey", replacement: "[" + (isZh ? "????API key" : "Redacted: API key") + "]" },
+    { regex: /\b(gho_[A-Za-z0-9]{36,})\b/, label: "apiKey", replacement: "[" + (isZh ? "????API key" : "Redacted: API key") + "]" },
+    { regex: /api[_\-]?key\s*[:=]\s*['\"]?\w+/i, label: "apiKey", replacement: "[" + (isZh ? "????API key" : "Redacted: API key") + "]" },
+    { regex: /token\s*[:=]\s*['\"]?[A-Za-z0-9]{16,}/i, label: "apiKey", replacement: "[" + (isZh ? "????token" : "Redacted: token") + "]" },
+    { regex: /password\s*[:=]\s*['\"]?[^\s]{4,}/i, label: "apiKey", replacement: "[" + (isZh ? "??????" : "Redacted: password") + "]" },
+    { regex: /secret\s*[:=]\s*['\"]?\w+/i, label: "apiKey", replacement: "[" + (isZh ? "????secret" : "Redacted: secret") + "]" },
   ];
 
   const findings: SensitiveFinding[] = [];
@@ -165,14 +166,13 @@ function scanAndRedact(text: string): {
         end: match.index + match[0].length,
       };
       findings.push(finding);
-      sanitizedText = sanitizedText.replace(match[0], p.replacement(match[0]));
+      sanitizedText = sanitizedText.replace(match[0], p.replacement);
     }
   }
 
   const flagged = findings.length > 0;
-  const isZh = typeof tk === "function" && tk("guardPage.sensitiveDetected") !== "guardPage.sensitiveDetected";
   const details = flagged
-    ? (isZh ? "\u68c0\u6d4b\u5230\u654f\u611f\u6570\u636e\uff0c\u5df2\u81ea\u52a8\u8131\u654f" : "Sensitive data detected and redacted")
+    ? (isZh ? "?????????????" : "Sensitive data detected and redacted")
     : tk("chat.guardNoSensitive");
 
   return { flagged, sanitizedText, findings, details };

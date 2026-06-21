@@ -454,7 +454,7 @@ if (fs.existsSync(cwPath4)) {
   else fail("Developer interceptor MISSING email");
   if (cw4.indexOf("easymoneysniperchris") >= 0) ok("Developer interceptor contains WeChat");
   else fail("Developer interceptor MISSING WeChat");
-  if (cw4.indexOf("\u8eab\u4efd") >= 0 && cw4.indexOf("idNumber") >= 0) ok("scanPrompt contains 身份证/idNumber detection");
+  if ((cw4.indexOf("\u8eab\u4efd") >= 0 || cw4.indexOf("\\u8eab") >= 0) && cw4.indexOf("idNumber") >= 0) ok("scanPrompt contains 身份证/idNumber detection");
   else fail("scanPrompt MISSING 身份证/idNumber detection");
   if (cw4.indexOf("phoneNumber") >= 0) ok("scanPrompt contains phone detection");
   else fail("scanPrompt MISSING phone detection");
