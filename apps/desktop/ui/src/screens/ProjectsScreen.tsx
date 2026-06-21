@@ -5,7 +5,7 @@ import { estimateTokens } from "@tokenfence/shared/src/providers";
 import { ProjectFileTree } from "../components/ProjectFileTree";
 import { ContextPackPanel } from "../components/ContextPackPanel";
 import { buildMockFileTree } from "../data/project-file-tree";
-import { addFilesToContextPack, type ContextPackFile } from "../data/context-pack";
+import { addFilesToContextPack, type ContextPackFile } from "../data/context-pack";`nimport { scanProjectDirectory } from "../desktop-bridge";
 
 interface ProjectFile {
   path: string; name: string; extension: string;
@@ -41,7 +41,7 @@ export function ProjectsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [projectLoadError, setProjectLoadError] = useState(false);
   const [isTauri, setIsTauri] = useState(false);
-  const [cpKey, setCpKey] = useState(0);
+  const [cpKey, setCpKey] = useState(0);`n  const [fileTreeNodes, setFileTreeNodes] = useState<ReturnType<typeof buildMockFileTree>>([]);`n  const [isRealTree, setIsRealTree] = useState(false);`n  const [scanningTree, setScanningTree] = useState(false);
   const isZh = tk("common.yes") !== "Yes";
 
   useEffect(() => {
@@ -187,10 +187,10 @@ export function ProjectsScreen() {
         <div style={{ marginTop: 20 }}>
           <div className="card" style={{ padding: 16 }}>
             <h3 style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>
-              {tk("project.projectFiles")}: {activeProject.name}
+              {tk("project.projectFiles")}: {activeProject.name}{scanningTree ? " (scanning...)" : isRealTree ? "" : " (preview)"}
             </h3>
             <ProjectFileTree
-              nodes={buildMockFileTree(activeProject.folderPath)}
+              nodes={fileTreeNodes}
               onAddToContext={handleAddToContext}
             />
           </div>

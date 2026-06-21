@@ -1,6 +1,6 @@
-# update_shortcuts.ps1 - TokenFence Studio v1.5.2 Shortcut Updater
+# update_shortcuts.ps1 - TokenFence Studio v1.5.3 Shortcut Updater
 $ErrorActionPreference = "Continue"
-$version = "v1.5.2"
+$version = "v1.5.3"
 $targetPath = "E:\Apps\TokenFenceStudio\$version\TokenFence Studio.exe"
 $workingDir = "E:\Apps\TokenFenceStudio\$version"
 
@@ -45,5 +45,5 @@ if (Test-Path $startSC) {
 }
 
 Write-Host ""
-Write-Host "Shortcuts updated to v1.5.2"
-Write-Host "Taskbar pinned shortcuts should be manually unpinned and re-pinned from the running v1.5.2 window."
+Write-Host "Shortcuts updated to v1.5.3"
+Write-Host "Taskbar pinned shortcuts should be manually unpinned and re-pinned from the running v1.5.3 window."

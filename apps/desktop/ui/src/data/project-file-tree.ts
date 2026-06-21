@@ -11,7 +11,8 @@ export interface ProjectFileNode {
 
 const SUPPORTED_EXTENSIONS = new Set([
   "ts", "tsx", "js", "jsx", "md", "txt", "json", "yml", "yaml",
-  "py", "java", "cpp", "c", "h", "cs", "html", "css"
+  "py", "java", "cpp", "c", "h", "cs", "html", "css",
+  "rs", "go", "php", "xml", "toml", "ini", "env",
 ]);
 
 export function getFileType(fileName: string): string {
@@ -30,9 +31,21 @@ function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+/** Maximum file size for Context Pack (20 MB) */
+export const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+
+/** Maximum files in a scan */
+export const MAX_SCAN_FILES = 1000;
+
+/** Maximum scan depth */
+export const MAX_SCAN_DEPTH = 6;
+
+/** Maximum files in Context Pack */
+export const MAX_CONTEXT_FILES = 50;
+
 /**
- * Build a mock file tree for the given project path.
- * In the future, this will be replaced by a real Tauri filesystem bridge.
+ * Build a mock file tree (fallback when Tauri is not available).
+ * This provides a meaningful example tree for the UI preview.
  */
 export function buildMockFileTree(projectPath: string): ProjectFileNode[] {
   const rootName = projectPath.split("\\").pop() || projectPath.split("/").pop() || "project";
@@ -40,7 +53,7 @@ export function buildMockFileTree(projectPath: string): ProjectFileNode[] {
   const createNode = (name: string, type: "file" | "directory", children?: ProjectFileNode[], size?: number): ProjectFileNode => ({
     id: uid(),
     name,
-    path: type === "directory" ? projectPath + "\\" + name : projectPath + "\\" + name,
+    path: projectPath + "\\" + name,
     relativePath: name,
     type,
     sizeBytes: size,
@@ -48,8 +61,13 @@ export function buildMockFileTree(projectPath: string): ProjectFileNode[] {
     children,
   });
 
-  return [
-    createNode(rootName, "directory", [
+  return [{
+    id: uid(),
+    name: rootName,
+    path: projectPath,
+    relativePath: "",
+    type: "directory",
+    children: [
       createNode("src", "directory", [
         createNode("index.ts", "file", undefined, 1234),
         createNode("App.tsx", "file", undefined, 3456),
@@ -70,8 +88,8 @@ export function buildMockFileTree(projectPath: string): ProjectFileNode[] {
       ]),
       createNode("package.json", "file", undefined, 1200),
       createNode("tsconfig.json", "file", undefined, 900),
-    ]),
-  ];
+    ],
+  }];
 }
 
 export function flattenFileTree(nodes: ProjectFileNode[]): ProjectFileNode[] {

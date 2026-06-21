@@ -1,3 +1,4 @@
+import type { ProjectFileNode } from './data/project-file-tree';
 // Desktop bridge: invokes Tauri commands for file I/O and command execution
 // Falls back to browser-safe stubs when not running inside Tauri
 
@@ -129,6 +130,34 @@ export async function appendOperationLog(operation: string, files: string[], suc
   return invoke("append_operation_log", { operation, files, success, error }) as Promise<string>;
 }
 
+
+export async function scanProjectDirectory(projectPath: string): Promise<ProjectFileNode[]> {
+  const invoke = await getInvoke();
+  if (!invoke) {
+    // Browser fallback: return empty array (caller should use buildMockFileTree)
+    return [];
+  }
+  try {
+    const result = await invoke("scan_project_directory", { projectPath }) as any[];
+    return result.map(mapEntry);
+  } catch (e: any) {
+    console.error("scan_project_directory failed:", e);
+    return [];
+  }
+}
+
+function mapEntry(entry: any): ProjectFileNode {
+  return {
+    id: entry.id,
+    name: entry.name,
+    path: entry.path,
+    relativePath: entry.relative_path || entry.relativePath || entry.name,
+    type: entry.node_type || entry.type || "file",
+    sizeBytes: entry.size_bytes ?? entry.sizeBytes,
+    fileType: entry.file_type ?? entry.fileType,
+    children: entry.children ? entry.children.map(mapEntry) : undefined,
+  };
+}
 export async function openLogsFolder(): Promise<void> {
   const invoke = await getInvoke();
   if (!invoke) return;

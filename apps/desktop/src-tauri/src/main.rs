@@ -418,6 +418,155 @@ fn append_operation_log(operation: String, files: Vec<String>, success: bool, er
     Ok(log_path.to_string_lossy().to_string())
 }
 
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ProjectFileEntry {
+    id: String,
+    name: String,
+    path: String,
+    relative_path: String,
+    #[serde(rename = "type")]
+    node_type: String,
+    size_bytes: Option<u64>,
+    file_type: Option<String>,
+    children: Option<Vec<ProjectFileEntry>>,
+}
+
+const IGNORED_DIRS: &[&str] = &[
+    ".git", "node_modules", "dist", "build", "out", "target",
+    ".cache", ".vite", ".next", ".nuxt", "coverage", ".DS_Store",
+    ".idea", ".vscode", "__pycache__",
+];
+
+const BLOCKED_ROOTS: &[&str] = &[
+    "C:\\", "D:\\", "E:\\", "F:\\", "G:\\",
+    "C:\\Windows", "C:\\Program Files", "C:\\Program Files (x86)",
+    "C:\\Users\\Administrator\\AppData",
+];
+
+fn is_safe_project_path(path: &str) -> bool {
+    let normalized = path.to_lowercase().replace("/", "\\");
+    // Must not be a system root
+    for blocked in BLOCKED_ROOTS {
+        let bl = blocked.to_lowercase();
+        if normalized == bl || normalized == bl.trim_end_matches('\\') {
+            return false;
+        }
+    }
+    // Must exist and be a directory
+    let p = std::path::Path::new(path);
+    if !p.exists() || !p.is_dir() {
+        return false;
+    }
+    // Must be an absolute path
+    if !p.is_absolute() {
+        return false;
+    }
+    true
+}
+
+fn scan_dir(
+    dir_path: &std::path::Path,
+    base_path: &std::path::Path,
+    depth: u32,
+    max_depth: u32,
+    file_count: &mut u32,
+    max_files: u32,
+    uid_counter: &mut u32,
+) -> Vec<ProjectFileEntry> {
+    let mut children: Vec<ProjectFileEntry> = Vec::new();
+    if depth > max_depth || *file_count >= max_files {
+        return children;
+    }
+
+    let entries = match std::fs::read_dir(dir_path) {
+        Ok(e) => e,
+        Err(_) => return children,
+    };
+
+    for entry in entries.flatten() {
+        if *file_count >= max_files {
+            break;
+        }
+        let path = entry.path();
+        let name = path.file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+
+        // Skip ignored directories
+        if path.is_dir() {
+            let name_lower = name.to_lowercase();
+            if IGNORED_DIRS.iter().any(|ign| name_lower == ign.to_lowercase()) {
+                continue;
+            }
+        }
+
+        let relative = path.strip_prefix(base_path)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| name.clone());
+
+        *uid_counter += 1;
+        let id = format!("fs_{}", uid_counter);
+
+        if path.is_dir() {
+            let sub = scan_dir(&path, base_path, depth + 1, max_depth, file_count, max_files, uid_counter);
+            children.push(ProjectFileEntry {
+                id,
+                name,
+                path: path.to_string_lossy().to_string(),
+                relative_path: relative,
+                node_type: "directory".to_string(),
+                size_bytes: None,
+                file_type: None,
+                children: Some(sub),
+            });
+        } else {
+            let size = std::fs::metadata(&path).map(|m| m.len()).ok();
+            let file_type = path.extension()
+                .map(|e| e.to_string_lossy().to_lowercase())
+                .unwrap_or_else(|| "other".to_string());
+            children.push(ProjectFileEntry {
+                id,
+                name,
+                path: path.to_string_lossy().to_string(),
+                relative_path: relative,
+                node_type: "file".to_string(),
+                size_bytes: size,
+                file_type: Some(file_type),
+                children: None,
+            });
+            *file_count += 1;
+        }
+    }
+
+    // Sort: directories first, then files, alphabetical within each
+    children.sort_by(|a, b| {
+        let a_is_dir = a.node_type == "directory";
+        let b_is_dir = b.node_type == "directory";
+        if a_is_dir && !b_is_dir { return std::cmp::Ordering::Less; }
+        if !a_is_dir && b_is_dir { return std::cmp::Ordering::Greater; }
+        a.name.to_lowercase().cmp(&b.name.to_lowercase())
+    });
+
+    children
+}
+
+#[tauri::command]
+fn scan_project_directory(project_path: String) -> Result<Vec<ProjectFileEntry>, String> {
+    if !is_safe_project_path(&project_path) {
+        return Err("This path is not suitable as a project directory. Please choose a specific project folder.".to_string());
+    }
+
+    let base = std::path::Path::new(&project_path);
+    let mut file_count: u32 = 0;
+    let mut uid_counter: u32 = 0;
+    let max_files: u32 = 1000;
+    let max_depth: u32 = 6;
+
+    let children = scan_dir(base, base, 0, max_depth, &mut file_count, max_files, &mut uid_counter);
+
+    Ok(children)
+}
 fn main() {
     tauri::Builder::default()
         
@@ -432,7 +581,7 @@ fn main() {
             init_tokenfence_dirs,
             create_backup,
             apply_patch,
-            undo_last_patch,
+            undo_last_patch,`n            scan_project_directory,
             append_operation_log,
         ])
         .run(tauri::generate_context!())
