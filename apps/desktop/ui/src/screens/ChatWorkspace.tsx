@@ -924,7 +924,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
   }, [activeProject?.files, searchQ]);
 
 
-  const projectFiles = useMemo(() => {
+  const panelFiles = useMemo(() => {
     if (!activeProject?.files) return [];
     if (!projectSearchQ.trim()) return activeProject.files;
     const q = projectSearchQ.toLowerCase();
@@ -1378,12 +1378,12 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
                 {/* File tree */}
                 <div style={{ maxHeight: 260, overflowY: "auto", marginBottom: 6 }}>
-                  {projectFiles.length === 0 ? (
+                  {panelFiles.length === 0 ? (
                     <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", textAlign: "center", padding: 8 }}>
                       {projectSearchQ.trim() ? (isZh ? "无匹配文件" : "No matching files") : (isZh ? "无文件" : "No files")}
                     </div>
                   ) : (
-                    projectFiles.map((f: any) => (
+                    panelFiles.map((f: any) => (
                       <div
                         key={f.name}
                         onClick={() => toggleProjectFileSelection(f.name)}

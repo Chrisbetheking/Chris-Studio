@@ -43,7 +43,7 @@ export function ProjectsScreen() {
   const [projectLoadError, setProjectLoadError] = useState(false);
   const [isTauri, setIsTauri] = useState(false);
   const [cpKey, setCpKey] = useState(0);
-  const [fileTreeNodes, setFileTreeNodes] = useState<ReturnType<typeof buildMockFileTree>>([]);
+  const [projectFileTree, setProjectFileTree] = useState<ReturnType<typeof buildMockFileTree>>([]);
   const [isRealTree, setIsRealTree] = useState(false);
   const [scanningTree, setScanningTree] = useState(false);
   const isZh = tk("common.yes") !== "Yes";
@@ -65,7 +65,7 @@ export function ProjectsScreen() {
   // Load real file tree when active project changes (v1.5.3+)
   useEffect(() => {
     if (!activeProject) {
-      setFileTreeNodes([]);
+      setProjectFileTree([]);
       setIsRealTree(false);
       setScanningTree(false);
       return;
@@ -77,17 +77,17 @@ export function ProjectsScreen() {
         const nodes = await scanProjectDirectory(activeProject!.folderPath);
         if (!cancelled) {
           if (nodes && nodes.length > 0) {
-            setFileTreeNodes(nodes);
+            setProjectFileTree(nodes);
             setIsRealTree(true);
           } else {
-            setFileTreeNodes(buildMockFileTree(activeProject!.folderPath));
+            setProjectFileTree(buildMockFileTree(activeProject!.folderPath));
             setIsRealTree(false);
           }
         }
       } catch (e) {
         if (!cancelled) {
           console.error("File tree scan failed, using mock fallback:", e);
-          setFileTreeNodes(buildMockFileTree(activeProject!.folderPath));
+          setProjectFileTree(buildMockFileTree(activeProject!.folderPath));
           setIsRealTree(false);
         }
       }
@@ -229,7 +229,7 @@ export function ProjectsScreen() {
               {tk("project.projectFiles")}: {activeProject.name}{scanningTree ? " (scanning...)" : isRealTree ? "" : " (preview)"}
             </h3>
             <ProjectFileTree
-              nodes={fileTreeNodes}
+              nodes={projectFileTree}
               onAddToContext={handleAddToContext}
             />
           </div>
