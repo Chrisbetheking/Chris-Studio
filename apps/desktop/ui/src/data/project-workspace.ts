@@ -46,12 +46,37 @@ function sortProjects(projects: RecentProject[]): RecentProject[] {
    Load / Save
    ============================================================ */
 
+
+function sanitizeProjectName(name: string, fallbackPath?: string): string {
+  if (!name || name.trim().length === 0) return fallbackPath ? fallbackPath.split(/[\\\/]/).filter(Boolean).pop() || "Local Project" : "Local Project";
+  // Check for mojibake: if name is mostly high-codepoint chars not in CJK range
+  let badChars = 0;
+  for (let i = 0; i < name.length; i++) {
+    const c = name.charCodeAt(i);
+    if ((c >= 0x6000 && c <= 0x6FFF && !(c >= 0x4E00 && c <= 0x9FFF)) || c === 0x20AC || c === 0xFFFD) {
+      badChars++;
+    }
+  }
+  if (badChars > name.length * 0.3) {
+    // Mojibake detected - regenerate from path
+    return fallbackPath ? fallbackPath.split(/[\\\/]/).filter(Boolean).pop() || "Local Project" : "Local Project";
+  }
+  return name;
+}
+
 export function loadRecentProjects(): RecentProject[] {
   try {
     const raw = storeGet(RECENT_PROJECTS_KEY);
     if (!raw) return [];
     const parsed = safeParseJson(raw);
     if (!Array.isArray(parsed)) return [];
+    // Sanitize mojibake project names from old localStorage data
+    let needsSave = false;
+    for (const p of parsed) {
+      const clean = sanitizeProjectName(p.name, p.path);
+      if (clean !== p.name) { p.name = clean; needsSave = true; }
+    }
+    if (needsSave) saveRecentProjects(parsed as RecentProject[]);
     return sortProjects(parsed as RecentProject[]);
   } catch {
     return [];

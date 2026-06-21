@@ -718,9 +718,9 @@ export function ChatWorkspace() {
 
       const devCheck = checkDeveloperIdentityQuestion(text);
       if (devCheck && activeConv) {
-        const devMsg: ChatMessage = { id: uid(), role: "assistant", content: devCheck, timestamp: Date.now() };
+        const devMsg = { id: uid(), role: "assistant", content: devCheck, timestamp: Date.now() };
         const devConv = { ...activeConv, messages: [...activeConv.messages, devMsg], updatedAt: Date.now() };
-        const devConvs = conversations.map((c) => c.id === activeConv.id ? devConv : c);
+        const devConvs = conversations.map(function(c) { return c.id === activeConv.id ? devConv : c; });
         setConversations(devConvs); saveConversations(devConvs);
         setComposerText("");
         return;
@@ -1222,7 +1222,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
               cursor: "pointer",
             }}
           >
-            {isZh ? "??" : "Project"}
+            {isZh ? "\u9879\u76EE" : "Project"}
           </button>
         </div>
 
@@ -1267,7 +1267,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
         </div>
 
-        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>{conversations.length} {isZh ? "???" : "conversations"}</div>
+        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>{conversations.length} {isZh ? "个会话" : "conversations"}</div>
           </>
         )}
 
@@ -1277,32 +1277,32 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
             {/* Active Project */}
             {activeProject ? (
               <div style={{ padding: "8px", background: "var(--surface-alt)", borderRadius: 8, marginBottom: 10 }}>
-                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{isZh ? "????" : "Active Project"}</div>
+                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{isZh ? "当前项目" : "Active Project"}</div>
                 <div style={{ fontWeight: 600, fontSize: "0.8rem", color: "var(--text)" }}>{activeProject.name}</div>
                 <div style={{ fontSize: "0.6rem", color: "var(--text-muted)", marginTop: 2, wordBreak: "break-all" }}>{activeProject.folderPath}</div>
-                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginTop: 4 }}>{activeProject.files?.length ?? 0} {isZh ? "???" : "files"}</div>
+                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginTop: 4 }}>{activeProject.files?.length ?? 0} {isZh ? "个文件" : "files"}</div>
               </div>
             ) : (
               <div style={{ padding: "8px", color: "var(--text-muted)", fontSize: "0.75rem", textAlign: "center", marginBottom: 10 }}>
-                {isZh ? "?????" : "No project loaded"}
+                {isZh ? "未加载项目" : "No project loaded"}
               </div>
             )}
 
             {/* Manual Path input */}
             <div style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{isZh ? "????" : "Manual Path"}</div>
+              <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{isZh ? "手动路径" : "Manual Path"}</div>
               <input
                 className="input"
                 value={manualPath}
                 onChange={(e) => setManualPath(e.target.value)}
-                placeholder={isZh ? "??????..." : "Enter project path..."}
+                placeholder={isZh ? "输入项目路径..." : "Enter project path..."}
                 style={{ width: "100%", boxSizing: "border-box", background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 8px", fontSize: "0.7rem", outline: "none" }}
                 onKeyDown={(e) => { if (e.key === "Enter") handleLoadManualPath(); }}
               />
             </div>
 
             <button onClick={handleLoadManualPath} className="btn btn-primary" style={{ width: "100%", fontSize: "0.75rem", padding: "6px 12px", marginBottom: 10 }}>
-              {isZh ? "????" : "Load Project"}
+              {isZh ? "加载项目" : "Load Project"}
             </button>
 
             {/* Recent Projects */}
@@ -1317,7 +1317,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
                     className="input"
                     value={projectSearchQ}
                     onChange={(e) => setProjectSearchQ(e.target.value)}
-                    placeholder={isZh ? "????..." : "Search files..."}
+                    placeholder={isZh ? "搜索文件..." : "Search files..."}
                     style={{ width: "100%", boxSizing: "border-box", background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "5px 8px", fontSize: "0.7rem", outline: "none" }}
                   />
                 </div>
@@ -1326,7 +1326,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
                 <div style={{ maxHeight: 260, overflowY: "auto", marginBottom: 6 }}>
                   {filteredProjectFiles.length === 0 ? (
                     <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", textAlign: "center", padding: 8 }}>
-                      {projectSearchQ.trim() ? (isZh ? "?????" : "No matching files") : (isZh ? "???" : "No files")}
+                      {projectSearchQ.trim() ? (isZh ? "无匹配文件" : "No matching files") : (isZh ? "无文件" : "No files")}
                     </div>
                   ) : (
                     filteredProjectFiles.map((f: any) => (
