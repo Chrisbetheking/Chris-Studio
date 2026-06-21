@@ -581,7 +581,8 @@ fn main() {
             init_tokenfence_dirs,
             create_backup,
             apply_patch,
-            undo_last_patch,`n            scan_project_directory,
+            undo_last_patch,
+            scan_project_directory,
             append_operation_log,
         ])
         .run(tauri::generate_context!())

@@ -348,8 +348,8 @@ console.log("\n--- v1.4.1 version checks ---");
 var appPath = path.join(ROOT, "apps/desktop/ui/src/App.tsx");
 if (fs.existsSync(appPath)) {
   var appContent = fs.readFileSync(appPath, "utf-8");
-  if (appContent.indexOf('"v1.5.3"') >= 0) ok("App.tsx VERSION is v1.5.3");
-  else fail("App.tsx VERSION is NOT v1.5.3");
+  if (appContent.indexOf('"v1.5.4"') >= 0) ok("App.tsx VERSION is v1.5.4");
+  else fail("App.tsx VERSION is NOT v1.5.4");
 } else { fail("App.tsx NOT FOUND"); }
 
 // Check ChatWorkspace for developer identity
@@ -552,14 +552,14 @@ if (fs.existsSync(diagPath)) {
 var checkSc = path.join(ROOT, "scripts/check_shortcuts.ps1");
 if (fs.existsSync(checkSc)) ok("check_shortcuts.ps1 exists");
 else fail("check_shortcuts.ps1 MISSING");
-if (fs.existsSync(checkSc) && fs.readFileSync(checkSc, "utf-8").indexOf("v1.5.3") >= 0) ok("check_shortcuts.ps1 contains v1.5.2");
-else fail("check_shortcuts.ps1 MISSING v1.5.3");
+if (fs.existsSync(checkSc) && fs.readFileSync(checkSc, "utf-8").indexOf("v1.5.4") >= 0) ok("check_shortcuts.ps1 contains v1.5.2");
+else fail("check_shortcuts.ps1 MISSING v1.5.4");
 
 var updateSc = path.join(ROOT, "scripts/update_shortcuts.ps1");
 if (fs.existsSync(updateSc)) ok("update_shortcuts.ps1 exists");
 else fail("update_shortcuts.ps1 MISSING");
-if (fs.existsSync(updateSc) && fs.readFileSync(updateSc, "utf-8").indexOf("v1.5.3") >= 0) ok("update_shortcuts.ps1 contains v1.5.2");
-else fail("update_shortcuts.ps1 MISSING v1.5.3");
+if (fs.existsSync(updateSc) && fs.readFileSync(updateSc, "utf-8").indexOf("v1.5.4") >= 0) ok("update_shortcuts.ps1 contains v1.5.2");
+else fail("update_shortcuts.ps1 MISSING v1.5.4");
 
 
 // ==== v1.5.2 file tree + context pack checks ====

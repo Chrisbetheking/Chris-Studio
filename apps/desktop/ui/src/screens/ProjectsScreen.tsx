@@ -5,7 +5,8 @@ import { estimateTokens } from "@tokenfence/shared/src/providers";
 import { ProjectFileTree } from "../components/ProjectFileTree";
 import { ContextPackPanel } from "../components/ContextPackPanel";
 import { buildMockFileTree } from "../data/project-file-tree";
-import { addFilesToContextPack, type ContextPackFile } from "../data/context-pack";`nimport { scanProjectDirectory } from "../desktop-bridge";
+import { addFilesToContextPack, type ContextPackFile } from "../data/context-pack";
+import { scanProjectDirectory } from "../desktop-bridge";
 
 interface ProjectFile {
   path: string; name: string; extension: string;
@@ -41,7 +42,10 @@ export function ProjectsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [projectLoadError, setProjectLoadError] = useState(false);
   const [isTauri, setIsTauri] = useState(false);
-  const [cpKey, setCpKey] = useState(0);`n  const [fileTreeNodes, setFileTreeNodes] = useState<ReturnType<typeof buildMockFileTree>>([]);`n  const [isRealTree, setIsRealTree] = useState(false);`n  const [scanningTree, setScanningTree] = useState(false);
+  const [cpKey, setCpKey] = useState(0);
+  const [fileTreeNodes, setFileTreeNodes] = useState<ReturnType<typeof buildMockFileTree>>([]);
+  const [isRealTree, setIsRealTree] = useState(false);
+  const [scanningTree, setScanningTree] = useState(false);
   const isZh = tk("common.yes") !== "Yes";
 
   useEffect(() => {
@@ -53,6 +57,41 @@ export function ProjectsScreen() {
   useEffect(() => {
     setIsTauri(!!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__);
   }, []);
+
+  // Load real file tree when active project changes (v1.5.3+)
+  useEffect(() => {
+    if (!activeProject) {
+      setFileTreeNodes([]);
+      setIsRealTree(false);
+      setScanningTree(false);
+      return;
+    }
+    let cancelled = false;
+    async function loadTree() {
+      setScanningTree(true);
+      try {
+        const nodes = await scanProjectDirectory(activeProject!.folderPath);
+        if (!cancelled) {
+          if (nodes && nodes.length > 0) {
+            setFileTreeNodes(nodes);
+            setIsRealTree(true);
+          } else {
+            setFileTreeNodes(buildMockFileTree(activeProject!.folderPath));
+            setIsRealTree(false);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error("File tree scan failed, using mock fallback:", e);
+          setFileTreeNodes(buildMockFileTree(activeProject!.folderPath));
+          setIsRealTree(false);
+        }
+      }
+      if (!cancelled) setScanningTree(false);
+    }
+    loadTree();
+    return () => { cancelled = true; };
+  }, [activeProject]);
 
   const activeProject = projects.find(p => p.id === activeId) ?? null;
   const selectedFiles = activeProject?.files.filter(f => f.selected) ?? [];
