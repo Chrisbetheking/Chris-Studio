@@ -21,7 +21,8 @@ import {
 } from "@tokenfence/shared/src/model-registry";
 
 import { getEnabledModels, loadInstalledModels, type InstalledModel } from "@tokenfence/shared/src/installed-models";
-import { readFile } from "../desktop-bridge";
+import { readFile, scanProjectDirectory, getScanBridgeStatus } from "../desktop-bridge";
+import { flattenFileTree, type ProjectFileNode } from "../data/project-file-tree";
 import { storeGet, storeSet } from "@tokenfence/shared/src/agent-runtime/safeStorage";
 import { RecentProjectsPanel } from "../components/RecentProjectsPanel";
 import { ContextPackPanel } from "../components/ContextPackPanel";
@@ -404,6 +405,10 @@ export function ChatWorkspace() {
   const [installedModels, setInstalledModels] = useState<InstalledModel[]>(() => getEnabledModels());
   const [projectTab, setProjectTab] = useState(false);
   const [manualPath, setManualPath] = useState("");
+  const [projectFileTree, setProjectFileTree] = useState<ProjectFileNode[]>([]);
+  const [isScanningProject, setIsScanningProject] = useState(false);
+  const [projectScanStatus, setProjectScanStatus] = useState<"idle"|"scanning"|"done"|"done_empty"|"failed">("idle");
+  const [projectScanError, setProjectScanError] = useState<string | null>(null);
   const [projectSearchQ, setProjectSearchQ] = useState("");
   const [savedProjects, setSavedProjects] = useState<any[]>(() => {
     try { const ps = storeGet("tokenfence-projects"); return ps ? JSON.parse(ps) : []; } catch { return []; }
@@ -412,19 +417,50 @@ export function ChatWorkspace() {
   const handleLoadManualPath = async () => {
     const path = manualPath.trim();
     if (!path) return;
+    console.log("[ProjectScan] load path", path);
+
+    const name = path.split("\\").pop() || path.split("/").pop() || path;
+    const proj = { id: "manual-" + Date.now(), name, folderPath: path, files: [] };
+    setActiveProject(proj);
+    const updated = [proj, ...savedProjects.filter((p: any) => p.folderPath !== path)];
+    setSavedProjects(updated);
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      const result: any = await invoke("scan_project_files", { path });
-      if (result?.files) {
-        const proj = { id: "manual-" + Date.now(), name: path.split("\\").pop() || path, folderPath: path, files: result.files.map((f: any) => ({ ...f, selected: false })) };
-        setActiveProject(proj);
-        const updated = [proj, ...savedProjects.filter((p: any) => p.folderPath !== path)];
-        setSavedProjects(updated);
-        try { storeSet("tokenfence-active-project", proj.id); storeSet("tokenfence-projects", JSON.stringify(updated)); } catch {}
+      storeSet("tokenfence-active-project", proj.id);
+      storeSet("tokenfence-projects", JSON.stringify(updated));
+    } catch (_) {}
+
+    setIsScanningProject(true);
+    setProjectScanStatus("scanning");
+    setProjectScanError(null);
+    setProjectFileTree([]);
+
+    try {
+      const nodes = await scanProjectDirectory(path);
+      console.log("[ProjectScan] raw nodes", Array.isArray(nodes) ? nodes.length : typeof nodes);
+      const safeTree = Array.isArray(nodes) ? nodes : [];
+      setProjectFileTree(safeTree);
+
+      if (safeTree.length > 0) {
+        setProjectScanStatus("done");
+        // Map file-type nodes to activeProject.files for existing file panel
+        const flat = flattenFileTree(safeTree);
+        const fileEntries = flat.filter((n: ProjectFileNode) => n.type === "file").map((n: ProjectFileNode) => ({
+          name: n.relativePath || n.name,
+          path: n.path,
+          size: n.sizeBytes || 0,
+          selected: false,
+        }));
+        setActiveProject((prev: any) => prev ? { ...prev, files: fileEntries } : prev);
+      } else {
+        setProjectScanStatus("done_empty");
+        setProjectScanError("Scanner returned 0 nodes. Check project_scan_debug_v154.txt in %LOCALAPPDATA%\\\\com.tokenfence.studio.");
       }
-    } catch {
-      const proj = { id: "manual-" + Date.now(), name: path.split("\\").pop() || path, folderPath: path, files: [] };
-      setActiveProject(proj);
+    } catch (e: any) {
+      console.error("[ProjectScan] error", e && e.message ? e.message : String(e));
+      setProjectScanStatus("failed");
+      setProjectScanError(e && e.message ? e.message : "Scan failed");
+    } finally {
+      setIsScanningProject(false);
     }
   };
 
@@ -945,25 +981,6 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
     try { storeSet("tokenfence-active-project", updated.id); storeSet("tokenfence-projects", JSON.stringify(savedProjects.map((p: any) => p.id === updated.id ? updated : p))); } catch {}
   };
 
-  const handleLoadManualPath = async () => {
-    const path = manualPath.trim();
-    if (!path) return;
-    try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      const result: any = await invoke("scan_project_files", { path });
-      if (result?.files) {
-        const proj = { id: "manual-" + Date.now(), name: path.split("\\").pop() || path, folderPath: path, files: result.files.map((f: any) => ({ ...f, selected: false })) };
-        setActiveProject(proj);
-        const updated = [proj, ...savedProjects.filter((p: any) => p.folderPath !== path)];
-        setSavedProjects(updated);
-        try { storeSet("tokenfence-active-project", proj.id); storeSet("tokenfence-projects", JSON.stringify(updated)); } catch {}
-      }
-    } catch {
-      // Fallback: create project stub for Tauri-unavailable mode
-      const proj = { id: "manual-" + Date.now(), name: path.split("\\").pop() || path, folderPath: path, files: [] };
-      setActiveProject(proj);
-    }
-  };
 
   const handleLoadSavedProject = (proj: any) => {
     setActiveProject(proj);
@@ -1351,6 +1368,27 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
             <button onClick={handleLoadManualPath} className="btn btn-primary" style={{ width: "100%", fontSize: "0.75rem", padding: "6px 12px", marginBottom: 10 }}>
               {isZh ? "加载项目" : "Load Project"}
             </button>
+{/* Scan status */}
+{isScanningProject && (
+  <div style={{ fontSize: "0.65rem", color: "var(--primary)", marginBottom: 6 }}>
+    {isZh ? "\u6b63\u5728\u626b\u63cf..." : "Scanning..."}
+  </div>
+)}
+{projectScanStatus === "failed" && projectScanError && (
+  <div style={{ fontSize: "0.65rem", color: "var(--danger, #e00)", marginBottom: 6 }}>
+    {projectScanError}
+  </div>
+)}
+{projectScanStatus === "done" && (
+  <div style={{ fontSize: "0.65rem", color: "var(--success, green)", marginBottom: 6 }}>
+    {isZh ? "\u626b\u63cf\u5b8c\u6210: " + projectFileTree.length + " \u9879" : "Scan done: " + projectFileTree.length + " items"}
+  </div>
+)}
+{projectScanStatus === "done_empty" && (
+  <div style={{ fontSize: "0.65rem", color: "var(--warning, orange)", marginBottom: 6 }}>
+    {isZh ? "\u626b\u63cf\u8fd4\u56de 0 \u4e2a\u8282\u70b9" : "Scan returned 0 nodes"}
+  </div>
+)}
 
             {/* Recent Projects */}
             <RecentProjectsPanel />
@@ -1888,4 +1926,3 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
   );
 
 }
-
