@@ -1,6 +1,6 @@
-# check_shortcuts.ps1 - TokenFence Studio v1.5.4 Shortcut Diagnostics
+# check_shortcuts.ps1 - TokenFence Studio v1.5.5 Shortcut Diagnostics
 $ErrorActionPreference = "Continue"
-$version = "v1.5.4"
+$version = "v1.5.5"
 $expectedPath = "E:\Apps\TokenFenceStudio\$version\TokenFence Studio.exe"
 $oldVersions = @("v1.3.7","v1.3.8","v1.3.9","v1.4.0","v1.4.1","v1.4.2","v1.4.3","v1.4.4")
 $oldPaths = @(

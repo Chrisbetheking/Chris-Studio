@@ -21,7 +21,7 @@ import {
 } from "@tokenfence/shared/src/model-registry";
 
 import { getEnabledModels, loadInstalledModels, type InstalledModel } from "@tokenfence/shared/src/installed-models";
-import { readFile, scanProjectDirectory, getScanBridgeStatus } from "../desktop-bridge";
+import { readFile, scanProjectDirectory, getScanBridgeStatus, type ProjectScanDebug } from "../desktop-bridge";
 import { flattenFileTree, type ProjectFileNode } from "../data/project-file-tree";
 import { storeGet, storeSet } from "@tokenfence/shared/src/agent-runtime/safeStorage";
 import { RecentProjectsPanel } from "../components/RecentProjectsPanel";
@@ -409,6 +409,7 @@ export function ChatWorkspace() {
   const [isScanningProject, setIsScanningProject] = useState(false);
   const [projectScanStatus, setProjectScanStatus] = useState<"idle"|"scanning"|"done"|"done_empty"|"failed">("idle");
   const [projectScanError, setProjectScanError] = useState<string | null>(null);
+  const [scanDebug, setScanDebug] = useState<ProjectScanDebug | null>(null);
   const [projectSearchQ, setProjectSearchQ] = useState("");
   const [savedProjects, setSavedProjects] = useState<any[]>(() => {
     try { const ps = storeGet("tokenfence-projects"); return ps ? JSON.parse(ps) : []; } catch { return []; }
@@ -435,14 +436,15 @@ export function ChatWorkspace() {
     setProjectFileTree([]);
 
     try {
-      const nodes = await scanProjectDirectory(path);
-      console.log("[ProjectScan] raw nodes", Array.isArray(nodes) ? nodes.length : typeof nodes);
-      const safeTree = Array.isArray(nodes) ? nodes : [];
+      const result = await scanProjectDirectory(path);
+      console.log("[ProjectScan] result debug:", JSON.stringify(result.debug));
+      setScanDebug(result.debug);
+
+      const safeTree = Array.isArray(result.nodes) ? result.nodes : [];
       setProjectFileTree(safeTree);
 
       if (safeTree.length > 0) {
         setProjectScanStatus("done");
-        // Map file-type nodes to activeProject.files for existing file panel
         const flat = flattenFileTree(safeTree);
         const fileEntries = flat.filter((n: ProjectFileNode) => n.type === "file").map((n: ProjectFileNode) => ({
           name: n.relativePath || n.name,
@@ -453,7 +455,7 @@ export function ChatWorkspace() {
         setActiveProject((prev: any) => prev ? { ...prev, files: fileEntries } : prev);
       } else {
         setProjectScanStatus("done_empty");
-        setProjectScanError("Scanner returned 0 nodes. Check project_scan_debug_v154.txt in %LOCALAPPDATA%\\\\com.tokenfence.studio.");
+        setProjectScanError("Scanner returned 0 nodes.");
       }
     } catch (e: any) {
       console.error("[ProjectScan] error", e && e.message ? e.message : String(e));
@@ -1368,27 +1370,35 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
             <button onClick={handleLoadManualPath} className="btn btn-primary" style={{ width: "100%", fontSize: "0.75rem", padding: "6px 12px", marginBottom: 10 }}>
               {isZh ? "加载项目" : "Load Project"}
             </button>
-{/* Scan status */}
-{isScanningProject && (
-  <div style={{ fontSize: "0.65rem", color: "var(--primary)", marginBottom: 6 }}>
-    {isZh ? "\u6b63\u5728\u626b\u63cf..." : "Scanning..."}
-  </div>
-)}
-{projectScanStatus === "failed" && projectScanError && (
-  <div style={{ fontSize: "0.65rem", color: "var(--danger, #e00)", marginBottom: 6 }}>
-    {projectScanError}
-  </div>
-)}
-{projectScanStatus === "done" && (
-  <div style={{ fontSize: "0.65rem", color: "var(--success, green)", marginBottom: 6 }}>
-    {isZh ? "\u626b\u63cf\u5b8c\u6210: " + projectFileTree.length + " \u9879" : "Scan done: " + projectFileTree.length + " items"}
-  </div>
-)}
-{projectScanStatus === "done_empty" && (
-  <div style={{ fontSize: "0.65rem", color: "var(--warning, orange)", marginBottom: 6 }}>
-    {isZh ? "\u626b\u63cf\u8fd4\u56de 0 \u4e2a\u8282\u70b9" : "Scan returned 0 nodes"}
-  </div>
-)}
+            {/* Scan diagnostics */}
+            {projectScanStatus !== "idle" && (
+              <div style={{ fontSize: "0.58rem", color: "var(--text-muted)", marginBottom: 8, padding: "6px 8px", background: "var(--surface-alt)", borderRadius: 4, lineHeight: 1.6 }}>
+                <div><strong>Source:</strong> Desktop/Tauri</div>
+                <div><strong>Status:</strong> {projectScanStatus}</div>
+                {scanDebug && (
+                  <div>
+                    <div><strong>Path:</strong> {scanDebug.path}</div>
+                    <div><strong>Exists:</strong> {String(scanDebug.exists)} | <strong>Is Dir:</strong> {String(scanDebug.isDir)}</div>
+                    <div><strong>Read dir count:</strong> {scanDebug.readDirCount}</div>
+                    <div><strong>Raw entries:</strong> {scanDebug.readDirCount}</div>
+                    <div><strong>Top nodes:</strong> {scanDebug.returnedTopNodes}</div>
+                    <div><strong>Flat nodes:</strong> {scanDebug.returnedFlatNodes}</div>
+                    <div><strong>Files:</strong> {scanDebug.returnedFiles}</div>
+                    <div><strong>Dirs:</strong> {scanDebug.returnedDirs}</div>
+                    {scanDebug.firstEntries.length > 0 && <div><strong>First entries:</strong> {scanDebug.firstEntries.slice(0, 10).join(", ")}</div>}
+                    {scanDebug.firstNodes.length > 0 && <div><strong>First nodes:</strong> {scanDebug.firstNodes.join(", ")}</div>}
+                    {scanDebug.error && <div style={{ color: "var(--danger, #e00)" }}><strong>Error:</strong> {scanDebug.error}</div>}
+                    {scanDebug.readDirCount > 0 && scanDebug.returnedTopNodes === 0 && (
+                      <div style={{ color: "var(--warning, orange)" }}>Rust read the directory but filtered out all entries.</div>
+                    )}
+                    {scanDebug.returnedTopNodes > 0 && scanDebug.returnedFiles === 0 && (
+                      <div style={{ color: "var(--warning, orange)" }}>Scanner returned nodes, but UI flattening produced 0 files.</div>
+                    )}
+                  </div>
+                )}
+                {projectScanError && <div style={{ color: "var(--danger, #e00)" }}><strong>Error:</strong> {projectScanError}</div>}
+              </div>
+            )}
 
             {/* Recent Projects */}
             <RecentProjectsPanel />

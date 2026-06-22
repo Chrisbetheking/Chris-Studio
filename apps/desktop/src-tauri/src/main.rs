@@ -419,17 +419,48 @@ fn append_operation_log(operation: String, files: Vec<String>, success: bool, er
 }
 
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct ProjectFileEntry {
     id: String,
     name: String,
     path: String,
     relative_path: String,
+
     #[serde(rename = "type")]
-    node_type: String,
+    entry_type: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     size_bytes: Option<u64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     file_type: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     children: Option<Vec<ProjectFileEntry>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ProjectScanDebug {
+    path: String,
+    exists: bool,
+    is_dir: bool,
+    read_dir_count: usize,
+    returned_top_nodes: usize,
+    returned_flat_nodes: usize,
+    returned_files: usize,
+    returned_dirs: usize,
+    first_entries: Vec<String>,
+    first_nodes: Vec<String>,
+    error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ProjectScanResult {
+    nodes: Vec<ProjectFileEntry>,
+    debug: ProjectScanDebug,
 }
 
 const IGNORED_DIRS: &[&str] = &[
@@ -446,23 +477,30 @@ const BLOCKED_ROOTS: &[&str] = &[
 
 fn is_safe_project_path(path: &str) -> bool {
     let normalized = path.to_lowercase().replace("/", "\\");
-    // Must not be a system root
     for blocked in BLOCKED_ROOTS {
         let bl = blocked.to_lowercase();
         if normalized == bl || normalized == bl.trim_end_matches('\\') {
             return false;
         }
     }
-    // Must exist and be a directory
     let p = std::path::Path::new(path);
     if !p.exists() || !p.is_dir() {
         return false;
     }
-    // Must be an absolute path
     if !p.is_absolute() {
         return false;
     }
     true
+}
+
+fn count_flat_nodes(nodes: &[ProjectFileEntry]) -> usize {
+    let mut count = nodes.len();
+    for n in nodes {
+        if let Some(ref children) = n.children {
+            count += count_flat_nodes(children);
+        }
+    }
+    count
 }
 
 fn scan_dir(
@@ -479,21 +517,25 @@ fn scan_dir(
         return children;
     }
 
-    let entries = match std::fs::read_dir(dir_path) {
+    let dir_iter = match std::fs::read_dir(dir_path) {
         Ok(e) => e,
         Err(_) => return children,
     };
 
-    for entry in entries.flatten() {
+    for entry in dir_iter {
         if *file_count >= max_files {
             break;
         }
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
         let path = entry.path();
         let name = path.file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
 
-        // Skip ignored directories
+        // Skip ignored directories only
         if path.is_dir() {
             let name_lower = name.to_lowercase();
             if IGNORED_DIRS.iter().any(|ign| name_lower == ign.to_lowercase()) {
@@ -515,7 +557,7 @@ fn scan_dir(
                 name,
                 path: path.to_string_lossy().to_string(),
                 relative_path: relative,
-                node_type: "directory".to_string(),
+                entry_type: "directory".to_string(),
                 size_bytes: None,
                 file_type: None,
                 children: Some(sub),
@@ -530,7 +572,7 @@ fn scan_dir(
                 name,
                 path: path.to_string_lossy().to_string(),
                 relative_path: relative,
-                node_type: "file".to_string(),
+                entry_type: "file".to_string(),
                 size_bytes: size,
                 file_type: Some(file_type),
                 children: None,
@@ -539,10 +581,9 @@ fn scan_dir(
         }
     }
 
-    // Sort: directories first, then files, alphabetical within each
     children.sort_by(|a, b| {
-        let a_is_dir = a.node_type == "directory";
-        let b_is_dir = b.node_type == "directory";
+        let a_is_dir = a.entry_type == "directory";
+        let b_is_dir = b.entry_type == "directory";
         if a_is_dir && !b_is_dir { return std::cmp::Ordering::Less; }
         if !a_is_dir && b_is_dir { return std::cmp::Ordering::Greater; }
         a.name.to_lowercase().cmp(&b.name.to_lowercase())
@@ -552,20 +593,84 @@ fn scan_dir(
 }
 
 #[tauri::command]
-fn scan_project_directory(project_path: String) -> Result<Vec<ProjectFileEntry>, String> {
+fn scan_project_directory(project_path: String) -> Result<ProjectScanResult, String> {
+    let base = std::path::Path::new(&project_path);
+
+    let path_str = project_path.clone();
+    let path_exists = base.exists();
+    let path_is_dir = base.is_dir();
+    let mut error: Option<String> = None;
+    let mut read_dir_count: usize = 0;
+    let mut first_entries: Vec<String> = Vec::new();
+
     if !is_safe_project_path(&project_path) {
-        return Err("This path is not suitable as a project directory. Please choose a specific project folder.".to_string());
+        error = Some("Path is not suitable as a project directory.".to_string());
+    } else if !path_exists {
+        error = Some("Project path does not exist.".to_string());
+    } else if !path_is_dir {
+        error = Some("Project path is not a directory.".to_string());
     }
 
-    let base = std::path::Path::new(&project_path);
+    if error.is_none() {
+        match std::fs::read_dir(base) {
+            Ok(entries) => {
+                for e in entries {
+                    match e {
+                        Ok(entry) => {
+                            let name = entry.file_name().to_string_lossy().to_string();
+                            let is_dir_flag = entry.path().is_dir();
+                            let prefix = if is_dir_flag { "[DIR]" } else { "[FILE]" };
+                            first_entries.push(format!("{} {}", prefix, name));
+                        }
+                        Err(_) => {}
+                    }
+                }
+                read_dir_count = first_entries.len();
+            }
+            Err(e) => {
+                error = Some(format!("Failed to read directory: {}", e));
+            }
+        }
+    }
+
     let mut file_count: u32 = 0;
     let mut uid_counter: u32 = 0;
     let max_files: u32 = 1000;
     let max_depth: u32 = 6;
 
-    let children = scan_dir(base, base, 0, max_depth, &mut file_count, max_files, &mut uid_counter);
+    let nodes = if error.is_none() {
+        scan_dir(base, base, 0, max_depth, &mut file_count, max_files, &mut uid_counter)
+    } else {
+        Vec::new()
+    };
 
-    Ok(children)
+    let top_node_count = nodes.len();
+    let flat_count = count_flat_nodes(&nodes);
+    let file_nodes: Vec<&ProjectFileEntry> = nodes.iter()
+        .filter(|n| n.entry_type == "file")
+        .collect();
+    let dir_nodes: Vec<&ProjectFileEntry> = nodes.iter()
+        .filter(|n| n.entry_type == "directory")
+        .collect();
+    let first_nodes: Vec<String> = nodes.iter().take(5)
+        .map(|n| format!("{} ({})", n.name, n.entry_type))
+        .collect();
+
+    let debug = ProjectScanDebug {
+        path: path_str,
+        exists: path_exists,
+        is_dir: path_is_dir,
+        read_dir_count,
+        returned_top_nodes: top_node_count,
+        returned_flat_nodes: flat_count,
+        returned_files: file_nodes.len(),
+        returned_dirs: dir_nodes.len(),
+        first_entries,
+        first_nodes,
+        error,
+    };
+
+    Ok(ProjectScanResult { nodes, debug })
 }
 fn main() {
     tauri::Builder::default()

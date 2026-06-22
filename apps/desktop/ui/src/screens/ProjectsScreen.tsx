@@ -4,9 +4,9 @@ import { storeGet, storeSet } from "@tokenfence/shared/src/agent-runtime/safeSto
 import { estimateTokens } from "@tokenfence/shared/src/providers";
 import { ProjectFileTree } from "../components/ProjectFileTree";
 import { ContextPackPanel } from "../components/ContextPackPanel";
-import { buildMockFileTree } from "../data/project-file-tree";
+import { buildMockFileTree, flattenFileTree } from "../data/project-file-tree";
 import { addFilesToContextPack, type ContextPackFile } from "../data/context-pack";
-import { scanProjectDirectory } from "../desktop-bridge";
+import { scanProjectDirectory, getScanBridgeStatus } from "../desktop-bridge";
 
 interface ProjectFile {
   path: string; name: string; extension: string;
@@ -48,6 +48,9 @@ export function ProjectsScreen() {
   const [scanningTree, setScanningTree] = useState(false);
   const [projectScanError, setProjectScanError] = useState<string | null>(null);
   const [projectScanStatus, setProjectScanStatus] = useState<"idle" | "scanning" | "done" | "failed">("idle");
+  const [scanRawNodeCount, setScanRawNodeCount] = useState<number | null>(null);
+  const [projectScanSource, setProjectScanSource] = useState<string>("not_started");
+  const [manualPath, setManualPath] = useState("");
   const isZh = tk("common.yes") !== "Yes";
 
   useEffect(() => {
@@ -72,6 +75,18 @@ export function ProjectsScreen() {
     return countAll(projectFileTree);
   }, [projectFileTree]);
 
+  const projectDirCount = useMemo(() => {
+    function countDirs(nodes: any[]): number {
+      let n = 0;
+      for (const node of nodes) {
+        if (node.type === "directory") n++;
+        if (node.children) n += countDirs(node.children);
+      }
+      return n;
+    }
+    return countDirs(projectFileTree);
+  }, [projectFileTree]);
+
   const activeProject = projects.find(p => p.id === activeId) ?? null;
   const selectedFiles = activeProject?.files.filter(f => f.selected) ?? [];
   const selectedTokens = selectedFiles.reduce((sum, f) => sum + estimateTokens(f.path + f.name), 0);
@@ -91,6 +106,10 @@ export function ProjectsScreen() {
       setScanningTree(true);
       setProjectScanStatus("scanning");
       setProjectScanError(null);
+      // Check bridge availability
+      let bridgeStatus: { available: boolean; source: "tauri" | "browser" } = { available: false, source: "browser" };
+      try { bridgeStatus = await getScanBridgeStatus(); } catch {}
+      if (!cancelled) setProjectScanSource(bridgeStatus.source);
       try {
         const nodes = await scanProjectDirectory(activeProject!.folderPath);
         if (!cancelled) {
@@ -98,7 +117,9 @@ export function ProjectsScreen() {
             setProjectFileTree(nodes);
             setIsRealTree(true);
             setProjectScanStatus("done");
+            setScanRawNodeCount(nodes.length);
           } else {
+            setScanRawNodeCount(nodes ? nodes.length : 0);
             setProjectFileTree([]);
             setIsRealTree(false);
             setProjectScanStatus("failed");
@@ -134,11 +155,61 @@ export function ProjectsScreen() {
     if (activeId === id) { setActiveId(null); setActiveProjectId(null); }
   }, [activeId, projects]);
 
+  const loadProjectAndScan = useCallback(async (folderPath: string) => {
+    const normalizedPath = folderPath.trim();
+    if (!normalizedPath) return;
+    console.log("[ProjectScan] loadProjectAndScan path", normalizedPath);
+
+    const existing = projects.find(p => p.folderPath.toLowerCase() === normalizedPath.toLowerCase());
+    const pid = existing ? existing.id : uid();
+    if (!existing) {
+      const name = normalizedPath.split("\\").pop() || normalizedPath.split("/").pop() || normalizedPath;
+      const newProj: Project = { id: pid, name, folderPath: normalizedPath, createdAt: Date.now(), lastOpened: Date.now(), files: [] };
+      const updated = [newProj, ...projects];
+      setProjects(updated); saveProjects(updated);
+    }
+    setActiveId(pid); setActiveProjectId(pid);
+    setProjectScanStatus("scanning");
+    setProjectScanError(null);
+    setProjectFileTree([]);
+    setScanRawNodeCount(0);
+    setProjectScanSource("checking");
+
+    let bridgeStatus = { available: false, source: "browser" as const };
+    try { bridgeStatus = await getScanBridgeStatus(); } catch (_) {}
+    setProjectScanSource(bridgeStatus.source);
+    console.log("[ProjectScan] bridge source", bridgeStatus.source);
+
+    try {
+      const nodes = await scanProjectDirectory(normalizedPath);
+      console.log("[ProjectScan] raw nodes returned", Array.isArray(nodes) ? nodes.length : typeof nodes);
+      const safeTree = Array.isArray(nodes) ? nodes : [];
+      const flat = flattenFileTree(safeTree);
+      console.log("[ProjectScan] flat nodes", flat.length);
+
+      setProjectFileTree(safeTree);
+      setScanRawNodeCount(flat.length);
+      setIsRealTree(safeTree.length > 0);
+      if (safeTree.length > 0) {
+        setProjectScanStatus("done");
+      } else {
+        setProjectScanStatus("failed");
+        setProjectScanError(isZh ? "Scan returned 0 nodes" : "Scan completed but returned 0 nodes.");
+      }
+    } catch (e: any) {
+      console.error("[ProjectScan] error", e?.message ?? String(e));
+      setProjectScanStatus("failed");
+      setProjectScanError(e?.message ?? "Scan failed");
+    }
+  }, [projects, isZh]);
+
   const selectProject = useCallback((id: string) => {
     setActiveId(id); setActiveProjectId(id);
     const updated = projects.map(p => p.id === id ? { ...p, lastOpened: Date.now() } : p);
     setProjects(updated); saveProjects(updated);
-  }, [projects]);
+    const proj = projects.find(p => p.id === id);
+    if (proj) { loadProjectAndScan(proj.folderPath); }
+  }, [projects, loadProjectAndScan]);
 
   const scanProject = useCallback(async (project: Project) => {
     setScanning(project.id); setError(null);
@@ -146,7 +217,7 @@ export function ProjectsScreen() {
       if (isTauri) {
         // Real Tauri backend scan
         const { invoke } = await import("@tauri-apps/api/core");
-        const result: any = await invoke("scan_project_files", { path: project.folderPath });
+        const result: any = await invoke("scan_project_directory", { projectPath: project.folderPath });
         if (result.error) {
           setError(result.error);
           setScanning(null);
@@ -214,6 +285,28 @@ export function ProjectsScreen() {
         </div>
       )}
 
+      {/* Manual project path input */}
+      <div className="card" style={{ marginBottom: 16, padding: 12 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            type="text"
+            value={manualPath}
+            onChange={(e) => setManualPath(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") loadProjectAndScan(manualPath); }}
+            placeholder={isZh ? "Enter path" : "Enter project folder path..."}
+            style={{ flex: 1, padding: "6px 10px", fontSize: "0.78rem", border: "1px solid var(--border)", borderRadius: 4, background: "var(--surface)", color: "var(--text)" }}
+          />
+          <button
+            onClick={() => loadProjectAndScan(manualPath)}
+            disabled={!manualPath.trim()}
+            className="btn btn-primary"
+            style={{ fontSize: "0.75rem", padding: "6px 14px" }}
+          >
+            {isZh ? "Load" : "Load"}
+          </button>
+        </div>
+      </div>
+
       <h3 style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>Recent Projects</h3>
       {projects.length === 0 ? (
         <div style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>No projects yet.</div>
@@ -245,36 +338,72 @@ export function ProjectsScreen() {
         </div>
       )}
 
-      {activeProject && (
-        <div style={{ marginTop: 20 }}>
-          <div className="card" style={{ padding: 16 }}>
-            <h3 style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>
-              {tk("project.projectFiles")}: {activeProject.name}{projectScanStatus === "scanning" ? (isZh ? " (正在扫描...)" : " (scanning...)") : projectScanStatus === "done" ? ` (${projectFileCount} ${isZh ? "个文件" : "files"})` : projectScanStatus === "failed" ? (isZh ? " (扫描失败)" : " (scan failed)") : ""}
-            </h3>
-            {projectScanStatus === "failed" && projectScanError ? (
-              <div style={{ padding: 12, marginBottom: 8, background: "var(--surface-alt)", borderRadius: 6, fontSize: "0.78rem", color: "var(--amber)", border: "1px solid var(--border)" }}>
-                {projectScanError}
-              </div>
-            ) : projectFileTree.length > 0 ? (
-              <ProjectFileTree
-                nodes={projectFileTree}
-                onAddToContext={handleAddToContext}
-              />
-            ) : projectScanStatus === "done" ? (
-              <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: "0.8rem" }}>
-                {isZh ? "扫描完成，但未找到可显示文件。请确认路径是否为具体项目文件夹。" : "Scan completed, but no displayable files found. Please make sure the path points to a specific project folder."}
-              </div>
-            ) : (
-              <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: "0.8rem" }}>
-                {projectScanStatus === "idle" ? (isZh ? "选择或扫描一个项目以查看文件树" : "Select or scan a project to view its file tree") : (isZh ? "正在加载..." : "Loading...")}
-              </div>
-            )}
+{/* Project Files - always visible */}
+      <div style={{ marginTop: 20 }}>
+        <div className="card" style={{ padding: 16 }} id="project-files-section">
+          <h3 style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12 }}>
+            {activeProject
+              ? `${tk("project.projectFiles")}: ${activeProject.name}${projectScanStatus === "scanning" ? (isZh ? " (scanning)" : " (scanning...)") : projectScanStatus === "done" ? ` (${projectFileCount} ${isZh ? "files" : "files"})` : projectScanStatus === "failed" ? (isZh ? " (scan failed)" : " (scan failed)") : ""}`
+              : (isZh ? "Project Files - load a project" : "Project Files - load a project")}
+          </h3>
+          <div className="scan-diagnostics" style={{ padding: "6px 0", marginBottom: 4, fontSize: "0.68rem", color: "var(--text-muted)", display: "flex", flexWrap: "wrap", gap: "4px 16px" }}>
+            <span>{isZh ? "Source" : "Source"}: {projectScanSource === "checking" ? "..." : projectScanSource === "tauri" ? (isZh ? "Desktop/Tauri" : "Desktop/Tauri") : projectScanSource === "browser" ? (isZh ? "Browser/Fallback" : "Browser/Fallback") : (isZh ? "Not started" : "Not started")}</span>
+            <span>{isZh ? "Status" : "Status"}: {projectScanStatus === "scanning" ? (isZh ? "Scanning" : "Scanning") : projectScanStatus === "done" ? (isZh ? "Done" : "Done") : projectScanStatus === "failed" ? (isZh ? "Failed" : "Failed") : (isZh ? "Idle" : "Idle")}</span>
+            <span>{isZh ? "Nodes" : "Nodes"}: {scanRawNodeCount !== null ? scanRawNodeCount : 0}</span>
+            <span>{isZh ? "Files" : "Files"}: {projectFileCount}</span>
+            <span>{isZh ? "Dirs" : "Dirs"}: {projectDirCount}</span>
           </div>
-          <div style={{ marginTop: 12 }}>
-            <ContextPackPanel key={cpKey} />
-          </div>
+          {projectScanStatus === "failed" && projectScanError ? (
+            <div style={{ padding: 12, marginBottom: 8, background: "var(--surface-alt)", borderRadius: 6, fontSize: "0.78rem", color: "var(--amber)", border: "1px solid var(--border)" }}>
+              {projectScanError}
+            </div>
+          ) : projectScanSource === "browser" && projectScanStatus !== "idle" ? (
+            <div style={{ padding: 12, marginBottom: 8, background: "var(--surface-alt)", borderRadius: 6, fontSize: "0.78rem", color: "var(--amber)", border: "1px solid var(--border)" }}>
+              {isZh ? "Tauri unavailable" : "Tauri file scanning is unavailable, so real project files could not be scanned."}
+            </div>
+          ) : null}
+          {projectFileTree.length > 0 ? (
+            <ProjectFileTree
+              nodes={projectFileTree}
+              onAddToContext={handleAddToContext}
+            />
+          ) : projectScanStatus === "done" ? (
+            <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+              {isZh ? "Scan done but 0 files" : "Scan completed, but no displayable files found."}
+            </div>
+          ) : projectScanStatus === "idle" && !activeProject ? (
+            <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+              {isZh ? "Enter path and click Load" : "Enter a project path and click Load, or select a recent project below"}
+            </div>
+          ) : projectScanStatus === "idle" ? (
+            <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+              {isZh ? "Click Select to view file tree" : "Click Select on a project below to view its file tree"}
+            </div>
+          ) : (
+            <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+              {isZh ? "Loading..." : "Loading..."}
+            </div>
+          )}
+          {activeProject && (
+            <div style={{ marginTop: 2, fontSize: "0.65rem", color: "var(--text-muted)" }}>
+              <button
+                onClick={() => {
+                  setProjectScanStatus("scanning");
+                  setProjectScanError(null);
+                  loadProjectAndScan(activeProject.folderPath);
+                }}
+                className="btn btn-ghost"
+                style={{ fontSize: "0.65rem", padding: "2px 8px" }}
+              >
+                {isZh ? "Rescan" : "Rescan"}
+              </button>
+            </div>
+          )}
         </div>
-      )}
+        <div style={{ marginTop: 12 }}>
+          <ContextPackPanel key={cpKey} />
+        </div>
+      </div>
     </div>
   );
 }

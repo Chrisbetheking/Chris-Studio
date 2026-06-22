@@ -131,18 +131,82 @@ export async function appendOperationLog(operation: string, files: string[], suc
 }
 
 
-export async function scanProjectDirectory(projectPath: string): Promise<ProjectFileNode[]> {
-  const invoke = await getInvoke();
-  if (!invoke) {
-    // Browser fallback: return empty array (caller should use buildMockFileTree)
-    return [];
+export interface ProjectScanResult {
+  nodes: ProjectFileNode[];
+  debug: ProjectScanDebug;
+}
+
+export interface ProjectScanDebug {
+  path: string;
+  exists: boolean;
+  isDir: boolean;
+  readDirCount: number;
+  returnedTopNodes: number;
+  returnedFlatNodes: number;
+  returnedFiles: number;
+  returnedDirs: number;
+  firstEntries: string[];
+  firstNodes: string[];
+  error: string | null;
+}
+
+export async function scanProjectDirectory(projectPath: string): Promise<ProjectScanResult> {
+  const emptyDebug: ProjectScanDebug = {
+    path: projectPath, exists: false, isDir: false, readDirCount: 0,
+    returnedTopNodes: 0, returnedFlatNodes: 0, returnedFiles: 0, returnedDirs: 0,
+    firstEntries: [], firstNodes: [], error: null
+  };
+
+  let invokeFn: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
+
+  // Try window.__TAURI__ (v1 style)
+  const tauriGlobal = (window as any).__TAURI__;
+  const gInvoke = tauriGlobal?.invoke || tauriGlobal?.tauri?.invoke || tauriGlobal?.core?.invoke;
+  if (typeof gInvoke === "function") { invokeFn = gInvoke; }
+
+  // Try @tauri-apps/api/core (v2 npm)
+  if (!invokeFn) {
+    try {
+      const coreMod = await import("@tauri-apps/api/core");
+      if (typeof coreMod.invoke === "function") { invokeFn = coreMod.invoke; }
+    } catch {}
   }
+
+  if (!invokeFn) {
+    console.warn("[desktop-bridge] scanProjectDirectory: no Tauri invoke available");
+    return { nodes: [], debug: { ...emptyDebug, error: "No Tauri invoke available" } };
+  }
+
   try {
-    const result = await invoke("scan_project_directory", { projectPath }) as any[];
-    return result.map(mapEntry);
+    const raw = await invokeFn("scan_project_directory", { projectPath }) as any;
+    console.log("[desktop-bridge] scan raw result:", JSON.stringify(raw?.debug).substring(0, 300));
+
+    if (!raw || !raw.nodes) {
+      return { nodes: [], debug: { ...emptyDebug, error: "Unexpected result format: " + JSON.stringify(raw).substring(0, 200) } };
+    }
+
+    const nodes: ProjectFileNode[] = Array.isArray(raw.nodes) ? raw.nodes.map(mapEntry) : [];
+    const dbg: any = raw.debug || {};
+
+    return {
+      nodes,
+      debug: {
+        path: dbg.path || projectPath,
+        exists: !!dbg.exists,
+        isDir: !!dbg.isDir,
+        readDirCount: dbg.readDirCount ?? 0,
+        returnedTopNodes: dbg.returnedTopNodes ?? 0,
+        returnedFlatNodes: dbg.returnedFlatNodes ?? 0,
+        returnedFiles: dbg.returnedFiles ?? 0,
+        returnedDirs: dbg.returnedDirs ?? 0,
+        firstEntries: dbg.firstEntries || [],
+        firstNodes: dbg.firstNodes || [],
+        error: dbg.error || null,
+      }
+    };
   } catch (e: any) {
-    console.error("scan_project_directory failed:", e);
-    return [];
+    console.error("[desktop-bridge] scan threw:", e?.message ?? e);
+    return { nodes: [], debug: { ...emptyDebug, error: e?.message || "Scan failed" } };
   }
 }
 
@@ -151,13 +215,25 @@ function mapEntry(entry: any): ProjectFileNode {
     id: entry.id,
     name: entry.name,
     path: entry.path,
-    relativePath: entry.relative_path || entry.relativePath || entry.name,
-    type: entry.node_type || entry.type || "file",
-    sizeBytes: entry.size_bytes ?? entry.sizeBytes,
-    fileType: entry.file_type ?? entry.fileType,
+    relativePath: entry.relativePath ?? entry.relative_path ?? entry.name,
+    type: entry.type ?? entry.entry_type ?? entry.node_type ?? "file",
+    sizeBytes: entry.sizeBytes ?? entry.size_bytes,
+    fileType: entry.fileType ?? entry.file_type,
     children: entry.children ? entry.children.map(mapEntry) : undefined,
   };
 }
+/** Check whether the Tauri invoke bridge is available for scan calls. */
+export async function getScanBridgeStatus(): Promise<{ available: boolean; source: "tauri" | "browser" }> {
+  const tauriGlobal = (window as any).__TAURI__;
+  const gInvoke = tauriGlobal?.invoke || tauriGlobal?.tauri?.invoke || tauriGlobal?.core?.invoke;
+  if (typeof gInvoke === "function") return { available: true, source: "tauri" };
+  try {
+    const coreMod = await import("@tauri-apps/api/core");
+    if (typeof coreMod.invoke === "function") return { available: true, source: "tauri" };
+  } catch {}
+  return { available: false, source: "browser" };
+}
+
 export async function openLogsFolder(): Promise<void> {
   const invoke = await getInvoke();
   if (!invoke) return;

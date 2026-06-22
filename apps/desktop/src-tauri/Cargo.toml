@@ -1,6 +1,6 @@
 [package]
 name = "tokenfence-studio"
-version = "1.5.4"
+version = "1.5.5"
 description = "TokenFence Studio Desktop App"
 authors = ["TokenFence"]
 edition = "2021"
