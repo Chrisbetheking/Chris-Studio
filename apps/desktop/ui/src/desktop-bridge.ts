@@ -124,7 +124,21 @@ export async function scanProjectDirectory(projectPath: string): Promise<Project
     if (!result || !Array.isArray(result.nodes)) {
       return { nodes: [], debug: emptyScanDebug(normalizedPath, "scan_project_directory returned invalid result shape.") };
     }
-    return result;
+    // Normalize Rust snake_case field names to front-end camelCase (recursive)
+    function normalizeNode(entry: any): ProjectFileNode {
+      return {
+        id: entry.id ?? entry.name,
+        name: entry.name,
+        path: entry.path,
+        relativePath: entry.relativePath ?? entry.relative_path ?? entry.name,
+        type: (entry.type ?? entry.entry_type ?? entry.node_type ?? 'file') as 'file' | 'directory',
+        sizeBytes: entry.sizeBytes ?? entry.size_bytes,
+        fileType: entry.fileType ?? entry.file_type,
+        children: entry.children ? entry.children.map(normalizeNode) : undefined,
+      };
+    }
+    const nodes: ProjectFileNode[] = result.nodes.map(normalizeNode);
+    return { nodes, debug: result.debug };
   } catch (e: any) {
     const message = e instanceof Error ? e.message : String(e);
     return { nodes: [], debug: emptyScanDebug(normalizedPath, "Tauri invoke failed: " + message) };
