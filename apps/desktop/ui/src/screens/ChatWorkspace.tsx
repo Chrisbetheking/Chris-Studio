@@ -27,6 +27,7 @@ import { storeGet, storeSet } from "@tokenfence/shared/src/agent-runtime/safeSto
 import { RecentProjectsPanel } from "../components/RecentProjectsPanel";
 import { ContextPackPanel } from "../components/ContextPackPanel";
 import { addRecentProject } from "../data/project-workspace";
+import { addFilesToContextPack, clearContextPack as clearPersistentContextPack } from "../data/context-pack";
 import { ModelPickerPanel } from "../components/ModelPickerPanel";
 import { resolveActiveModel, setActiveModel, validateModelForSend, hasAnyConfiguredProvider, migrateActiveModelStorageV2, getActiveModelViewState, normalizeDisplayText, canonicalizeProviderId, getProviderDisplayName, dispatchActiveModelChanged, type ResolvedModelV2 } from "../data/active-model";
 
@@ -375,6 +376,17 @@ export function ChatWorkspace() {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  // Sync project context files from attachedFiles to persistent context-pack storage
+  useEffect(() => {
+    const projectFiles = attachedFiles.filter((f: AttachedFile) => f.type === "project");
+    try { clearPersistentContextPack(); } catch {}
+    for (const f of projectFiles) {
+      try {
+        addFilesToContextPack([{ name: f.name, path: f.id, relativePath: f.name, sizeBytes: f.size || 0, fileType: f.type || "unknown", id: "", addedAt: Date.now(), isLarge: false }]);
+      } catch {}
+    }
+    window.dispatchEvent(new Event("tokenfence:contextPackUpdated"));
+  }, [attachedFiles]);
 
   const [taskStatus, setTaskStatus] = useState<TaskStatus>("idle");
 
@@ -1606,7 +1618,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
 
           Project: <strong style={{ color: "var(--text-secondary)" }}>{activeProject.name}</strong>
 
-          <span style={{ marginLeft: "auto" }}>{activeProject.files?.filter((f: any) => f.selected).length ?? 0} files in context</span>
+          <span style={{ marginLeft: "auto" }}>{attachedFiles.filter((f) => f.type === "project").length} project files in context</span>
 
         </div>
 
