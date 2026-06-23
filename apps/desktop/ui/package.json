@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/api": "^1.6.0",
     "@tokenfence/shared": "file:../../../packages/shared",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"

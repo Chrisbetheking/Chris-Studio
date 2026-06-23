@@ -1,8 +1,8 @@
 import type { ProjectFileNode } from './data/project-file-tree';
 // Desktop bridge: invokes Tauri commands for file I/O and command execution
-// Uses @tauri-apps/api/core invoke — no window.__TAURI__ detection
+// Uses @tauri-apps/api/tauri invoke (Tauri v1)
 
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/tauri";
 
 export async function pingTauri(): Promise<string> {
   return await invoke<string>("ping_tauri");

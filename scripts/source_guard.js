@@ -683,6 +683,77 @@ if (fs.existsSync(zhPath)) {
   if (zhc.indexOf("不控键盘") >= 0) ok("zh-CN.ts contains 不控键盘");
   else fail("zh-CN.ts MISSING 不控键盘");
 }
+
+// ==== v1.5.5 Tauri version match checks ====
+console.log("\n--- v1.5.5 Tauri version match checks ---");
+var cargoPath2 = path.join(ROOT, "apps/desktop/src-tauri/Cargo.toml");
+var pkgPath2 = path.join(ROOT, "apps/desktop/ui/package.json");
+var bridgePath = path.join(ROOT, "apps/desktop/ui/src/desktop-bridge.ts");
+
+var tauriMajor = 0;
+if (fs.existsSync(cargoPath2)) {
+  var cargoContent = fs.readFileSync(cargoPath2, "utf-8");
+  var tauriMatch = cargoContent.match(/tauri\s*=\s*\{[^}]*version\s*=\s*"(\d+)\./);
+  if (tauriMatch) { tauriMajor = parseInt(tauriMatch[1], 10); }
+}
+var apiMajor = 0;
+if (fs.existsSync(pkgPath2)) {
+  var pkgContent = fs.readFileSync(pkgPath2, "utf-8");
+  var apiMatch = pkgContent.match(/"@tauri-apps\/api":\s*"[\^~]?(\d+)\./);
+  if (apiMatch) { apiMajor = parseInt(apiMatch[1], 10); }
+}
+var cliMajor = 0;
+var desktopPkgPath = path.join(ROOT, "apps/desktop/package.json");
+if (fs.existsSync(desktopPkgPath)) {
+  var desktopPkg = fs.readFileSync(desktopPkgPath, "utf-8");
+  var cliMatch = desktopPkg.match(/"@tauri-apps\/cli":\s*"[\^~]?(\d+)\./);
+  if (cliMatch) { cliMajor = parseInt(cliMatch[1], 10); }
+}
+console.log("  INFO: Cargo tauri major = " + tauriMajor);
+console.log("  INFO: @tauri-apps/api major = " + apiMajor);
+console.log("  INFO: @tauri-apps/cli major = " + cliMajor);
+
+var versionsMatch = (tauriMajor === apiMajor && tauriMajor > 0);
+if (!versionsMatch) {
+  fail("Tauri version mismatch: Cargo=" + tauriMajor + " api=" + apiMajor + " cli=" + cliMajor);
+} else {
+  ok("Tauri versions match: major=" + tauriMajor);
+}
+
+if (fs.existsSync(bridgePath)) {
+  var bc2 = fs.readFileSync(bridgePath, "utf-8");
+  if (tauriMajor === 1) {
+    if (bc2.indexOf('"@tauri-apps/api/tauri"') >= 0) ok("desktop-bridge.ts uses /tauri (correct for v1)");
+    else fail("desktop-bridge.ts must use /tauri import for Tauri v1");
+    if (bc2.indexOf('"@tauri-apps/api/core"') < 0) ok("desktop-bridge.ts has no /core import");
+    else fail("desktop-bridge.ts has /core import (wrong for v1)");
+  }
+  if (tauriMajor === 2) {
+    if (bc2.indexOf('"@tauri-apps/api/core"') >= 0) ok("desktop-bridge.ts uses /core (correct for v2)");
+    else fail("desktop-bridge.ts must use /core import for Tauri v2");
+  }
+  var wc = (bc2.match(/window\.__TAURI__/g) || []).length;
+  var commentOnly = bc2.match(/\/\/.*window\.__TAURI__/);
+  if (wc <= 1 || (wc === 1 && commentOnly)) ok("desktop-bridge.ts no window.__TAURI__ usage");
+  else fail("desktop-bridge.ts contains window.__TAURI__");
+  if (bc2.indexOf("No Tauri invoke") < 0) ok("desktop-bridge.ts no No Tauri invoke");
+  else fail("desktop-bridge.ts contains No Tauri invoke");
+}
+
+var mainRsPath = path.join(ROOT, "apps/desktop/src-tauri/src/main.rs");
+if (fs.existsSync(mainRsPath)) {
+  var rsC = fs.readFileSync(mainRsPath, "utf-8");
+  if (rsC.indexOf("fn ping_tauri") >= 0) ok("main.rs has ping_tauri");
+  else fail("main.rs MISSING ping_tauri");
+  var hi = rsC.indexOf("generate_handler![");
+  if (hi >= 0) {
+    var hs = rsC.substring(hi, hi + 1300);
+    if (hs.indexOf("ping_tauri,") >= 0) ok("ping_tauri registered in handler");
+    else fail("ping_tauri not in handler");
+    if (hs.indexOf("scan_project_directory,") >= 0) ok("scan_project_directory registered");
+    else fail("scan_project_directory not in handler");
+  }
+}
 console.log("\n=== RESULT: " + errors.length + " error(s) ===");
 if (errors.length > 0) { console.log("Failures:"); errors.forEach(function(e) { console.log("  - " + e); }); process.exit(1); }
 else { console.log("All checks passed."); process.exit(0);
