@@ -216,7 +216,7 @@ export function ProjectsScreen() {
     try {
       if (isTauri) {
         // Real Tauri backend scan
-        const { invoke } = await import("@tauri-apps/api/core");
+        const { invoke } = await import("@tauri-apps/api/tauri");
         const result: any = await invoke("scan_project_directory", { projectPath: project.folderPath });
         if (result.error) {
           setError(result.error);

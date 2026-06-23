@@ -147,7 +147,7 @@ export function SettingsScreen() {
     try {
       const isTauri = !!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__;
       if (isTauri) {
-        const { invoke } = await import("@tauri-apps/api/core");
+        const { invoke } = await import("@tauri-apps/api/tauri");
         const result: any = await invoke("test_provider_connection", {
           providerId, baseUrl: editUrl || cfg.baseUrl, apiKey: editKey || cfg.apiKey || null,
         });
