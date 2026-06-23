@@ -593,6 +593,11 @@ fn scan_dir(
 }
 
 #[tauri::command]
+fn ping_tauri() -> String {
+    "pong".to_string()
+}
+
+#[tauri::command]
 fn scan_project_directory(project_path: String) -> Result<ProjectScanResult, String> {
     let base = std::path::Path::new(&project_path);
 
@@ -687,6 +692,7 @@ fn main() {
             create_backup,
             apply_patch,
             undo_last_patch,
+            ping_tauri,
             scan_project_directory,
             append_operation_log,
         ])

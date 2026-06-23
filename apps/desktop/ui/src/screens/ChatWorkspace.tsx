@@ -21,7 +21,7 @@ import {
 } from "@tokenfence/shared/src/model-registry";
 
 import { getEnabledModels, loadInstalledModels, type InstalledModel } from "@tokenfence/shared/src/installed-models";
-import { readFile, scanProjectDirectory, getScanBridgeStatus, type ProjectScanDebug } from "../desktop-bridge";
+import { readFile, scanProjectDirectory, pingTauri, type ProjectScanDebug } from "../desktop-bridge";
 import { flattenFileTree, type ProjectFileNode } from "../data/project-file-tree";
 import { storeGet, storeSet } from "@tokenfence/shared/src/agent-runtime/safeStorage";
 import { RecentProjectsPanel } from "../components/RecentProjectsPanel";
@@ -410,6 +410,8 @@ export function ChatWorkspace() {
   const [projectScanStatus, setProjectScanStatus] = useState<"idle"|"scanning"|"done"|"done_empty"|"failed">("idle");
   const [projectScanError, setProjectScanError] = useState<string | null>(null);
   const [scanDebug, setScanDebug] = useState<ProjectScanDebug | null>(null);
+  const [scanPingResult, setScanPingResult] = useState<string | null>(null);
+  const [scanSource, setScanSource] = useState<string>("Desktop/Tauri");
   const [projectSearchQ, setProjectSearchQ] = useState("");
   const [savedProjects, setSavedProjects] = useState<any[]>(() => {
     try { const ps = storeGet("tokenfence-projects"); return ps ? JSON.parse(ps) : []; } catch { return []; }
@@ -434,23 +436,33 @@ export function ChatWorkspace() {
     setProjectScanStatus("scanning");
     setProjectScanError(null);
     setProjectFileTree([]);
+    setScanPingResult(null);
+    setScanSource("Desktop/Tauri");
 
+    // Phase 1: ping Tauri to confirm bridge is alive
+    try {
+      const pong = await pingTauri();
+      setScanPingResult(pong);
+    } catch (pingErr: any) {
+      const msg = pingErr instanceof Error ? pingErr.message : String(pingErr);
+      setScanPingResult("FAILED: " + msg);
+      setScanSource("Bridge failed");
+      setProjectScanStatus("failed");
+      setProjectScanError("Tauri ping failed: " + msg);
+      setIsScanningProject(false);
+      return;
+    }
+
+    // Phase 2: scan project directory
     try {
       const result = await scanProjectDirectory(path);
       console.log("[ProjectScan] result debug:", JSON.stringify(result.debug));
       setScanDebug(result.debug);
+
       if (result.debug.error) {
-        const isBridgeErr = result.debug.error.includes('invoke') ||
-                            result.debug.error.includes('Tauri') ||
-                            result.debug.error.includes('bridge') ||
-                            result.debug.error.includes('No Tauri');
-        if (isBridgeErr) {
-          setProjectScanStatus('failed');
-          setProjectScanError('Tauri bridge error: ' + result.debug.error);
-          return;
-        }
-        setProjectScanStatus('failed');
-        setProjectScanError(result.debug.error);
+        setScanSource("Bridge failed");
+        setProjectScanStatus("failed");
+        setProjectScanError("scan_project_directory failed: " + result.debug.error);
         return;
       }
 
@@ -458,6 +470,7 @@ export function ChatWorkspace() {
       setProjectFileTree(safeTree);
 
       if (safeTree.length > 0) {
+        setScanSource("Desktop/Tauri");
         setProjectScanStatus("done");
         const flat = flattenFileTree(safeTree);
         const fileEntries = flat.filter((n: ProjectFileNode) => n.type === "file").map((n: ProjectFileNode) => ({
@@ -468,13 +481,15 @@ export function ChatWorkspace() {
         }));
         setActiveProject((prev: any) => prev ? { ...prev, files: fileEntries } : prev);
       } else {
+        setScanSource("Desktop/Tauri");
         setProjectScanStatus("done_empty");
-        setProjectScanError("Scanner returned 0 nodes.");
+        setProjectScanError("Rust scanner returned 0 nodes.");
       }
     } catch (e: any) {
       console.error("[ProjectScan] error", e && e.message ? e.message : String(e));
+      setScanSource("Bridge failed");
       setProjectScanStatus("failed");
-      setProjectScanError(e && e.message ? e.message : "Scan failed");
+      setProjectScanError("scan_project_directory invoke failed: " + (e && e.message ? e.message : "Scan failed"));
     } finally {
       setIsScanningProject(false);
     }
@@ -1387,7 +1402,8 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
             {/* Scan diagnostics */}
             {projectScanStatus !== "idle" && (
               <div style={{ fontSize: "0.58rem", color: "var(--text-muted)", marginBottom: 8, padding: "6px 8px", background: "var(--surface-alt)", borderRadius: 4, lineHeight: 1.6 }}>
-                <div><strong>Source:</strong> Desktop/Tauri</div>
+                <div><strong>Source:</strong> {scanSource}</div>
+                {scanPingResult && <div><strong>Tauri ping:</strong> {scanPingResult}</div>}
                 <div><strong>Status:</strong> {projectScanStatus}</div>
                 {scanDebug && (
                   <div>
