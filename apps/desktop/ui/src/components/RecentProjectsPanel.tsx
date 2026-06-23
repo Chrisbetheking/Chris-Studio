@@ -50,6 +50,7 @@ export function RecentProjectsPanel({ onOpenProject }: { onOpenProject?: (projec
       setActiveProject(project);
       setProjects(updated);
       setActiveProjectState(project);
+      console.log("[RecentProjects] Open clicked:", project.name, project.path);
       if (onOpenProject) onOpenProject({ name: project.name, path: project.path });
     },
     []
@@ -342,7 +343,7 @@ export function RecentProjectsPanel({ onOpenProject }: { onOpenProject?: (projec
               >
                 <div
                   style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
-                  onClick={() => handleOpen(project)}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpen(project); }}
                 >
                   <div style={{ fontSize: "0.75rem", color: "var(--text)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {project.favorite ? "★ " : ""}{project.pinned ? "📌 " : ""}{project.name}
@@ -361,7 +362,7 @@ export function RecentProjectsPanel({ onOpenProject }: { onOpenProject?: (projec
                 </div>
                 <div style={{ display: "flex", gap: 2, flexShrink: 0, marginLeft: 4 }}>
                   <button
-                    onClick={() => handleOpen(project)}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpen(project); }}
                     title={tk("project.openProject")}
                     style={{
                       background: "none",

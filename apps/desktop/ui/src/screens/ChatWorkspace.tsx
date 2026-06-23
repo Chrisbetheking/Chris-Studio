@@ -460,7 +460,7 @@ export function ChatWorkspace() {
       setProjectFileTree(safeTree);
       if (safeTree.length > 0) {
         setScanSource("Desktop/Tauri"); setProjectScanStatus("done");
-        addRecentProject({ name, folderPath: path });
+        addRecentProject({ name, path });
         const flat = flattenFileTree(safeTree);
         const fileEntries = flat.filter((n: ProjectFileNode) => n.type === "file").map((n: ProjectFileNode) => ({ name: n.relativePath || n.name, path: n.path, size: n.sizeBytes || 0, selected: false }));
         setActiveProject((prev: any) => prev ? { ...prev, files: fileEntries } : prev);
@@ -527,7 +527,7 @@ export function ChatWorkspace() {
       if (safeTree.length > 0) {
         setScanSource("Desktop/Tauri");
         setProjectScanStatus("done");
-        addRecentProject({ name, folderPath: path });
+        addRecentProject({ name, path });
         const flat = flattenFileTree(safeTree);
         const fileEntries = flat.filter((n: ProjectFileNode) => n.type === "file").map((n: ProjectFileNode) => ({
           name: n.relativePath || n.name,
