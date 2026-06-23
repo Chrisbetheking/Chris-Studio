@@ -27,7 +27,7 @@ function formatTime(ts: number): string {
   return d.toLocaleDateString();
 }
 
-export function RecentProjectsPanel() {
+export function RecentProjectsPanel({ onOpenProject }: { onOpenProject?: (project: { name: string; path: string }) => void } = {}) {
   const [, forceRender] = useState(0);
   useEffect(() => {
     return onLangChange(() => forceRender((n) => n + 1));
@@ -50,6 +50,7 @@ export function RecentProjectsPanel() {
       setActiveProject(project);
       setProjects(updated);
       setActiveProjectState(project);
+      if (onOpenProject) onOpenProject({ name: project.name, path: project.path });
     },
     []
   );

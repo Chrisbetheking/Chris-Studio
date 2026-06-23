@@ -430,6 +430,48 @@ export function ChatWorkspace() {
     try { const ps = storeGet("tokenfence-projects"); return ps ? JSON.parse(ps) : []; } catch { return []; }
   });
 
+  const handleOpenRecentProject = (project: { name: string; path: string }) => {
+    setManualPath(project.path);
+    setSidebarTab("project");
+    handleLoadManualPathFromProject(project);
+  };
+
+  const handleLoadManualPathFromProject = async (project: { name: string; path: string }) => {
+    const path = project.path.trim();
+    if (!path) return;
+    const name = project.name;
+    const proj = { id: "recent-" + Date.now(), name, folderPath: path, files: [] };
+    setActiveProject(proj);
+    const updated = [proj, ...savedProjects.filter((p: any) => p.folderPath !== path)];
+    setSavedProjects(updated);
+    try { storeSet("tokenfence-active-project", proj.id); storeSet("tokenfence-projects", JSON.stringify(updated)); } catch (_) {}
+    setIsScanningProject(true); setProjectScanStatus("scanning"); setProjectScanError(null); setProjectFileTree([]);
+    setScanPingResult(null); setScanSource("Desktop/Tauri");
+    try {
+      const pong = await pingTauri(); setScanPingResult(pong);
+    } catch (pingErr: any) {
+      setScanPingResult("FAILED: " + (pingErr instanceof Error ? pingErr.message : String(pingErr)));
+      setScanSource("Bridge failed"); setProjectScanStatus("failed"); setIsScanningProject(false); return;
+    }
+    try {
+      const result = await scanProjectDirectory(path); setScanDebug(result.debug);
+      if (result.debug.error) { setScanSource("Bridge failed"); setProjectScanStatus("failed"); return; }
+      const safeTree = Array.isArray(result.nodes) ? result.nodes : [];
+      setProjectFileTree(safeTree);
+      if (safeTree.length > 0) {
+        setScanSource("Desktop/Tauri"); setProjectScanStatus("done");
+        addRecentProject({ name, folderPath: path });
+        const flat = flattenFileTree(safeTree);
+        const fileEntries = flat.filter((n: ProjectFileNode) => n.type === "file").map((n: ProjectFileNode) => ({ name: n.relativePath || n.name, path: n.path, size: n.sizeBytes || 0, selected: false }));
+        setActiveProject((prev: any) => prev ? { ...prev, files: fileEntries } : prev);
+      } else {
+        setScanSource("Desktop/Tauri"); setProjectScanStatus("done_empty"); setProjectScanError("Rust scanner returned 0 nodes.");
+      }
+    } catch (e: any) {
+      setScanSource("Bridge failed"); setProjectScanStatus("failed");
+    } finally { setIsScanningProject(false); }
+  };
+
   const handleLoadManualPath = async () => {
     const path = manualPath.trim();
     if (!path) return;
@@ -1445,7 +1487,7 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
             )}
 
             {/* Recent Projects */}
-            <RecentProjectsPanel />
+            <RecentProjectsPanel onOpenProject={handleOpenRecentProject} />
             <div style={{ marginTop: 8 }}><ContextPackPanel compact /></div>
 
             {/* Active project file tree */}
@@ -1492,9 +1534,18 @@ function ProjectFilePanel({ activeProject, setActiveProject, attachedFiles, setA
                   <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>
                     {activeProject?.files?.filter((sf) => sf.selected).length ?? 0} {isZh ? "已选择" : "selected"}
                   </span>
+                  <button onClick={() => { if (!activeProject) return; setActiveProject({ ...activeProject, files: activeProject.files.map((f: any) => ({ ...f, selected: true })) }); }} className="btn btn-ghost" style={{ fontSize: "0.6rem", padding: "2px 6px" }}>
+                    {isZh ? "全选" : "Select All"}
+                  </button>
+                  <button onClick={() => { if (!activeProject) return; setActiveProject({ ...activeProject, files: activeProject.files.map((f: any) => ({ ...f, selected: false })) }); }} className="btn btn-ghost" style={{ fontSize: "0.6rem", padding: "2px 6px" }}>
+                    {isZh ? "取消全选" : "Clear"}
+                  </button>
                   <button onClick={() => { if (!activeProject) return; const sel = activeProject.files?.filter((sf) => sf.selected) ?? []; for (const sf of sel) { setAttachedFiles((prev) => { if (prev.find((x) => x.name === sf.name && x.type === "project")) return prev; const fp = sf.path || (activeProject.folderPath + "\\" + sf.name); return [...prev, { id: `proj-${sf.name}`, name: sf.name, size: sf.size || 0, type: "project", path: fp, relativePath: sf.name, content: `[Project: ${activeProject.name}]
 [File: ${sf.name}]` }]; }); } }} className="btn btn-primary" style={{ fontSize: "0.68rem", padding: "4px 10px" }}>
                     {isZh ? "加入上下文" : "Add to Context"}
+                  </button>
+                  <button onClick={() => { if (!activeProject || attachedFiles.filter((f: AttachedFile) => f.type === "project").length === 0) return; const title = activeProject.name + " - " + new Date().toLocaleTimeString(); const newConv = { id: uid(), title, messages: [], createdAt: Date.now(), updatedAt: Date.now(), mode: "project", projectName: activeProject.name, projectPath: activeProject.folderPath }; setConversations([newConv, ...conversations]); setActiveConvId(newConv.id); saveConversations([newConv, ...conversations]); }} className="btn btn-ghost" style={{ fontSize: "0.68rem", padding: "4px 10px", color: "var(--primary)" }}>
+                    {isZh ? "新建项目对话" : "New Project Chat"}
                   </button>
                   {attachedFiles.filter((f) => f.type === "project").length > 0 && (
                     <button onClick={() => setAttachedFiles((prev) => prev.filter((f) => f.type !== "project"))} className="btn btn-ghost" style={{ fontSize: "0.68rem", padding: "4px 10px", color: "var(--red)" }}>
