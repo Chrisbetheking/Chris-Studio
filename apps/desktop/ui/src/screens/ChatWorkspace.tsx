@@ -1,1509 +1,690 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-
-import { Shield } from "lucide-react";
-import { tk } from "@tokenfence/shared/src/i18n";
-
-import {
-
-  PROVIDERS, PROVIDER_ENDPOINTS, type ProviderConfig,
-
-  loadProviderConfigs, saveProviderConfigs,
-
-  estimateTokens,
-
-} from "@tokenfence/shared/src/providers";
-
-import {
-  MODEL_REGISTRY, getModelsForProvider, getModelById,
-  getDefaultModelForProvider, findRoutingRule, searchModels,
-  getStatusColor, getStatusLabel, getProviderIds,
-  pickBestAvailableModel, addRecentModel,
-  type ModelRegistryItem, type ModelStatus, type ModelPickReason,
-} from "@tokenfence/shared/src/model-registry";
-
-import { storeGet, storeSet } from "@tokenfence/shared/src/agent-runtime/safeStorage";
-import { scanPrompt } from "@tokenfence/shared/src/guard";
-import type { GuardResult } from "@tokenfence/shared/src/types";
-
-import { SafetyInspector } from "../components/SafetyInspector";
-import { SafetyReceipt } from "../components/SafetyReceipt";
-
-
-
-
-/* ============================================================
-
-   Types
-
-   ============================================================ */
-
-
-
-interface ChatMessage {
-
-  id: string; role: "user" | "assistant" | "system"; content: string;
-
-  timestamp: number; provider?: string; model?: string;
-
-  guardResult?: { flagged: boolean; details: string };
-
-}
-
-
-
-interface Conversation {
-
-  id: string; title: string; messages: ChatMessage[];
-
-  createdAt: number; updatedAt: number;
-
-}
-
-
-
-interface AttachedFile {
-
-  id: string; name: string; size: number; type: string; content: string;
-
-}
-
-
-
-type TaskStatus = "idle" | "scanning" | "preparing" | "waiting" | "responding" | "done" | "error";
-
-
-
-/* ============================================================
-
-   Helpers
-
-   ============================================================ */
-
-
-
-function uid(): string { return Date.now().toString(36) + Math.random().toString(36).slice(2, 9); }
-
-
-
-function loadConversations(): Conversation[] {
-
-  try { const raw = storeGet("tokenfence-conversations"); return raw ? JSON.parse(raw) : []; }
-
-  catch { return []; }
-
-}
-
-
-
-function saveConversations(convs: Conversation[]): void {
-
-  storeSet("tokenfence-conversations", JSON.stringify(convs));
-
-}
-
-
-
-
-
-
-
-async function callProviderAPI(
-
-  messages: { role: string; content: string }[],
-
-  config: ProviderConfig,
-
-): Promise<string> {
-
-  const ep = PROVIDER_ENDPOINTS[config.provider];
-
-  if (!ep) return `[Error: Unknown provider "${config.provider}"]`;
-
-  if (!config.apiKey && config.deployment === "cloud") {
-
-    return `[Preview] Configure "${config.provider}" API key in Settings.`;
-
-  }
-
-  try {
-
-    const mid = config.customModelId || config.model;
-
-    const url = `${config.baseUrl || ep.baseUrl}${ep.chatEndpoint.replace("{model}", mid)}`;
-
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-
-    if (config.apiKey) {
-
-      if (config.provider === "Claude") { headers["x-api-key"] = config.apiKey; headers["anthropic-version"] = "2023-06-01"; }
-
-      else if (config.provider === "Gemini") { headers["x-goog-api-key"] = config.apiKey; }
-
-      else { headers["Authorization"] = `Bearer ${config.apiKey}`; }
-
-    } else { return `[Preview] Configure "${config.provider}" API key.`; }
-
-    let body: Record<string, unknown>;
-
-    if (config.provider === "Claude") { body = { model: mid, max_tokens: 2048, messages: messages.map(m => ({ role: m.role, content: m.content })) }; }
-
-    else if (config.provider === "Gemini") { body = { contents: messages.map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })) }; }
-
-    else { body = { model: mid, messages, max_tokens: 2048 }; }
-
-    const ctrl = new AbortController();
-
-    const t = setTimeout(() => ctrl.abort(), 30000);
-
-    const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: ctrl.signal });
-
-    clearTimeout(t);
-
-    if (!resp.ok) { const e = await resp.text().catch(() => "Unknown"); return `[Error: ${resp.status}] ${e.slice(0, 300)}`; }
-
-    const data = await resp.json();
-
-    if (config.provider === "Claude") return data?.content?.[0]?.text ?? JSON.stringify(data).slice(0, 500);
-
-    else if (config.provider === "Gemini") return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? JSON.stringify(data).slice(0, 500);
-
-    else return data?.choices?.[0]?.message?.content ?? JSON.stringify(data).slice(0, 500);
-
-  } catch (e) {
-
-    const msg = e instanceof Error ? e.message : String(e);
-
-    if (msg.includes("abort") || msg.includes("timeout")) return "[Error: Request timeout]";
-
-    return `[Error: ${msg.slice(0, 300)}]`;
-
-  }
-
-}
-
-
-
-/* ============================================================
-
-   Component
-
-   ============================================================ */
-
-
-
-export function ChatWorkspace() {
-
-  const [conversations, setConversations] = useState<Conversation[]>(() => loadConversations());
-
-  const [activeConvId, setActiveConvId] = useState<string>("");
-
-  const [composerText, setComposerText] = useState("");
-
-  const [sending, setSending] = useState(false);
-
-  const [showReceipt, setShowReceipt] = useState<GuardResult | null>(null);
-  const [lastGuardResult, setLastGuardResult] = useState<GuardResult | null>(null);
-  const [inspectorOpen, setInspectorOpen] = useState(true);
-  const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState(() => {
-    try {
-      const cfgs = loadProviderConfigs();
-      const best = pickBestAvailableModel(cfgs.map(c => ({ provider: c.provider, enabled: c.enabled, apiKey: c.apiKey, lastHealthStatus: c.lastHealthStatus })));
-      return best?.providerId ?? "OpenAI";
-    } catch { return "OpenAI"; }
-  });
-  const [selectedModel, setSelectedModel] = useState(() => {
-    try {
-      const cfgs = loadProviderConfigs();
-      const best = pickBestAvailableModel(cfgs.map(c => ({ provider: c.provider, enabled: c.enabled, apiKey: c.apiKey, lastHealthStatus: c.lastHealthStatus })));
-      return best?.modelId ?? "gpt-4o";
-    } catch { return "gpt-4o"; }
-  });
-
-  const [guardEnabled, setGuardEnabled] = useState(true);
-
-
-  const [showRightPanel, setShowRightPanel] = useState(true);
-
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
-
-  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
-
-  const [taskStatus, setTaskStatus] = useState<TaskStatus>("idle");
-
-  const [autoSwitchModel, setAutoSwitchModel] = useState(true);
-
-  const [activeProject, setActiveProject] = useState<{id:string;name:string;folderPath:string;files:any[]}|null>(() => {
-
-    try { const r = storeGet('tokenfence-active-project'); const ps = storeGet('tokenfence-projects');
-
-      if (r && ps) { const projects = JSON.parse(ps); return projects.find((p:any)=>p.id===r)??null; }
-
-    } catch { return null; }
-
-    return null;
-
-  });
-
-  const [taskSteps, setTaskSteps] = useState<{id:string;label:string;status:'pending'|'running'|'done'|'error'}[]>([]);
-
-  const [routingNote, setRoutingNote] = useState<string | null>(null);
-
-  const [textInputMode, setTextInputMode] = useState(false);
-
-  const [manualCalcText, setManualCalcText] = useState("");
-
-  const [modelSearch, setModelSearch] = useState("");
-
-  const [showModelPicker, setShowModelPicker] = useState(false);
-
-
-
-  const composerRef = useRef<HTMLTextAreaElement>(null);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const pickerRef = useRef<HTMLDivElement>(null);
-
-
-
-  const activeConv = conversations.find((c) => c.id === activeConvId) ?? null;
-
-  const providerConfigs = useMemo(() => loadProviderConfigs(), []);
-
-
-
-  const getConfigFor = useCallback(
-
-    (provider: string) => providerConfigs.find((c) => c.provider === provider),
-
-    [providerConfigs],
-
-  );
-
-
-
-  const isProviderConfigured = useCallback(
-
-    (provider: string) => !!(getConfigFor(provider)?.apiKey),
-
-    [getConfigFor],
-
-  );
-
-
-
-  // Get models for current provider from registry
-
-  const providerModels = useMemo(() => getModelsForProvider(selectedProvider), [selectedProvider]);
-
-
-
-  // Filtered models based on search
-
-  const filteredModels = useMemo(() => {
-
-    if (!modelSearch.trim()) return providerModels;
-
-    const q = modelSearch.toLowerCase();
-
-    return providerModels.filter(m =>
-
-      m.displayName.toLowerCase().includes(q) ||
-
-      m.modelId.toLowerCase().includes(q) ||
-
-      (m.alias && m.alias.toLowerCase().includes(q))
-
-    );
-
-  }, [providerModels, modelSearch]);
-
-
-
-  // All searched models (cross-provider)
-
-  const searchedModels = useMemo(() => {
-
-    if (!modelSearch.trim() || modelSearch.trim().length < 2) return [];
-
-    return searchModels(modelSearch);
-
-  }, [modelSearch]);
-
-
-
-  // Current model registry item
-
-  const currentRegistryModel = useMemo(
-
-    () => getModelById(selectedProvider, selectedModel) ?? providerModels[0],
-
-    [selectedProvider, selectedModel, providerModels],
-
-  );
-
-
-
-  // Provider list from registry
-
-  const providerIds = useMemo(() => getProviderIds(), []);
-
-
-
-  useEffect(() => {
-
-    if (conversations.length > 0 && !activeConvId) {
-
-      setActiveConvId(conversations[0].id);
-
-    }
-
-  }, [conversations, activeConvId]);
-
-
-
-  useEffect(() => {
-
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-
-  }, [activeConv?.messages]);
-
-
-
-  // Close picker on outside click
-
-  useEffect(() => {
-
-    const handler = (e: MouseEvent) => {
-
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-
-        setShowModelPicker(false);
-
-        setModelSearch("");
-
-      }
-
-    };
-
-    if (showModelPicker) document.addEventListener("mousedown", handler);
-
-    return () => document.removeEventListener("mousedown", handler);
-
-  }, [showModelPicker]);
-
-
-
-  /* ---- Token Budget ---- */
-
-
-
-  const composerTokens = useMemo(() => estimateTokens(composerText), [composerText]);
-
-  const attachedFilesTokens = useMemo(
-
-    () => attachedFiles.reduce((sum, f) => sum + estimateTokens(f.content), 0),
-
-    [attachedFiles],
-
-  );
-
-  const messageHistoryTokens = useMemo(() => {
-
-    if (!activeConv) return 0;
-
-    return activeConv.messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
-
-  }, [activeConv]);
-
-
-
-  const totalTokens = composerTokens + attachedFilesTokens + messageHistoryTokens;
-
-  const contextLimit = currentRegistryModel?.contextWindow ?? 128000;
-
-  const budgetRatio = totalTokens / contextLimit;
-
-  const budgetColor = budgetRatio > 0.9 ? "var(--red)" : budgetRatio > 0.7 ? "var(--amber)" : "var(--text-secondary)";
-
-
-
-  /* ---- file attach handlers ---- */
-
-
-
-  const TEXT_EXTENSIONS = [".txt", ".md", ".json", ".csv", ".js", ".ts", ".tsx", ".py", ".html", ".css", ".xml", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".log", ".env", ".sh", ".bat", ".ps1"];
-
-
-
-  const handleFileAttach = useCallback(
-
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-
-      const files = e.target.files;
-
-      if (!files) return;
-
-      const readers: Promise<AttachedFile>[] = [];
-
-      for (let i = 0; i < files.length; i++) {
-
-        const file = files[i];
-
-        const ext = "." + file.name.split(".").pop()?.toLowerCase();
-
-        const isText = TEXT_EXTENSIONS.includes(ext);
-
-        readers.push(
-
-          new Promise<AttachedFile>((resolve) => {
-
-            if (isText) {
-
-              const reader = new FileReader();
-
-              reader.onload = () => resolve({ id: uid(), name: file.name, size: file.size, type: file.type || ext, content: reader.result as string });
-
-              reader.onerror = () => resolve({ id: uid(), name: file.name, size: file.size, type: file.type || ext, content: `[Error reading: ${file.name}]` });
-
-              reader.readAsText(file);
-
-            } else {
-
-              resolve({ id: uid(), name: file.name, size: file.size, type: file.type || ext, content: `[Binary file: ${file.name} (${file.size} bytes)]` });
-
-            }
-
-          }),
-
-        );
-
-      }
-
-      Promise.all(readers).then((newFiles) => {
-
-        setAttachedFiles((prev) => {
-
-          const merged = [...prev, ...newFiles];
-
-          if (autoSwitchModel && merged.length > 0) {
-
-            const latestFile = newFiles[newFiles.length - 1];
-
-            if (latestFile) {
-
-              const rule = findRoutingRule(latestFile.name);
-
-              if (rule) {
-
-                const bestModel = MODEL_REGISTRY.find(m =>
-
-                  (rule.preferredProviderId ? m.providerId === rule.preferredProviderId : true) &&
-
-                  (rule.preferredModelId ? m.modelId === rule.preferredModelId : true) &&
-
-                  m.capabilities.includes(rule.preferredCapability)
-
-                ) ?? MODEL_REGISTRY.find(m =>
-
-                  (rule.fallbackProviderId ? m.providerId === rule.fallbackProviderId : true) &&
-
-                  (rule.fallbackModelId ? m.modelId === rule.fallbackModelId : true)
-
-                );
-
-                if (bestModel) {
-
-                  setSelectedProvider(bestModel.providerId);
-
-                  setSelectedModel(bestModel.modelId);
-
-                  setRoutingNote(`Switched to ${bestModel.providerName} / ${bestModel.displayName} for ${rule.name}`);
-
-                }
-
-              }
-
-            }
-
-          }
-
-          return merged;
-
-        });
-
-      });
-
-      if (fileInputRef.current) fileInputRef.current.value = "";
-
-    },
-
-    [autoSwitchModel],
-
-  );
-
-
-
-  const handleRemoveFile = useCallback((fileId: string) => {
-
-    setAttachedFiles((prev) => prev.filter((f) => f.id !== fileId));
-
-  }, []);
-
-
-
-  const clearAttachedFiles = useCallback(() => {
-
-    setAttachedFiles([]); setRoutingNote(null);
-
-  }, []);
-
-
-
-  /* ---- conversation handlers ---- */
-
-
-
-  const handleNewConversation = useCallback(() => {
-
-    const conv: Conversation = { id: uid(), title: tk("chat.newConversation"), messages: [], createdAt: Date.now(), updatedAt: Date.now() };
-
-    const updated = [conv, ...conversations];
-
-    setConversations(updated); setActiveConvId(conv.id);
-
-    saveConversations(updated); setLastGuardResult(null); setTaskStatus("idle"); clearAttachedFiles();
-
-  }, [conversations, clearAttachedFiles]);
-
-
-
-  const handleClearConversation = useCallback(() => {
-
-    if (!activeConv) return;
-
-    const updated = conversations.map((c) => c.id === activeConvId ? { ...c, messages: [], updatedAt: Date.now() } : c);
-
-    setConversations(updated); saveConversations(updated); setLastGuardResult(null); setTaskStatus("idle"); clearAttachedFiles();
-
-  }, [activeConv, activeConvId, conversations, clearAttachedFiles]);
-
-
-
-  const handleDeleteConversation = useCallback(
-
-    (convId: string) => {
-
-      const updated = conversations.filter((c) => c.id !== convId);
-
-      setConversations(updated); saveConversations(updated);
-
-      if (activeConvId === convId) setActiveConvId(updated.length > 0 ? updated[0].id : "");
-
-    },
-
-    [activeConvId, conversations],
-
-  );
-
-
-
-  const handleSelectModel = useCallback((providerId: string, modelId: string) => {
-
-    setSelectedProvider(providerId); setSelectedModel(modelId);
-
-    setShowModelPicker(false); setModelSearch("");
-
-  }, []);
-
-
-
-  /* ---- send message ---- */
-
-
-
-  const sendMessage = useCallback(async () => {
-
-    const text = composerText.trim();
-
-    if (!text || sending) return;
-
-
-
-    // Check if model is configured
-
-    if (!isProviderConfigured(selectedProvider) && PROVIDERS.find(p => p.provider === selectedProvider)?.deployment === "cloud") {
-
-      setRoutingNote(`Please configure API key for ${selectedProvider} before using ${selectedModel}.`);
-
-      return;
-
-    }
-
-
-
-    setSending(true); setTaskStatus("scanning"); setRoutingNote(null);
-
-    setTaskSteps([
-      { id: 'scan', label: tk("chat.agentStepScan"), status: 'running' },
-      { id: 'prepare', label: tk("chat.agentStepPrepare"), status: 'pending' },
-      { id: 'select', label: tk("chat.agentStepSelect"), status: 'pending' },
-      { id: 'send', label: tk("chat.agentStepSend"), status: 'pending' },
-      { id: 'respond', label: tk("chat.agentStepRespond"), status: 'pending' },
-      { id: 'save', label: tk("chat.agentStepSave"), status: 'pending' },
-    ]);
-
-
-
-    let guardResult: GuardResult | undefined;
-
-    if (guardEnabled && activeConv) {
-
-      guardResult = scanPrompt(text);
-
-      setLastGuardResult(guardResult);
-
-      if (guardResult.riskLevel === "high") {
-        setBlockedMessage(tk("safety.criticalBlockedDesc"));
-        setShowReceipt(guardResult);
-        setTaskStatus("idle");
-        setSending(false);
-        return;
-      }
-
-    }
-
-
-
-    setTaskStatus("preparing"); setTaskSteps(prev => prev.map(s => s.id==="scan" ? {...s,status:"done"} : s.id==="prepare" ? {...s,status:"running"} : s));
-
-    let fullContent = text;
-
-    if (attachedFiles.length > 0) {
-
-      const fileContexts = attachedFiles.map((f) => {
-
-        const preview = f.content.slice(0, 4000);
-
-        return `[Attached: ${f.name}]\n${f.content.length > 4000 ? preview + "\n... [truncated]" : preview}`;
-
-      });
-
-      fullContent = fileContexts.join("\n\n") + "\n\n---\n\n" + text;
-
-    }
-
-
-
-    const msgGuardResult = guardResult ? { flagged: guardResult.riskLevel !== "safe", details: guardResult.findings.length ? guardResult.findings.map(f => f.label).join(", ") : tk("safety.noFindings") } : undefined;
-    const userMsg: ChatMessage = { id: uid(), role: "user", content: guardResult?.redacted || fullContent, timestamp: Date.now(), provider: selectedProvider, model: selectedModel, guardResult: msgGuardResult };
-
-
-
-    let targetConv = activeConv;
-
-    if (!targetConv) {
-
-      const newConv: Conversation = { id: uid(), title: text.slice(0, 60), messages: [], createdAt: Date.now(), updatedAt: Date.now() };
-
-      const updated = [newConv, ...conversations];
-
-      setConversations(updated); setActiveConvId(newConv.id); saveConversations(updated);
-
-      targetConv = newConv;
-
-    }
-
-
-
-    const withUserMsg = { ...targetConv, messages: [...targetConv.messages, userMsg], updatedAt: Date.now() };
-
-    const updatedConvs = conversations.map((c) => (c.id === targetConv!.id ? withUserMsg : c));
-
-    if (!conversations.some((c) => c.id === targetConv!.id)) updatedConvs.unshift(withUserMsg);
-
-    setConversations(updatedConvs); saveConversations(updatedConvs); setComposerText("");
-
-
-
-    setTaskStatus("waiting"); setTaskSteps(prev => prev.map(s => s.id==="prepare" ? {...s,status:"done"} : s.id==="select" ? {...s,status:"running"} : s));
-
-    const configs = loadProviderConfigs();
-
-    const config = configs.find((c) => c.provider === selectedProvider) ?? { provider: selectedProvider, model: selectedModel, deployment: "cloud" } as ProviderConfig;
-
-
-
-    const apiMessages: { role: string; content: string }[] = [];
-
-    if (withUserMsg.messages.length === 1) apiMessages.push({ role: "system", content: "You are an AI assistant in TokenFence Studio. Be helpful and concise." });
-
-    for (const m of withUserMsg.messages) apiMessages.push({ role: m.role, content: m.content });
-
-
-
-    setTaskStatus("responding"); setTaskSteps(prev => prev.map(s => s.id==="select" ? {...s,status:"done"} : s.id==="send" ? {...s,status:"running"} : s));
-
-    const responseText = await callProviderAPI(apiMessages, config);
-
-    setTaskStatus("done"); setTaskSteps(prev => prev.map(s => s.id==="send" ? {...s,status:"done"} : s.id==="respond" ? {...s,status:"done"} : s.id==="save" ? {...s,status:"done"} : s));
-
-
-
-    const assistantMsg: ChatMessage = { id: uid(), role: "assistant", content: responseText, timestamp: Date.now(), provider: selectedProvider, model: selectedModel };
-
-    const finalConv = { ...withUserMsg, messages: [...withUserMsg.messages, assistantMsg], updatedAt: Date.now() };
-
-    setConversations((prev) => { const next = prev.map((c) => (c.id === finalConv.id ? finalConv : c)); saveConversations(next); return next; });
-
-
-
-    setSending(false);
-
-    setTimeout(() => setTaskStatus("idle"), 2000);
-
-  }, [composerText, sending, guardEnabled, activeConv, selectedProvider, selectedModel, conversations, attachedFiles, isProviderConfigured]);
-
-
-
-  const handleKeyDown = useCallback(
-
-    (e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } },
-
-    [sendMessage],
-
-  );
-
-
-
-  /* ---- misc ---- */
-
-
-
-  const sortedConversations = [...conversations].sort((a, b) => b.updatedAt - a.updatedAt);
-
-  const contextPackTotalChars = attachedFiles.reduce((sum, f) => sum + f.content.length, 0);
-
-  const manualCalcTokens = useMemo(() => estimateTokens(manualCalcText), [manualCalcText]);
-
-
-
-  const taskStatusLabel: Record<TaskStatus, string> = {
-
-    idle: tk("chat.idle"), scanning: tk("chat.scanning"), preparing: tk("chat.preparing"),
-
-    waiting: tk("chat.waiting"), responding: tk("chat.responding"), done: tk("chat.done"), error: tk("chat.taskError"),
-
-  };
-
-  const stepLabels: Record<string,string> = { scan: tk("chat.agentStepScan"), prepare: tk("chat.agentStepPrepare"), select: tk("chat.agentStepSelect"), send: tk("chat.agentStepSend"), respond: tk("chat.agentStepRespond"), save: tk("chat.agentStepSave") };
-
-
-
-  const taskStatusColor: Record<TaskStatus, string> = {
-
-    idle: "var(--text-muted)", scanning: "var(--amber)", preparing: "var(--amber)",
-
-    waiting: "#2196f3", responding: "#9c27b0", done: "var(--green)", error: "var(--red)",
-
-  };
-
-
-
-  const isRunning = taskStatus !== "idle" && taskStatus !== "done" && taskStatus !== "error";
-
-
-
-  /* ============================================================
-
-     Render
-
-     ============================================================ */
-
-
-
-  return (
-
-    <div style={{ display: "flex", height: "100%", overflow: "hidden", background: "var(--bg)" }}>
-
-      {/* Left: Conversations sidebar */}
-
-      <div style={{ width: 220, minWidth: 220, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column", background: "var(--surface)" }}>
-
-        <div style={{ padding: "12px", borderBottom: "1px solid var(--border)" }}>
-
-          <button onClick={handleNewConversation} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "10px 12px", fontSize: "0.85rem" }}>
-
-            + {tk("chat.newConversation")}
-
-          </button>
-
-        </div>
-
-        <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
-
-          {sortedConversations.map((conv) => (
-
-            <div key={conv.id} onClick={() => setActiveConvId(conv.id)}
-
-              style={{ padding: "10px 12px", marginBottom: 2, borderRadius: "var(--radius)", cursor: "pointer",
-
-                background: conv.id === activeConvId ? "var(--surface-alt)" : "transparent", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-
-              <div style={{ flex: 1, overflow: "hidden" }}>
-
-                <div style={{ fontSize: "0.8rem", fontWeight: 500, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-
-                  {conv.title || tk("chat.newConversation")}
-
-                </div>
-
-                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginTop: 2 }}>{conv.messages.length} msgs</div>
-
-              </div>
-
-              <button onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id); }}
-
-                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.75rem", padding: "2px 6px", opacity: 0.5 }}>x</button>
-
-            </div>
-
-          ))}
-
-        </div>
-
-        <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border)", fontSize: "0.65rem", color: "var(--text-muted)" }}>v1.0.7</div>
-
-      </div>
-
-
-
-      {/* Center: Chat area */}
-
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-
-        {/* Header */}
-
-        <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--surface)" }}>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-
-            <span style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text)" }}>{activeConv?.title || tk("chat.newConversation")}</span>
-
-          </div>
-
-          <div style={{ display: "flex", gap: 8 }}>
-
-            {activeConv && activeConv.messages.length > 0 && (
-
-              <button onClick={handleClearConversation} className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "4px 10px" }}>{tk("chat.clearConversation")}</button>
-
-            )}
-
-            <button onClick={() => setShowRightPanel(!showRightPanel)} className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "4px 10px" }}>
-
-              {showRightPanel ? tk("chat.hideInspector") : tk("chat.showInspector")}
-
-            </button>
-
-          </div>
-
-        </div>
-
-
-
-        {/* Messages */}
-
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", background: "var(--bg)" }}>
-
-          {(!activeConv || activeConv.messages.length === 0) && (
-
-            <div style={{ padding: "60px 40px", textAlign: "center" }}>
-
-              <div style={{ width: 64, height: 64, background: "var(--primary)", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 28, color: "white" }}>TF</div>
-
-              <h2 style={{ fontSize: "1.2rem", fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>TokenFence Studio</h2>
-
-              <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", maxWidth: 420, margin: "0 auto", lineHeight: 1.6 }}>{tk("chat.welcome")}</p>
-
-            </div>
-
-          )}
-
-          {routingNote && (
-
-            <div style={{ padding: "10px 16px", background: "var(--surface-alt)", borderRadius: "var(--radius)", marginBottom: 16, fontSize: "0.8rem", color: "var(--text-secondary)", borderLeft: "3px solid var(--primary)" }}>{routingNote}</div>
-
-          )}
-
-          {activeConv?.messages.map((msg) => (
-
-            <div key={msg.id} style={{ marginBottom: 20 }}>
-
-              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: 6, display: "flex", gap: 8 }}>
-
-                <span style={{ fontWeight: 600, color: msg.role === "user" ? "var(--text-secondary)" : "var(--primary)" }}>{msg.role === "user" ? "You" : (msg.provider ?? "AI")}</span>
-
-                <span style={{ marginLeft: "auto" }}>{new Date(msg.timestamp).toLocaleTimeString()}</span>
-
-              </div>
-
-              <div style={{ padding: "12px 16px", borderRadius: "var(--radius-lg)", background: msg.role === "user" ? "var(--surface)" : "var(--surface-alt)", border: "1px solid var(--border)", color: "var(--text)", fontSize: "0.85rem", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{msg.content}</div>
-
-              {msg.guardResult && <div style={{ fontSize: "0.7rem", color: msg.guardResult.flagged ? "var(--amber)" : "var(--green)", marginTop: 4 }}>{msg.guardResult.details}</div>}
-
-            </div>
-
-          ))}
-
-          {sending && <div style={{ padding: "16px 20px", color: "var(--text-muted)", fontSize: "0.85rem" }}>{isRunning ? taskStatusLabel[taskStatus] : "..."}</div>}
-
-          <div ref={messagesEndRef} />
-
-        </div>
-
-
-
-        {/* Active Project */}
-
-      {activeProject && (
-
-        <div style={{ padding: "6px 20px", background: "var(--surface-alt)", borderTop: "1px solid var(--border)", fontSize: "0.7rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 8 }}>
-
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--primary)" }}></span>
-
-          Project: <strong style={{ color: "var(--text-secondary)" }}>{activeProject.name}</strong>
-
-          <span style={{ marginLeft: "auto" }}>{activeProject.files?.filter((f: any) => f.selected).length ?? 0} files in context</span>
-
-        </div>
-
-      )}
-
-      {/* Composer */}
-
-        <div style={{ borderTop: "1px solid var(--border)", padding: "16px 20px", background: "var(--surface)" }}>
-
-          {attachedFiles.length > 0 && (
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-
-              {attachedFiles.map((f) => (
-
-                <span key={f.id} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", background: "var(--surface-alt)", border: "1px solid var(--border)", borderRadius: 6, fontSize: "0.7rem", color: "var(--text-secondary)" }}>
-
-                  妫ｅ啯鎯?{f.name}
-
-                  <button onClick={() => handleRemoveFile(f.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.75rem", padding: 0, lineHeight: 1 }}>x</button>
-
-                </span>
-
-              ))}
-
-            </div>
-
-          )}
-
-
-
-          <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center", flexWrap: "wrap" }}>
-
-            {/* Model picker button */}
-
-            <div ref={pickerRef} style={{ position: "relative" }}>
-
-              <button onClick={() => setShowModelPicker(!showModelPicker)}
-
-                style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 12px", fontSize: "0.8rem", cursor: "pointer", outline: "none", minWidth: 180 }}>
-
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: isProviderConfigured(selectedProvider) ? "var(--green)" : "var(--text-muted)", flexShrink: 0 }}></span>
-
-                <span style={{ fontWeight: 500 }}>{selectedProvider}</span>
-
-                <span style={{ color: "var(--text-muted)", fontSize: "0.7rem" }}>/ {currentRegistryModel?.displayName ?? selectedModel}</span>
-
-                <span style={{ marginLeft: "auto", fontSize: "0.6rem", color: "var(--text-muted)" }}>&#9654;</span>
-
-              </button>
-
-
-
-              {/* Model picker dropdown */}
-
-              {showModelPicker && (
-
-                <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, width: 320, maxHeight: 400, overflowY: "auto", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 30px rgba(0,0,0,0.2)", zIndex: 100, padding: "8px 0" }}>
-
-                  {/* Search */}
-
-                  <div style={{ padding: "0 12px 8px" }}>
-
-                    <input
-
-                      value={modelSearch} onChange={(e) => setModelSearch(e.target.value)}
-
-                      placeholder="Search models..." autoFocus
-
-                      style={{ width: "100%", background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", fontSize: "0.8rem", outline: "none" }}
-
-                    />
-
-                  </div>
-
-
-
-                  {modelSearch.trim().length >= 2 ? (
-
-                    /* Search results - cross provider */
-
-                    <>
-
-                      <div style={{ padding: "4px 12px", fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase" }}>Search results</div>
-
-                      {searchedModels.slice(0, 30).map((m) => (
-
-                        <div key={m.providerId + m.modelId} onClick={() => handleSelectModel(m.providerId, m.modelId)}
-
-                          style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", cursor: "pointer", fontSize: "0.8rem" }}
-
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-alt)")}
-
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-
-                        >
-
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: isProviderConfigured(m.providerId) ? "var(--green)" : "var(--text-muted)", flexShrink: 0 }}></span>
-
-                          <span style={{ fontWeight: 500, color: "var(--text)" }}>{m.displayName}</span>
-
-                          <span style={{ color: "var(--text-muted)", fontSize: "0.7rem", marginLeft: "auto" }}>{m.providerName}</span>
-
-                        </div>
-
-                      ))}
-
-                    </>
-
-                  ) : (
-
-                    /* Provider-grouped models */
-
-                    providerIds.map((pid) => {
-
-                      const models = getModelsForProvider(pid);
-
-                      if (models.length === 0) return null;
-
-                      const configured = isProviderConfigured(pid);
-
-                      return (
-
-                        <div key={pid}>
-
-                          <div onClick={() => { setSelectedProvider(pid); const d = getDefaultModelForProvider(pid); if (d) setSelectedModel(d.modelId); setShowModelPicker(false); setModelSearch(""); }}
-
-                            style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", cursor: "pointer", background: pid === selectedProvider ? "var(--surface-alt)" : "transparent", borderBottom: "1px solid var(--border)" }}>
-
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: configured ? "var(--green)" : "var(--text-muted)", flexShrink: 0 }}></span>
-
-                            <span style={{ fontWeight: 600, fontSize: "0.75rem", color: configured ? "var(--green)" : "var(--text-muted)" }}>{pid}</span>
-
-                            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginLeft: "auto" }}>{models.length} models</span>
-
-                          </div>
-
-                          {pid === selectedProvider && models.map((m) => (
-
-                            <div key={m.modelId} onClick={() => handleSelectModel(pid, m.modelId)}
-
-                              style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px 5px 24px", cursor: "pointer", background: m.modelId === selectedModel ? "var(--accent-faint, rgba(79,140,255,0.1))" : "transparent", fontSize: "0.75rem" }}
-
-                              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-alt)")}
-
-                              onMouseLeave={(e) => { if (m.modelId !== selectedModel) e.currentTarget.style.background = "transparent"; }}
-
-                            >
-
-                              <span style={{ color: "var(--text)", flex: 1 }}>{m.displayName}</span>
-
-                              {m.isRecommended && <span style={{ fontSize: "0.6rem", background: "var(--primary)", color: "white", padding: "1px 5px", borderRadius: 8 }}>REC</span>}
-
-                              {m.isDefault && <span style={{ fontSize: "0.6rem", color: "var(--text-muted)" }}>default</span>}
-
-                              <span style={{ fontSize: "0.6rem", color: "var(--text-muted)" }}>{m.contextWindow ? (m.contextWindow >= 1000000 ? (m.contextWindow / 1000000).toFixed(1) + "M" : (m.contextWindow / 1000).toFixed(0) + "K") : ""}</span>
-
-                            </div>
-
-                          ))}
-
-                        </div>
-
-                      );
-
-                    })
-
-                  )}
-
-                </div>
-
-              )}
-
-            </div>
-
-
-
-            {/* Guard toggle */}
-
-            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: "var(--text-secondary)", cursor: "pointer" }}>
-
-              <input type="checkbox" checked={guardEnabled} onChange={(e) => setGuardEnabled(e.target.checked)} /> {tk("nav.guard")}
-
-            </label>
-
-
-
-            {/* Auto-switch toggle */}
-
-            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: autoSwitchModel ? "var(--primary)" : "var(--text-muted)", cursor: "pointer" }}>
-
-              <input type="checkbox" checked={autoSwitchModel} onChange={(e) => setAutoSwitchModel(e.target.checked)} /> {tk("chat.autoSwitch")}
-
-            </label>
-
-
-
-            {/* File attach */}
-
-            <input ref={fileInputRef} type="file" multiple onChange={handleFileAttach} style={{ display: "none" }}
-
-              accept=".txt,.md,.json,.csv,.js,.ts,.tsx,.py,.html,.css,.xml,.yaml,.yml,.toml,.ini,.cfg,.log,.env,.sh,.bat,.ps1,.pdf,.png,.jpg,.jpeg,.gif,.webp,.mp3,.wav,.m4a" />
-
-            <button onClick={() => fileInputRef.current?.click()} className="btn btn-ghost" style={{ fontSize: "0.8rem", padding: "7px 12px" }}>
-
-              妫ｅ啯鎯?{tk("chat.attachFile")}
-
-            </button>
-
-          </div>
-
-
-
-          {/* Text area + send */}
-
-          <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-
-            <textarea ref={composerRef} value={composerText} onChange={(e) => setComposerText(e.target.value)} onKeyDown={handleKeyDown}
-
-              placeholder={tk("chat.typeMessage")} disabled={sending} rows={3}
-
-              style={{ flex: 1, background: "var(--surface-alt)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px", fontSize: "0.9rem", resize: "none", outline: "none", lineHeight: 1.5, fontFamily: "inherit" }} />
-
-            <button onClick={sendMessage} disabled={sending || !composerText.trim()}
-
-              className="btn btn-primary"
-
-              style={{ padding: "12px 24px", fontSize: "0.9rem", fontWeight: 600, minWidth: 80, opacity: (sending || !composerText.trim()) ? 0.5 : 1 }}>
-
-              {sending ? "..." : tk("chat.send")}
-
-            </button>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-
-      {/* Right: Inspector */}
-
-      {showRightPanel && (
-
-        <div style={{ width: 260, minWidth: 260, borderLeft: "1px solid var(--border)", display: "flex", flexDirection: "column", background: "var(--surface)", padding: "16px", overflowY: "auto" }}>
-
-          {/* Token Budget */}
-
-          <div onClick={() => setCollapsedSections((prev) => { const next = new Set(prev); if (next.has("budget")) next.delete("budget"); else next.add("budget"); return next; })}
-
-            style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-
-            <h4 style={{ margin: 0, color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.tokenBudget")}</h4>
-
-            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("budget") ? "▶" : "▼"}</span>
-
-          </div>
-
-          {!collapsedSections.has("budget") && (
-
-            <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)" }}>
-
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 6 }}>
-
-                <span style={{ color: "var(--text-muted)" }}>{tk("chat.inputTokens")}</span>
-
-                <span style={{ color: "var(--text-secondary)" }}>{composerTokens.toLocaleString()}</span>
-
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 6 }}>
-
-                <span style={{ color: "var(--text-muted)" }}>{tk("chat.fileTokens")}</span>
-
-                <span style={{ color: "var(--text-secondary)" }}>{attachedFilesTokens.toLocaleString()}</span>
-
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: 8 }}>
-
-                <span style={{ color: "var(--text-muted)" }}>{tk("chat.messageTokens")}</span>
-
-                <span style={{ color: "var(--text-secondary)" }}>{messageHistoryTokens.toLocaleString()}</span>
-
-              </div>
-
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, display: "flex", justifyContent: "space-between", fontSize: "0.8rem", fontWeight: 600 }}>
-
-                <span style={{ color: budgetColor }}>{tk("chat.totalTokens")}</span>
-
-                <span style={{ color: budgetColor }}>{totalTokens.toLocaleString()} / {contextLimit >= 1000000 ? (contextLimit / 1000000).toFixed(1) + "M" : (contextLimit / 1000).toFixed(0) + "K"}</span>
-
-              </div>
-
-              {budgetRatio > 0.7 && (
-
-                <div style={{ marginTop: 6, fontSize: "0.7rem", color: budgetColor, fontWeight: 500 }}>▶{tk("chat.budgetWarning")}</div>
-
-              )}
-
-              <div style={{ marginTop: 8 }}>
-
-                <button onClick={(e) => { e.stopPropagation(); setTextInputMode(!textInputMode); }}
-
-                  style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: "0.7rem", padding: 0 }}>
-
-                  {textInputMode ? tk("chat.collapseDetails") : tk("chat.collapsedInfo")}
-
-                </button>
-
-                {textInputMode && (
-
-                  <div style={{ marginTop: 6 }}>
-
-                    <textarea value={manualCalcText} onChange={(e) => setManualCalcText(e.target.value)}
-
-                      placeholder="Paste text..." rows={3}
-
-                      style={{ width: "100%", background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 8px", fontSize: "0.7rem", resize: "vertical", outline: "none" }}
-
-                      onClick={(e) => e.stopPropagation()} />
-
-                    <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: 4 }}>~{manualCalcTokens} tokens</div>
-
-                  </div>
-
-                )}
-
-              </div>
-
-            </div>
-
-          )}
-
-
-
-          {/* Agent Tasks */}
-
-          <h4 style={{ margin: "12px 0 8px", color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.agentTasks")}</h4>
-
-          <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)" }}>
-
-            {taskSteps.length > 0 ? (
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-
-                {taskSteps.map(step => (
-
-                  <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.7rem" }}>
-
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: step.status === "done" ? "var(--green)" : step.status === "running" ? "var(--primary)" : step.status === "error" ? "var(--red)" : "var(--text-muted)", display: "inline-block", flexShrink: 0 }}></span>
-
-                    <span style={{ color: step.status === "done" ? "var(--green)" : step.status === "running" ? "var(--text)" : "var(--text-muted)" }}>{step.label}</span>
-
-                  </div>
-
-                ))}
-
-              </div>
-
-            ) : (
-
-              <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-
-                <span style={{ width: 10, height: 10, borderRadius: "50%", background: taskStatusColor[taskStatus], display: "inline-block", flexShrink: 0 }}></span>
-
-                <span style={{ fontSize: "0.8rem", color: taskStatusColor[taskStatus], fontWeight: 600 }}>{taskStatusLabel[taskStatus]}</span>
-
-                {isRunning && <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "auto" }}>&#9654;</span>}
-
-              </div>
-
-            )}
-
-          </div>
-
-          <div onClick={() => setCollapsedSections((prev) => { const next = new Set(prev); if (next.has("inspector")) next.delete("inspector"); else next.add("inspector"); return next; })}
-
-            style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-
-            <h4 style={{ margin: 0, color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.inspector")}</h4>
-
-            <span style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>{collapsedSections.has("inspector") ? "▶" : "▼"}</span>
-
-          </div>
-
-          {!collapsedSections.has("inspector") && (
-
-            <>
-
-              <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)" }}>
-
-                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>Active Model</div>
-
-                <div style={{ fontSize: "0.8rem", color: "var(--text)", fontWeight: 500 }}>{selectedProvider} / {currentRegistryModel?.displayName ?? selectedModel}</div>
-
-                <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: isProviderConfigured(selectedProvider) ? "var(--green)" : "var(--text-muted)" }}></span>
-
-                  <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
-
-                    {isProviderConfigured(selectedProvider) ? tk("common.configured") : tk("common.notConfigured")}
-
-                  </span>
-
-                </div>
-
-              </div>
-
-              <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)" }}>
-
-                <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", marginBottom: 4 }}>{tk("chat.promptGuard")}</div>
-
-                {lastGuardResult ? (
-
-                  <div style={{ fontSize: "0.75rem", color: lastGuardResult.riskLevel !== "safe" ? "var(--amber)" : "var(--green)" }}>{lastGuardResult.riskLevel !== "safe" ? lastGuardResult.findings.length ? lastGuardResult.findings.map(f => f.label).join(", ") : tk("safety.noFindings") : tk("chat.guardNoIssues")}</div>
-                ) : <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Send a message</div>}
-
-              <div style={{ marginTop: 12 }}>
-                <SafetyInspector result={lastGuardResult} onClose={() => setLastGuardResult(null)} />
-              </div>
-
-              </div>
-
-            </>
-
-          )}
-
-
-
-          {/* Context Pack */}
-
-          <h4 style={{ margin: "12px 0 8px", color: "var(--text)", fontSize: "0.8rem", fontWeight: 600 }}>{tk("chat.contextPack")}</h4>
-
-          <div className="card" style={{ padding: 12, marginBottom: 12, background: "var(--surface-alt)" }}>
-
-            {attachedFiles.length === 0 ? (
-
-              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{tk("chat.noFilesAttached")}</div>
-
-            ) : (
-
-              <>
-
-                {attachedFiles.map((f) => (
-
-                  <div key={f.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid var(--border)", fontSize: "0.7rem" }}>
-
-                    <div style={{ flex: 1, overflow: "hidden" }}>
-
-                      <div style={{ color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</div>
-
-                      <div style={{ color: "var(--text-muted)", fontSize: "0.6rem" }}>{f.type} -?{(f.size / 1024).toFixed(1)} KB</div>
-
-                    </div>
-
-                    <button onClick={() => handleRemoveFile(f.id)} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.7rem", padding: "2px 4px" }}>x</button>
-
-                  </div>
-
-                ))}
-
-                <div style={{ marginTop: 8, fontSize: "0.7rem", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: 2 }}>
-
-                  <div>{tk("chat.totalFiles")}: {attachedFiles.length}</div>
-
-                  <div>{tk("chat.totalChars")}: {contextPackTotalChars.toLocaleString()}</div>
-
-                  <div>{tk("chat.estimatedTokens")}: ~{attachedFilesTokens.toLocaleString()}</div>
-
-                </div>
-
-              </>
-
-            )}
-
-          </div>
-
-
-
-          {attachedFiles.length > 0 && (
-
-            <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", padding: "4px 0" }}>
-
-              {autoSwitchModel ? tk("chat.fileRoutingOn") : tk("chat.fileRoutingOff")}
-
-            </div>
-
-          )}
-
-  
-      {showReceipt && (
-        <SafetyReceipt
-          result={showReceipt}
-          provider={selectedProvider}
-          model={selectedModel}
-          onClose={() => setShowReceipt(null)}
-        />
-      )}
-      {blockedMessage && (
-        <div className="tf-overlay" onClick={() => setBlockedMessage(null)}>
-          <div className="tf-modal" onClick={(e) => e.stopPropagation()} style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "2rem", marginBottom: 12, color: "var(--tf-danger)" }}>
-              <Shield size={48} style={{ display: "inline" }} />
-            </div>
-            <h2 style={{ color: "var(--tf-danger)", marginBottom: 8 }}>{tk("safety.criticalBlocked")}</h2>
-            <p style={{ color: "var(--tf-text-secondary)", marginBottom: 16 }}>{blockedMessage}</p>
-            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-              <button className="tf-btn-primary" onClick={() => { setBlockedMessage(null); setShowReceipt(showReceipt); }}>
-                {tk("safety.viewReceipt")}
-              </button>
-              <button className="tf-btn-secondary" onClick={() => setBlockedMessage(null)}>
-                {tk("actions.close")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}      </div>
-
-      )}
-
-    </div>
-
-  );
-
-}
-
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Send, Paperclip, X, Shield, AlertTriangle, CheckCircle, ArrowRight, Loader2 } from "lucide-react";
+import { tk } from "@tokenfence/shared/src/i18n";
+import { PROVIDERS, PROVIDER_ENDPOINTS, type ProviderConfig, loadProviderConfigs, saveProviderConfigs, estimateTokens } from "@tokenfence/shared/src/providers";
+import { MODEL_REGISTRY, getModelsForProvider, getDefaultModelForProvider, getStatusColor, getStatusLabel } from "@tokenfence/shared/src/model-registry";
+import { storeGet, storeSet } from "@tokenfence/shared/src/agent-runtime/safeStorage";
+import { scanPrompt } from "@tokenfence/shared/src/guard";
+import type { GuardResult } from "@tokenfence/shared/src/types";
+import { SafetyInspector } from "../components/SafetyInspector";
+import { SafetyReceipt } from "../components/SafetyReceipt";
+
+/* ============================================================
+   Types
+   ============================================================ */
+
+interface ChatMessage {
+  id: string; role: "user" | "assistant" | "system";
+  content: string; timestamp: number;
+  provider?: string; model?: string;
+  guardResult?: { flagged: boolean; details: string };
+}
+
+interface Conversation {
+  id: string; title: string; messages: ChatMessage[];
+  createdAt: number; updatedAt: number;
+}
+
+interface AttachedFile {
+  id: string; name: string; size: number; type: string; content: string;
+}
+
+type ReviewState = "idle" | "reviewed" | "approved" | "blocked";
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+
+function uid(): string { return Date.now().toString(36) + Math.random().toString(36).slice(2, 9); }
+
+function loadConversations(): Conversation[] {
+  try { const raw = storeGet("tokenfence-conversations"); return raw ? JSON.parse(raw) : []; }
+  catch { return []; }
+}
+
+function saveConversations(convs: Conversation[]): void {
+  storeSet("tokenfence-conversations", JSON.stringify(convs));
+}
+
+function pickDefaultProvider(): { provider: string; model: string } {
+  try {
+    const cfgs = loadProviderConfigs();
+    // Prefer DeepSeek, then first configured cloud provider, then Ollama
+    const ds = cfgs.find(c => c.provider === "DeepSeek" && c.enabled && c.apiKey);
+    if (ds) return { provider: "DeepSeek", model: ds.model || "deepseek-chat" };
+    for (const c of cfgs) {
+      if (c.enabled && c.apiKey && c.deployment === "cloud") {
+        return { provider: c.provider, model: c.model };
+      }
+    }
+    for (const c of cfgs) {
+      if (c.enabled && c.deployment === "local") {
+        return { provider: c.provider, model: c.model };
+      }
+    }
+  } catch {}
+  return { provider: "DeepSeek", model: "deepseek-chat" };
+}
+
+/* ============================================================
+   Component
+   ============================================================ */
+
+export function ChatWorkspace() {
+  const [conversations, setConversations] = useState<Conversation[]>(loadConversations);
+  const [activeConvId, setActiveConvId] = useState<string>("");
+  const [composerText, setComposerText] = useState("");
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [sending, setSending] = useState(false);
+
+  // Provider selection
+  const defaultProv = useMemo(() => pickDefaultProvider(), []);
+  const [selectedProvider, setSelectedProvider] = useState(defaultProv.provider);
+  const [selectedModel, setSelectedModel] = useState(defaultProv.model);
+  const [providerConfigs, setProviderConfigs] = useState<ProviderConfig[]>(loadProviderConfigs);
+
+  // Safety review state
+  const [reviewState, setReviewState] = useState<ReviewState>("idle");
+  const [guardResult, setGuardResult] = useState<GuardResult | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(true);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const activeConv = useMemo(
+    () => conversations.find(c => c.id === activeConvId) || null,
+    [conversations, activeConvId]
+  );
+
+  const messages = activeConv?.messages || [];
+
+  // Auto-create conversation on first message
+  const ensureConversation = useCallback((): Conversation => {
+    if (activeConv && activeConvId) return activeConv;
+    const conv: Conversation = {
+      id: uid(), title: "",
+      messages: [], createdAt: Date.now(), updatedAt: Date.now(),
+    };
+    setConversations(prev => [...prev, conv]);
+    setActiveConvId(conv.id);
+    return conv;
+  }, [activeConv, activeConvId]);
+
+  // Scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Refresh provider configs
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProviderConfigs(loadProviderConfigs());
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Invalidate review on edit
+  const handleTextChange = useCallback((text: string) => {
+    setComposerText(text);
+    if (reviewState !== "idle") {
+      setReviewState("idle");
+      setGuardResult(null);
+    }
+  }, [reviewState]);
+
+  // Attach file
+  const handleAttachFile = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = reader.result as string;
+      const attached: AttachedFile = {
+        id: uid(), name: file.name, size: file.size,
+        type: file.type || file.name.split(".").pop() || "txt",
+        content: content.slice(0, 100000),
+      };
+      setAttachedFiles(prev => [...prev, attached]);
+      if (reviewState !== "idle") { setReviewState("idle"); setGuardResult(null); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }, [reviewState]);
+
+  const removeFile = useCallback((id: string) => {
+    setAttachedFiles(prev => prev.filter(f => f.id !== id));
+    if (reviewState !== "idle") { setReviewState("idle"); setGuardResult(null); }
+  }, [reviewState]);
+
+  // CONVERSATION OPERATIONS
+  const deleteConversation = useCallback((id: string) => {
+    const updated = conversations.filter(c => c.id !== id);
+    setConversations(updated); saveConversations(updated);
+    if (activeConvId === id) setActiveConvId("");
+  }, [conversations, activeConvId]);
+
+  const renameConversation = useCallback((id: string, title: string) => {
+    setConversations(prev => {
+      const updated = prev.map(c => c.id === id ? { ...c, title, updatedAt: Date.now() } : c);
+      saveConversations(updated);
+      return updated;
+    });
+  }, []);
+
+  // Open conversation from History
+  const openConversation = useCallback((convId: string) => {
+    setActiveConvId(convId);
+    setReviewState("idle"); setGuardResult(null); setComposerText(""); setAttachedFiles([]);
+  }, []);
+
+  // REVIEW ? scan prompt + all attachments
+  const handleReview = useCallback(() => {
+    const text = composerText.trim();
+    const hasAttachments = attachedFiles.length > 0;
+    if (!text && !hasAttachments) return;
+
+    // Build full text to scan: prompt + all attachment contents
+    let fullText = text;
+    if (hasAttachments) {
+      const fileTexts = attachedFiles.map(f => `[File: ${f.name}]\n${f.content}`).join("\n\n");
+      fullText = text ? text + "\n\n" + fileTexts : fileTexts;
+    }
+
+    // ALWAYS scan ? never depend on activeConv
+    const result = scanPrompt(fullText);
+    setGuardResult(result);
+
+    if (result.riskLevel === "high") {
+      setReviewState("blocked");
+      // Auto-show receipt for critical findings
+      setShowReceipt(true);
+    } else {
+      setReviewState("reviewed");
+    }
+  }, [composerText, attachedFiles]);
+
+  // APPROVE & SEND ? send redacted content
+  const handleApproveSend = useCallback(async () => {
+    if (reviewState !== "reviewed" || !guardResult) return;
+
+    const text = composerText.trim();
+    const hasAttachments = attachedFiles.length > 0;
+    if (!text && !hasAttachments) return;
+
+    const conv = ensureConversation();
+
+    // Build safe (redacted) content
+    const safeText = guardResult.redacted;
+
+    // Build safe file contents
+    const safeFileTexts = attachedFiles.map(f => {
+      const fileResult = scanPrompt(f.content);
+      return `[File: ${f.name}]\n${fileResult.redacted}`;
+    });
+
+    const safeFullContent = hasAttachments
+      ? (text ? safeText + "\n\n" + safeFileTexts.join("\n\n") : safeFileTexts.join("\n\n"))
+      : safeText;
+
+    // Guard result for user message
+    const msgGuardResult = guardResult.riskLevel !== "safe"
+      ? { flagged: true, details: guardResult.findings.map(f => f.label).join(", ") }
+      : undefined;
+
+    const userMsg: ChatMessage = {
+      id: uid(), role: "user",
+      content: safeFullContent,  // store redacted version
+      timestamp: Date.now(),
+      provider: selectedProvider, model: selectedModel,
+      guardResult: msgGuardResult,
+    };
+
+    // Add user message
+    const msgs = [...messages, userMsg];
+    const updated = conversations.map(c =>
+      c.id === conv.id
+        ? { ...c, messages: msgs, title: c.title || text.slice(0, 50), updatedAt: Date.now() }
+        : c
+    );
+    setConversations(updated); saveConversations(updated);
+    setComposerText(""); setAttachedFiles([]);
+    setReviewState("idle");
+    setSending(true);
+
+    // Call API with safe content
+    try {
+      const config = providerConfigs.find(c => c.provider === selectedProvider);
+      if (!config) {
+        const errorMsg: ChatMessage = {
+          id: uid(), role: "assistant",
+          content: `[Error] Provider "${selectedProvider}" not configured.`,
+          timestamp: Date.now(), provider: selectedProvider, model: selectedModel,
+        };
+        const withError = [...msgs, errorMsg];
+        const updated2 = conversations.map(c => c.id === conv.id ? { ...c, messages: withError, updatedAt: Date.now() } : c);
+        setConversations(updated2); saveConversations(updated2);
+        setSending(false); return;
+      }
+
+      const mid = config.customModelId || config.model || selectedModel;
+      const ep = PROVIDER_ENDPOINTS[config.provider];
+      if (!ep) {
+        const errorMsg: ChatMessage = {
+          id: uid(), role: "assistant",
+          content: `[Error] Unknown provider "${config.provider}"`,
+          timestamp: Date.now(), provider: selectedProvider, model: selectedModel,
+        };
+        const withError = [...msgs, errorMsg];
+        const updated2 = conversations.map(c => c.id === conv.id ? { ...c, messages: withError, updatedAt: Date.now() } : c);
+        setConversations(updated2); saveConversations(updated2);
+        setSending(false); return;
+      }
+
+      if (!config.apiKey && config.deployment === "cloud") {
+        const errorMsg: ChatMessage = {
+          id: uid(), role: "assistant",
+          content: `[Preview] Configure "${config.provider}" API key in Providers.`,
+          timestamp: Date.now(), provider: selectedProvider, model: selectedModel,
+        };
+        const withError = [...msgs, errorMsg];
+        const updated2 = conversations.map(c => c.id === conv.id ? { ...c, messages: withError, updatedAt: Date.now() } : c);
+        setConversations(updated2); saveConversations(updated2);
+        setSending(false); return;
+      }
+
+      const apiMessages = [{ role: "user", content: safeFullContent }];
+      const url = `${config.baseUrl || ep.baseUrl}${ep.chatEndpoint.replace("{model}", mid)}`;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (config.apiKey) {
+        if (config.provider === "Claude") { headers["x-api-key"] = config.apiKey; headers["anthropic-version"] = "2023-06-01"; }
+        else if (config.provider === "Gemini") { headers["x-goog-api-key"] = config.apiKey; }
+        else { headers["Authorization"] = `Bearer ${config.apiKey}`; }
+      }
+
+      let body: Record<string, unknown>;
+      if (config.provider === "Claude") {
+        body = { model: mid, max_tokens: 2048, messages: apiMessages.map(m => ({ role: m.role, content: m.content })) };
+      } else if (config.provider === "Gemini") {
+        body = { contents: apiMessages.map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })) };
+      } else {
+        body = { model: mid, messages: apiMessages, max_tokens: 2048 };
+      }
+
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 30000);
+      const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: ctrl.signal });
+      clearTimeout(t);
+
+      let responseText: string;
+      if (!resp.ok) {
+        const e = await resp.text().catch(() => "Unknown error");
+        responseText = `[Error: ${resp.status}] ${e.slice(0, 300)}`;
+      } else {
+        const data = await resp.json();
+        if (config.provider === "Claude") responseText = data?.content?.[0]?.text ?? JSON.stringify(data).slice(0, 500);
+        else if (config.provider === "Gemini") responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? JSON.stringify(data).slice(0, 500);
+        else responseText = data?.choices?.[0]?.message?.content ?? JSON.stringify(data).slice(0, 500);
+      }
+
+      const assistantMsg: ChatMessage = {
+        id: uid(), role: "assistant",
+        content: responseText, timestamp: Date.now(),
+        provider: selectedProvider, model: selectedModel,
+      };
+
+      const finalMsgs = [...msgs, assistantMsg];
+      const finalUpdated = conversations.map(c => c.id === conv.id ? { ...c, messages: finalMsgs, updatedAt: Date.now() } : c);
+      setConversations(finalUpdated); saveConversations(finalUpdated);
+    } catch (e) {
+      const errorMsg: ChatMessage = {
+        id: uid(), role: "assistant",
+        content: `[Error] ${e instanceof Error ? e.message : "Request failed"}`,
+        timestamp: Date.now(), provider: selectedProvider, model: selectedModel,
+      };
+      const withError = [...msgs, errorMsg];
+      const updated2 = conversations.map(c => c.id === conv.id ? { ...c, messages: withError, updatedAt: Date.now() } : c);
+      setConversations(updated2); saveConversations(updated2);
+    }
+
+    setSending(false);
+    setShowReceipt(true);
+  }, [reviewState, guardResult, composerText, attachedFiles, messages, conversations, selectedProvider, selectedModel, providerConfigs, ensureConversation]);
+
+  // Simple send for new conversation
+  const handleNewChat = useCallback(() => {
+    setActiveConvId("");
+    setComposerText("");
+    setAttachedFiles([]);
+    setReviewState("idle");
+    setGuardResult(null);
+  }, []);
+
+  // Provider change
+  const handleProviderChange = useCallback((prov: string) => {
+    setSelectedProvider(prov);
+    const cfg = providerConfigs.find(c => c.provider === prov);
+    if (cfg) setSelectedModel(cfg.model || getDefaultModelForProvider(prov));
+  }, [providerConfigs]);
+
+  /* ============================================================
+     Render
+     ============================================================ */
+
+  const canReview = (composerText.trim() || attachedFiles.length > 0) && !sending;
+  const isConfigured = providerConfigs.some(c => c.provider === selectedProvider && c.enabled && c.apiKey);
+
+  return (
+    <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+      {/* === Conversation List (Left) === */}
+      <div style={{
+        width: 220, flexShrink: 0,
+        borderRight: "1px solid var(--tf-border)",
+        background: "var(--tf-sidebar-bg)",
+        display: "flex", flexDirection: "column",
+        overflow: "hidden",
+      }}>
+        <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--tf-border)" }}>
+          <button
+            onClick={handleNewChat}
+            className="tf-btn-primary"
+            style={{ width: "100%", fontSize: "0.75rem", padding: "6px 10px" }}
+          >
+            + {tk("chat.newConversation")}
+          </button>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "4px 8px" }}>
+          {conversations.length === 0 ? (
+            <div style={{ padding: 16, textAlign: "center", fontSize: "0.72rem", color: "var(--tf-text-muted)" }}>
+              No conversations yet
+            </div>
+          ) : (
+            [...conversations].sort((a, b) => b.updatedAt - a.updatedAt).map(conv => (
+              <div
+                key={conv.id}
+                onClick={() => openConversation(conv.id)}
+                style={{
+                  padding: "8px 10px", borderRadius: "6px", cursor: "pointer",
+                  marginBottom: 2,
+                  background: conv.id === activeConvId ? "var(--tf-primary-soft)" : "transparent",
+                  color: conv.id === activeConvId ? "var(--tf-primary-text)" : "var(--tf-text)",
+                }}
+              >
+                <div style={{ fontSize: "0.75rem", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {conv.title || "New conversation"}
+                </div>
+                <div style={{ fontSize: "0.6rem", color: "var(--tf-text-muted)", marginTop: 2 }}>
+                  {conv.messages.length} msgs &middot; {new Date(conv.updatedAt).toLocaleDateString()}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* === Chat Area (Center) === */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {/* Provider bar */}
+        <div style={{
+          padding: "8px 16px", borderBottom: "1px solid var(--tf-border)",
+          background: "var(--tf-surface)", display: "flex", alignItems: "center", gap: 8,
+          flexWrap: "wrap",
+        }}>
+          <select
+            className="tf-select"
+            value={selectedProvider}
+            onChange={(e) => handleProviderChange(e.target.value)}
+            style={{ fontSize: "0.72rem", padding: "4px 24px 4px 8px" }}
+          >
+            {providerConfigs.map(c => (
+              <option key={c.provider} value={c.provider}>{c.provider}</option>
+            ))}
+          </select>
+          <span style={{
+            width: 7, height: 7, borderRadius: "50%",
+            background: isConfigured ? "var(--tf-success)" : "var(--tf-text-muted)",
+            flexShrink: 0,
+          }} />
+          <span style={{ fontSize: "0.65rem", color: "var(--tf-text-muted)" }}>
+            {isConfigured ? tk("common.configured") : tk("common.notConfigured")}
+          </span>
+          <span style={{ fontSize: "0.65rem", color: "var(--tf-text-muted)", marginLeft: "auto" }}>
+            {selectedModel}
+          </span>
+          <button
+            onClick={() => setInspectorOpen(!inspectorOpen)}
+            className="tf-btn-ghost tf-btn-sm"
+            style={{ fontSize: "0.65rem" }}
+          >
+            {inspectorOpen ? "Hide Inspector" : "Show Inspector"}
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div style={{
+          flex: 1, overflowY: "auto", padding: "16px 20px",
+          display: "flex", flexDirection: "column", gap: 12,
+        }}>
+          {messages.length === 0 ? (
+            <div style={{
+              flex: 1, display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center",
+              color: "var(--tf-text-muted)",
+            }}>
+              <div style={{ fontSize: "2rem", marginBottom: 12, opacity: 0.3 }}>
+                <Shield size={48} />
+              </div>
+              <div style={{ fontSize: "1rem", fontWeight: 600, marginBottom: 4 }}>
+                TokenFence Safe Workspace
+              </div>
+              <div style={{ fontSize: "0.75rem" }}>
+                Type a message and click Review to scan for sensitive content before sending.
+              </div>
+            </div>
+          ) : (
+            messages.map(msg => (
+              <div
+                key={msg.id}
+                style={{
+                  alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                  maxWidth: "75%",
+                }}
+              >
+                <div style={{
+                  padding: "10px 14px", borderRadius: "12px",
+                  background: msg.role === "user" ? "var(--tf-primary)" : "var(--tf-surface-alt)",
+                  color: msg.role === "user" ? "white" : "var(--tf-text)",
+                  fontSize: "0.8rem", lineHeight: 1.5,
+                  whiteSpace: "pre-wrap", wordBreak: "break-word",
+                }}>
+                  {msg.content}
+                </div>
+                {msg.guardResult?.flagged && (
+                  <div style={{
+                    fontSize: "0.6rem", color: "var(--tf-danger)",
+                    marginTop: 2, textAlign: "right", fontWeight: 600,
+                  }}>
+                    <AlertTriangle size={10} style={{ display: "inline", marginRight: 3 }} />
+                    {msg.guardResult.details}
+                  </div>
+                )}
+                <div style={{ fontSize: "0.55rem", color: "var(--tf-text-muted)", marginTop: 2, textAlign: msg.role === "user" ? "right" : "left" }}>
+                  {new Date(msg.timestamp).toLocaleTimeString()}
+                  {msg.provider && ` ? ${msg.provider}`}
+                </div>
+              </div>
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Composer */}
+        <div style={{
+          borderTop: "1px solid var(--tf-border)",
+          padding: "12px 16px",
+          background: "var(--tf-surface)",
+        }}>
+          {/* Review status bar */}
+          {reviewState === "reviewed" && guardResult && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "6px 12px", marginBottom: 8,
+              borderRadius: "8px",
+              background: guardResult.riskLevel === "safe"
+                ? "var(--tf-success-soft)"
+                : "var(--tf-warning-soft)",
+              fontSize: "0.7rem", fontWeight: 600,
+              color: guardResult.riskLevel === "safe"
+                ? "var(--tf-success-text)"
+                : "var(--tf-warning-text)",
+            }}>
+              <CheckCircle size={14} />
+              {guardResult.riskLevel === "safe"
+                ? "No sensitive content detected. Ready to send."
+                : `${guardResult.findings.length} finding(s) detected. Review before sending.`}
+            </div>
+          )}
+          {reviewState === "blocked" && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "6px 12px", marginBottom: 8,
+              borderRadius: "8px",
+              background: "var(--tf-danger-soft)",
+              fontSize: "0.7rem", fontWeight: 600,
+              color: "var(--tf-danger-text)",
+            }}>
+              <AlertTriangle size={14} />
+              Critical content detected. Sending blocked. Review the Safety Receipt.
+            </div>
+          )}
+
+          {/* Attached files */}
+          {attachedFiles.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+              {attachedFiles.map(f => (
+                <div key={f.id} style={{
+                  display: "flex", alignItems: "center", gap: 4,
+                  padding: "3px 8px", borderRadius: "6px",
+                  background: "var(--tf-primary-soft)",
+                  fontSize: "0.65rem", color: "var(--tf-primary-text)",
+                }}>
+                  <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {f.name}
+                  </span>
+                  <button onClick={() => removeFile(f.id)} style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "var(--tf-primary-text)", padding: 0,
+                    display: "flex", alignItems: "center",
+                  }}>
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Input row */}
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+            <button
+              onClick={handleAttachFile}
+              className="tf-btn-ghost tf-btn-sm"
+              title="Attach file"
+              style={{ flexShrink: 0 }}
+            >
+              <Paperclip size={16} />
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+              accept=".txt,.md,.json,.csv,.xml,.yaml,.yml,.py,.js,.ts,.rs,.go,.java,.c,.cpp,.h,.cs,.rb,.php,.swift,.kt,.env,.toml"
+            />
+            <textarea
+              value={composerText}
+              onChange={(e) => handleTextChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.ctrlKey && canReview && reviewState === "idle") {
+                  e.preventDefault(); handleReview();
+                } else if (e.key === "Enter" && e.ctrlKey && reviewState === "reviewed") {
+                  e.preventDefault(); handleApproveSend();
+                }
+              }}
+              placeholder={isConfigured ? "Type a message... (Ctrl+Enter to review)" : "Configure a provider in Providers first"}
+              rows={2}
+              style={{
+                flex: 1, resize: "none",
+                padding: "8px 12px", borderRadius: "8px",
+                border: "1px solid var(--tf-border)",
+                background: "var(--tf-input-bg)",
+                color: "var(--tf-text)",
+                fontSize: "0.8rem", fontFamily: "var(--tf-font)",
+                outline: "none",
+              }}
+            />
+            {reviewState === "idle" ? (
+              <button
+                onClick={handleReview}
+                disabled={!canReview}
+                className="tf-btn-primary"
+                style={{ flexShrink: 0, fontSize: "0.75rem", gap: 6 }}
+              >
+                <Shield size={14} />
+                Review
+              </button>
+            ) : reviewState === "reviewed" ? (
+              <button
+                onClick={handleApproveSend}
+                disabled={sending}
+                className="tf-btn-primary"
+                style={{ flexShrink: 0, fontSize: "0.75rem", gap: 6, background: "var(--tf-success)", borderColor: "var(--tf-success)" }}
+              >
+                {sending ? <Loader2 size={14} className="spin" /> : <ArrowRight size={14} />}
+                Approve &amp; Send
+              </button>
+            ) : (
+              <button
+                onClick={() => { setReviewState("idle"); setGuardResult(null); setShowReceipt(false); }}
+                className="tf-btn-secondary"
+                style={{ flexShrink: 0, fontSize: "0.75rem" }}
+              >
+                Dismiss
+              </button>
+            )}
+          </div>
+
+          <div style={{ fontSize: "0.55rem", color: "var(--tf-text-muted)", marginTop: 4, textAlign: "right" }}>
+            Ctrl+Enter to Review ? Review scans for sensitive data before sending
+          </div>
+        </div>
+      </div>
+
+      {/* === Safety Inspector (Right) === */}
+      {inspectorOpen && (
+        <div style={{
+          width: 260, flexShrink: 0,
+          borderLeft: "1px solid var(--tf-border)",
+          background: "var(--tf-sidebar-bg)",
+          overflowY: "auto",
+          padding: 12,
+        }}>
+          <SafetyInspector result={guardResult} />
+        </div>
+      )}
+
+      {/* === Safety Receipt Modal === */}
+      {showReceipt && guardResult && (
+        <SafetyReceipt
+          result={guardResult}
+          provider={selectedProvider}
+          model={selectedModel}
+          onClose={() => setShowReceipt(false)}
+        />
+      )}
+    </div>
+  );
+}

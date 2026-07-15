@@ -8,6 +8,7 @@ const en = {
   },
 
   nav: {
+    workspace: "Workspace",
     chat: "Chat",
     dashboard: "Dashboard",
     agentLab: "Agent Lab",

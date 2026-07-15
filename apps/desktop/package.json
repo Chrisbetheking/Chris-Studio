@@ -8,7 +8,7 @@
     "ui:build": "cd ui && npm run build",
     "dev": "tauri dev",
     "build": "npm run ui:build && tauri build",
-    "typecheck": "echo desktop-no-ts-check"
+    "typecheck": "cd ui && npx tsc --noEmit"
   },
   "dependencies": {
     "@tokenfence/shared": "*"

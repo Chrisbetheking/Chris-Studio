@@ -1,5 +1,6 @@
 import { tk } from "@tokenfence/shared/src/i18n";
 import type { GuardResult } from "@tokenfence/shared/src/types";
+import { Shield, AlertTriangle, CheckCircle } from "lucide-react";
 
 interface SafetyReceiptProps {
   result: GuardResult;
@@ -9,94 +10,81 @@ interface SafetyReceiptProps {
 }
 
 export function SafetyReceipt({ result, provider, model, onClose }: SafetyReceiptProps) {
-  const riskColors: Record<string, string> = {
-    safe: "var(--tf-success)",
-    low: "var(--tf-warning)",
-    medium: "var(--tf-warning)",
-    high: "var(--tf-danger)",
-  };
+  const riskInfo = (() => {
+    switch (result.riskLevel) {
+      case "safe": return { color: "var(--tf-success)", bg: "var(--tf-success-soft)", icon: <CheckCircle size={16} />, label: tk("safety.riskSafe") };
+      case "low": return { color: "var(--tf-warning)", bg: "var(--tf-warning-soft)", icon: <AlertTriangle size={16} />, label: tk("safety.riskLow") };
+      case "medium": return { color: "var(--tf-warning)", bg: "var(--tf-warning-soft)", icon: <AlertTriangle size={16} />, label: tk("safety.riskMedium") };
+      case "high": return { color: "var(--tf-danger)", bg: "var(--tf-danger-soft)", icon: <Shield size={16} />, label: tk("safety.riskHigh") };
+    }
+  })();
 
   return (
     <div className="tf-overlay" onClick={onClose}>
-      <div className="tf-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
+      <div className="tf-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
         <div className="tf-modal-header">
           <h2 className="tf-modal-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {riskInfo.icon}
             <span>{tk("safety.receipt")}</span>
           </h2>
           <button onClick={onClose} className="tf-btn-ghost tf-btn-sm">{tk("actions.close")}</button>
         </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <div style={{
-            display: "inline-block",
-            background: riskColors[result.riskLevel] || "var(--tf-surface-alt)",
-            color: "white",
-            padding: "4px 12px",
-            borderRadius: "12px",
-            fontSize: "0.75rem",
-            fontWeight: 700,
-            marginBottom: 8,
-          }}>
-            {tk("safety.risk" + result.riskLevel.charAt(0).toUpperCase() + result.riskLevel.slice(1))}
-          </div>
+        {/* Risk level */}
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "6px 14px", borderRadius: "20px",
+          background: riskInfo.bg, color: riskInfo.color,
+          fontSize: "0.8rem", fontWeight: 700, marginBottom: 16,
+        }}>
+          {riskInfo.icon}
+          {riskInfo.label}
         </div>
 
-        {/* Findings summary */}
+        {/* Findings summary (no raw secrets!) */}
         <div className="tf-card" style={{ padding: 14, marginBottom: 12 }}>
-          <div className="tf-card-title" style={{ fontSize: "0.8rem", marginBottom: 8 }}>
-            {tk("safety.findings")}: {result.findings.length}
+          <div style={{ fontSize: "0.8rem", fontWeight: 600, marginBottom: 8 }}>
+            {tk("safety.scanResult")}: {result.findings.length} {tk("safety.findings")}
           </div>
-          {result.findings.length > 0 ? (
-            result.findings.map((f, i) => (
-              <div key={i} style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "4px 0", borderBottom: "1px solid var(--tf-border-light)",
-                fontSize: "0.72rem",
-              }}>
-                <span style={{ color: "var(--tf-text)" }}>{f.label}</span>
-                <span style={{ color: "var(--tf-primary)", fontFamily: "var(--tf-font-mono)", fontSize: "0.65rem" }}>
-                  {f.redacted}
-                </span>
-              </div>
-            ))
+          {result.findings.length === 0 ? (
+            <div style={{ fontSize: "0.75rem", color: "var(--tf-success)" }}>
+              <CheckCircle size={12} style={{ display: "inline", marginRight: 4 }} />
+              {tk("safety.noFindings")}
+            </div>
           ) : (
-            <div style={{ fontSize: "0.75rem", color: "var(--tf-success)" }}>{tk("safety.noFindings")}</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {result.findings.map((f, i) => (
+                <div key={i} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "6px 0", borderBottom: "1px solid var(--tf-border-light)",
+                  fontSize: "0.72rem",
+                }}>
+                  <span style={{ color: "var(--tf-text)", fontWeight: 500 }}>{f.label}</span>
+                  <span style={{ color: "var(--tf-primary)", fontFamily: "var(--tf-font-mono)", fontSize: "0.68rem" }}>
+                    {f.redacted}
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
-        {/* Redacted vs original */}
-        {result.redacted !== result.original && (
-          <div className="tf-card" style={{ padding: 14, marginBottom: 12 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div>
-                <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--tf-danger)", marginBottom: 4 }}>
-                  {tk("safety.originalContent")}
-                </div>
-                <div style={{
-                  background: "var(--tf-danger-soft)",
-                  borderRadius: "6px", padding: "8px",
-                  fontSize: "0.65rem", fontFamily: "var(--tf-font-mono)",
-                  wordBreak: "break-word", maxHeight: 100, overflowY: "auto",
-                }}>
-                  {result.original}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--tf-success)", marginBottom: 4 }}>
-                  {tk("safety.safeContent")}
-                </div>
-                <div style={{
-                  background: "var(--tf-success-soft)",
-                  borderRadius: "6px", padding: "8px",
-                  fontSize: "0.65rem", fontFamily: "var(--tf-font-mono)",
-                  wordBreak: "break-word", maxHeight: 100, overflowY: "auto",
-                }}>
-                  {result.redacted}
-                </div>
-              </div>
-            </div>
+        {/* Safe outgoing content preview */}
+        <div className="tf-card" style={{ padding: 14, marginBottom: 12 }}>
+          <div style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--tf-success)", marginBottom: 6 }}>
+            <CheckCircle size={12} style={{ display: "inline", marginRight: 4 }} />
+            {tk("safety.safeContent")}
           </div>
-        )}
+          <div style={{
+            background: "var(--tf-success-soft)",
+            borderRadius: "6px", padding: "10px",
+            fontSize: "0.68rem", fontFamily: "var(--tf-font-mono)",
+            wordBreak: "break-word", maxHeight: 80, overflowY: "auto",
+            color: "var(--tf-success-text)",
+          }}>
+            {result.redacted}
+          </div>
+        </div>
 
         {/* Destination */}
         <div className="tf-card" style={{ padding: 14, marginBottom: 12 }}>

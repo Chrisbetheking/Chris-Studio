@@ -81,8 +81,8 @@ export function SafetyInspector({ result, onClose }: SafetyInspectorProps) {
               fontSize: "0.72rem",
             }}>
               <div style={{ fontWeight: 600, color: "var(--tf-text)", marginBottom: 2 }}>{f.label}</div>
-              <div style={{ color: "var(--tf-text-muted)", fontSize: "0.65rem", wordBreak: "break-all" }}>
-                {f.match}
+              <div style={{ color: "var(--tf-text-muted)", fontSize: "0.65rem" }}>
+                {f.type} ? {f.label}
               </div>
               <div style={{ color: "var(--tf-primary)", fontSize: "0.65rem", marginTop: 2 }}>
                 &rarr; {f.redacted}
