@@ -1,406 +1,119 @@
-import { useState, useEffect, useCallback } from "react";
-import { tk, onLangChange } from "@tokenfence/shared/src/i18n";
-import { useTheme } from "../components/ThemeProvider";
-import { PROVIDERS, PROVIDER_ENDPOINTS, type ProviderConfig,
-  loadProviderConfigs, saveProviderConfigs, healthCheckProvider,
-} from "@tokenfence/shared/src/providers";
-import { storeGet, storeSet } from "@tokenfence/shared/src/agent-runtime/safeStorage";
+import { useState } from 'react';
+import type { AppSettings, Language, ScreenId, ThemeMode } from '../app/types';
+import {
+  clearConversations,
+  clearProviderCredentials,
+  clearReceipts,
+  exportLocalSettings,
+  loadSettings,
+  resetApplication,
+  saveSettings,
+} from '../app/store';
+import { Icon } from '../components/Icon';
+import { useToast } from '../components/Toast';
 
-const SETTINGS_KEY = "tokenfence-settings";
+const copy = (language: Language, en: string, zh: string) => language === 'zh-CN' ? zh : en;
 
-interface AppSettings {
-  language: string;
-  theme: "light" | "dark";
-  defaultPage: string;
-  localFirst: boolean;
-  redactBeforeSend: boolean;
-  saveConversations: boolean;
+function Toggle({ checked, onChange, title, detail }: { checked: boolean; onChange: (value: boolean) => void; title: string; detail: string }) {
+  return (
+    <label className="toggle-row">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <span><strong>{title}</strong><small>{detail}</small></span>
+    </label>
+  );
 }
 
-function loadSettings(): AppSettings {
-  try { const r = storeGet(SETTINGS_KEY); return r ? JSON.parse(r) : defaultSettings(); }
-  catch { return defaultSettings(); }
-}
-
-function defaultSettings(): AppSettings {
-  return { language: "en", theme: "light", defaultPage: "chat", localFirst: true, redactBeforeSend: false, saveConversations: true };
-}
-
-function saveSettings(s: AppSettings) { storeSet(SETTINGS_KEY, JSON.stringify(s)); }
-
-export function SettingsScreen() {
-  const [, forceRender] = useState(0);
-  useEffect(() => { return onLangChange(() => forceRender((n) => n + 1)); }, []);
-
-
+export function SettingsScreen({ language, onSettingsChanged }: { language: Language; onSettingsChanged: (settings: AppSettings) => void }) {
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
-  const [activeSection, setActiveSection] = useState("general");
-  const [providerConfigs, setProviderConfigs] = useState<ProviderConfig[]>(() => loadProviderConfigs());
-  const [testStatus, setTestStatus] = useState<Record<string, string>>({});
-  const [editingProvider, setEditingProvider] = useState<string | null>(null);
-  const [editKey, setEditKey] = useState("");
-  const [editUrl, setEditUrl] = useState("");
-  const [editModel, setEditModel] = useState("");
-  const { theme, setTheme } = useTheme();
+  const [customTerms, setCustomTerms] = useState(() => settings.customSensitiveTerms.join('\n'));
+  const toast = useToast();
 
-  const [updateStatus, setUpdateStatus] = useState("");
-  const isZh = tk("common.yes") !== "Yes";
+  const update = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => setSettings((current) => ({ ...current, [key]: value }));
 
-  const handleExportSettings = () => {
-    try {
-      const data: Record<string, string> = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith("tokenfence")) {
-          data[key] = localStorage.getItem(key) || "";
-        }
-      }
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "tokenfence-settings-backup.json"; a.click();
-      URL.revokeObjectURL(url);
-      setUpdateStatus(isZh ? "导出成功" : "Exported successfully");
-    } catch (e: any) {
-      setUpdateStatus(`${isZh ? "导出失败" : "Export failed"}: ${e.message}`);
-    }
-  };
-
-  const handleImportSettings = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result as string);
-        for (const [key, value] of Object.entries(data)) {
-          if (key.startsWith("tokenfence")) {
-            localStorage.setItem(key, value as string);
-          }
-        }
-        setUpdateStatus(isZh ? "导入成功，请刷新页面" : "Imported successfully. Please refresh.");
-      } catch (ex: any) {
-        setUpdateStatus(`${isZh ? "导入失败" : "Import failed"}: ${ex.message}`);
-      }
+  const save = () => {
+    const next = {
+      ...settings,
+      customSensitiveTerms: customTerms.split(/\r?\n|,/).map((term) => term.trim()).filter(Boolean).slice(0, 100),
     };
-    reader.readAsText(file);
+    saveSettings(next);
+    setSettings(next);
+    onSettingsChanged(next);
+    toast.show(copy(language, 'Settings saved.', '设置已保存。'), 'success');
   };
 
-  const handleCheckUpdates = async () => {
-    setUpdateStatus(isZh ? "正在检查..." : "Checking...");
-    try {
-      const resp = await fetch("https://api.github.com/repos/Chrisbetheking/tokenfence-studio/releases/latest");
-      const data = await resp.json();
-      const latest = data.tag_name || "";
-      setUpdateStatus(`${isZh ? "最新版本" : "Latest"}: ${latest} ${latest === "v1.1.0" ? "✅" : ""}`);
-    } catch {
-      setUpdateStatus(isZh ? "无法检查更新" : "Unable to check for updates");
-    }
+  const downloadSettings = () => {
+    const blob = new Blob([exportLocalSettings()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `tokenfence-settings-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
   };
 
-  const handleOpenLogs = async () => {
-    try {
-      const { openLogsFolder } = await import("../desktop-bridge");
-      await openLogsFolder();
-      setUpdateStatus(isZh ? "已打开日志文件夹" : "Logs folder opened");
-    } catch {
-      setUpdateStatus(isZh ? "无法打开日志文件夹" : "Cannot open logs folder");
-    }
-  };
-
-
-  const sections = [
-    { id: "general", label: tk("settings.general") },
-    { id: "providers", label: tk("settings.providers") },
-    { id: "routing", label: tk("settings.modelRouting") },
-    { id: "privacy", label: tk("settings.privacy") },
-    { id: "maintenance", label: tk("settings.maintenance") || "Maintenance" },
-  ];
-
-  const saveSetting = useCallback((key: keyof AppSettings, value: any) => {
-    const updated = { ...settings, [key]: value };
-    setSettings(updated); saveSettings(updated);
-  }, [settings]);
-
-  const openProviderEdit = useCallback((providerId: string) => {
-    const cfg = providerConfigs.find(c => c.provider === providerId);
-    setEditingProvider(providerId);
-    setEditKey(cfg?.apiKey ?? "");
-    setEditUrl(cfg?.baseUrl ?? PROVIDER_ENDPOINTS[providerId]?.baseUrl ?? "");
-    setEditModel(cfg?.model ?? "");
-  }, [providerConfigs]);
-
-  const saveProviderConfig = useCallback(() => {
-    if (!editingProvider) return;
-    const updated = providerConfigs.map(c => {
-      if (c.provider !== editingProvider) return c;
-      return { ...c, apiKey: editKey, baseUrl: editUrl, model: editModel, enabled: !!editKey };
-    });
-    setProviderConfigs(updated); saveProviderConfigs(updated);
-    setEditingProvider(null);
-  }, [editingProvider, editKey, editUrl, editModel, providerConfigs]);
-
-  const testConnection = useCallback(async (providerId: string) => {
-    const cfg = providerConfigs.find(c => c.provider === providerId);
-    if (!cfg) return;
-    setTestStatus(p => ({ ...p, [providerId]: "testing" }));
-    try {
-      const isTauri = !!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__;
-      if (isTauri) {
-        const { invoke } = await import("@tauri-apps/api/tauri");
-        const result: any = await invoke("test_provider_connection", {
-          providerId, baseUrl: editUrl || cfg.baseUrl, apiKey: editKey || cfg.apiKey || null,
-        });
-        setTestStatus(p => ({ ...p, [providerId]: result.status }));
-        const updated = providerConfigs.map(c => c.provider === providerId ? { ...c, lastHealthStatus: result.status, lastHealthError: result.message, enabled: result.ok } : c);
-        setProviderConfigs(updated); saveProviderConfigs(updated);
-      } else {
-        const result = await healthCheckProvider({ ...cfg, apiKey: editKey || cfg.apiKey });
-        setTestStatus(p => ({ ...p, [providerId]: result.lastHealthStatus ?? "unknown" }));
-        const updated = providerConfigs.map(c => c.provider === providerId ? { ...c, ...result } : c);
-        setProviderConfigs(updated); saveProviderConfigs(updated);
-      }
-    } catch (e: any) {
-      setTestStatus(p => ({ ...p, [providerId]: "failed" }));
-    }
-  }, [providerConfigs, editKey, editUrl]);
-
-  const resetLocalData = useCallback(() => {
-    if (confirm(tk("settings.resetWarning"))) {
-      storeSet("tokenfence-conversations", "");
-      storeSet("tokenfence-projects", "");
-      storeSet("tokenfence-provider-configs", "");
-      storeSet(SETTINGS_KEY, "");
-      setSettings(defaultSettings());
-      setProviderConfigs(loadProviderConfigs());
-    }
-  }, []);
-
-  const statusColor = (s: string) => {
-    if (s === "ok") return "var(--tf-success)";
-    if (s === "testing") return "var(--tf-warning)";
-    if (s === "failed" || s === "degraded") return "var(--tf-danger)";
-    return "var(--tf-text-muted)";
+  const dangerous = (message: string, action: () => void, success: string) => {
+    if (!window.confirm(message)) return;
+    action();
+    toast.show(success, 'success');
   };
 
   return (
-    <div className="settings-layout">
-      <div className="settings-sidebar">
-        {sections.map(s => (
-          <button key={s.id} className={`settings-sidebar-item ${activeSection === s.id ? "active" : ""}`}
-            onClick={() => setActiveSection(s.id)}>
-            {s.label}
-          </button>
-        ))}
+    <main className="page-scroll">
+      <div className="page-header">
+        <div>
+          <span className="eyebrow">PREFERENCES</span>
+          <h1>{copy(language, 'Settings', '设置')}</h1>
+          <p>{copy(language, 'Every option below is connected to runtime behavior or local data handling.', '以下选项均已连接实际运行逻辑或本地数据处理，不是空壳 UI。')}</p>
+        </div>
+        <button className="button primary" onClick={save}>{copy(language, 'Save settings', '保存设置')}</button>
       </div>
-      <div className="settings-content">
-        {activeSection === "general" && (
-          <>
-            <h1 className="page-title">{tk("settings.general")}</h1>
-            <p className="page-subtitle">Application preferences and theme</p>
 
-            <div className="tf-card">
-              <div className="tf-card-title" style={{ marginBottom: 16 }}>{tk("settings.theme")}</div>
-              <div className="theme-toggle-group">
-                {(["light", "dark", "system"] as const).map(t => (
-                  <button key={t} className={`theme-toggle-btn ${theme === t ? "active" : ""}`} onClick={() => setTheme(t)}>
-                    {t === "light" ? "\u2600\uFE0F" : t === "dark" ? "\u{1F319}" : "\u{1F4BB}"} {tk(`settings.theme${t.charAt(0).toUpperCase() + t.slice(1) as any}`)}
-                  </button>
-                ))}
-              </div>
-            </div>
+      <div className="settings-grid">
+        <section className="settings-card">
+          <h2>{copy(language, 'General', '常规')}</h2>
+          <label className="field"><span>{copy(language, 'Language', '语言')}</span><select value={settings.language} onChange={(e) => update('language', e.target.value as Language)}><option value="en">English</option><option value="zh-CN">简体中文</option></select></label>
+          <label className="field"><span>{copy(language, 'Theme', '主题')}</span><select value={settings.theme} onChange={(e) => update('theme', e.target.value as ThemeMode)}><option value="system">{copy(language, 'System', '跟随系统')}</option><option value="light">{copy(language, 'Light', '浅色')}</option><option value="dark">{copy(language, 'Dark', '深色')}</option></select></label>
+          <label className="field"><span>{copy(language, 'Start screen', '启动页面')}</span><select value={settings.startScreen} onChange={(e) => update('startScreen', e.target.value as ScreenId)}><option value="workspace">Workspace</option><option value="history">History</option><option value="providers">Providers</option></select></label>
+          <Toggle checked={settings.autoOpenInspector} onChange={(v) => update('autoOpenInspector', v)} title={copy(language, 'Auto-open Safety Inspector', '自动打开安全检查器')} detail={copy(language, 'Open the inspector when findings are detected.', '发现风险时自动展开右侧检查器。')} />
+        </section>
 
-            <div className="tf-card" style={{ marginTop: 16 }}>
-              <div className="tf-card-title" style={{ marginBottom: 12 }}>{tk("settings.language")}</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className={`btn ${settings.language === "en" ? "btn-primary" : "btn-ghost"}`}
-                  onClick={() => { saveSetting("language", "en"); window.location.reload(); }}>English</button>
-                <button className={`btn ${settings.language === "zh-CN" ? "btn-primary" : "btn-ghost"}`}
-                  onClick={() => { saveSetting("language", "zh-CN"); window.location.reload(); }}>中文</button>
-              </div>
-            </div>
+        <section className="settings-card">
+          <h2>{copy(language, 'Safety', '安全')}</h2>
+          <Toggle checked={settings.autoScan} onChange={(v) => update('autoScan', v)} title={copy(language, 'Auto scan', '自动扫描')} detail={copy(language, 'Update risk analysis while the prompt changes.', '输入变化时同步更新风险分析。')} />
+          <Toggle checked={settings.autoRedactCritical} onChange={(v) => update('autoRedactCritical', v)} title={copy(language, 'Auto redact Critical findings', '自动脱敏严重风险')} detail={copy(language, 'Critical values are replaced before a payload can be approved.', '严重敏感值在批准发送前自动替换。')} />
+          <Toggle checked={settings.blockCriticalSends} onChange={(v) => update('blockCriticalSends', v)} title={copy(language, 'Block Critical raw sends', '阻止严重风险原文发送')} detail={copy(language, 'Only the reviewed redacted payload can proceed.', '仅允许经过审查的脱敏版本继续发送。')} />
+          <label className="field"><span>{copy(language, 'Custom sensitive terms (one per line)', '自定义敏感词（每行一个）')}</span><textarea rows={5} value={customTerms} onChange={(e) => setCustomTerms(e.target.value)} placeholder={copy(language, 'Internal project name\nCustomer identifier', '内部项目名\n客户编号')} /></label>
+          <div className="two-fields">
+            <label className="field"><span>{copy(language, 'Maximum text size', '最大文本扫描大小')}</span><input type="number" min={1000} max={2000000} value={settings.maxTextScanSize} onChange={(e) => update('maxTextScanSize', Number(e.target.value))} /></label>
+            <label className="field"><span>{copy(language, 'Maximum file size', '最大文件扫描大小')}</span><input type="number" min={1000} max={10000000} value={settings.maxFileScanSize} onChange={(e) => update('maxFileScanSize', Number(e.target.value))} /></label>
+          </div>
+        </section>
 
-            <div className="tf-card" style={{ marginTop: 16 }}>
-              <div className="tf-card-title" style={{ marginBottom: 12 }}>{tk("settings.defaultPage")}</div>
-              <select className="tf-select" value={settings.defaultPage} onChange={e => saveSetting("defaultPage", e.target.value)}>
-                <option value="chat">{tk("nav.chat")}</option>
-                <option value="projects">{tk("common.projects")}</option>
-                <option value="models">{tk("common.models")}</option>
-              </select>
-            </div>
-          </>
-        )}
+        <section className="settings-card">
+          <h2>AI</h2>
+          <label className="field"><span>{copy(language, 'Request timeout (ms)', '请求超时（毫秒）')}</span><input type="number" min={5000} max={180000} value={settings.requestTimeoutMs} onChange={(e) => update('requestTimeoutMs', Number(e.target.value))} /></label>
+          <label className="field"><span>{copy(language, 'Conversation context messages', '会话上下文条数')}</span><input type="number" min={2} max={100} value={settings.conversationContextLimit} onChange={(e) => update('conversationContextLimit', Number(e.target.value))} /></label>
+        </section>
 
-        {activeSection === "providers" && (
-          <>
-            <h1 className="page-title">{tk("settings.providers")}</h1>
-            <p className="page-subtitle">Configure API keys and test connections</p>
+        <section className="settings-card">
+          <h2>{copy(language, 'Privacy', '隐私')}</h2>
+          <Toggle checked={settings.localHistoryEnabled} onChange={(v) => update('localHistoryEnabled', v)} title={copy(language, 'Local history enabled', '启用本地历史')} detail={copy(language, 'Save only redacted prompts and replies.', '仅保存脱敏提示词与回复。')} />
+          <Toggle checked={settings.safetyReceiptsEnabled} onChange={(v) => update('safetyReceiptsEnabled', v)} title={copy(language, 'Safety receipts', '安全回执')} detail={copy(language, 'Keep metadata about scans without storing raw findings.', '保留扫描元数据，不保存敏感原文。')} />
+          <div className="danger-actions">
+            <button className="button secondary" onClick={downloadSettings}><Icon name="download" />{copy(language, 'Export settings', '导出设置')}</button>
+            <button className="button ghost danger" onClick={() => dangerous(copy(language, 'Clear all conversations?', '清空全部会话？'), clearConversations, copy(language, 'Conversations cleared.', '会话已清空。'))}>{copy(language, 'Clear conversations', '清空会话')}</button>
+            <button className="button ghost danger" onClick={() => dangerous(copy(language, 'Clear all safety receipts?', '清空全部安全回执？'), clearReceipts, copy(language, 'Safety receipts cleared.', '安全回执已清空。'))}>{copy(language, 'Clear safety receipts', '清空安全回执')}</button>
+            <button className="button ghost danger" onClick={() => dangerous(copy(language, 'Clear the provider credential?', '清除 Provider 凭证？'), clearProviderCredentials, copy(language, 'Credential cleared.', '凭证已清除。'))}>{copy(language, 'Clear provider credential', '清除 Provider 凭证')}</button>
+          </div>
+        </section>
 
-            <div style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center" }}>
-              <span className="badge badge-green">{providerConfigs.filter(c => c.enabled).length} enabled</span>
-              <span className="badge badge-blue">{providerConfigs.filter(c => c.lastHealthStatus === "ok").length} healthy</span>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {providerConfigs.map((p) => {
-                const status = testStatus[p.provider] ?? p.lastHealthStatus ?? "unknown";
-                const isEditing = editingProvider === p.provider;
-                return (
-                  <div key={p.provider} className="tf-card" style={{ padding: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <strong style={{ fontSize: "0.9rem" }}>{p.provider}</strong>
-                        <span className={`badge ${p.deployment === "local" ? "badge-green" : "badge-blue"}`}>
-                          {p.deployment === "local" ? tk("providers.local") : tk("providers.cloud")}
-                        </span>
-                        {status !== "unknown" && (
-                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: statusColor(status) }} />
-                        )}
-                      </div>
-                      <div style={{ display: "flex", gap: 4 }}>
-                        <button onClick={() => testConnection(p.provider)} className="btn btn-ghost" style={{ fontSize: "0.7rem", padding: "4px 10px" }}>
-                          {status === "testing" ? "\u23F3" : tk("providers.healthCheck")}
-                        </button>
-                        <button onClick={() => isEditing ? saveProviderConfig() : openProviderEdit(p.provider)}
-                          className={`btn ${isEditing ? "btn-primary" : "btn-ghost"}`}
-                          style={{ fontSize: "0.7rem", padding: "4px 10px" }}>
-                          {isEditing ? tk("actions.save") : "\u270F\uFE0F"}
-                        </button>
-                      </div>
-                    </div>
-                    {status !== "unknown" && !isEditing && (
-                      <div style={{ fontSize: "0.75rem", color: statusColor(status) }}>
-                        {status === "ok" ? tk("status.connected") : status === "failed" ? tk("status.failed") : status}
-                      </div>
-                    )}
-                    {isEditing && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
-                        <input className="tf-input" value={editKey} onChange={e => setEditKey(e.target.value)} type="password" placeholder="API Key" />
-                        <input className="tf-input" value={editUrl} onChange={e => setEditUrl(e.target.value)} placeholder="Base URL" />
-                        <input className="tf-input" value={editModel} onChange={e => setEditModel(e.target.value)} placeholder="Default model" />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {activeSection === "routing" && (
-          <>
-            <h1 className="page-title">{tk("settings.modelRouting")}</h1>
-            <p className="page-subtitle">{tk("nav.routing")} configuration</p>
-            <div className="tf-card">
-              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: "0.85rem", color: "var(--tf-text)", cursor: "pointer" }}>
-                <input type="checkbox" checked={true} onChange={() => {}} />
-                {tk("settings.autoSwitchDesc")}
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: "0.85rem", color: "var(--tf-text)", cursor: "pointer" }}>
-                <input type="checkbox" checked={false} onChange={() => {}} />
-                {tk("settings.askBeforeSwitch")}
-              </label>
-              <div style={{ fontSize: "0.75rem", color: "var(--tf-text-muted)", marginTop: 16, borderTop: "1px solid var(--tf-border)", paddingTop: 12 }}>
-                {tk("settings.routingRulesDesc")}
-              </div>
-            </div>
-          </>
-        )}
-
-        {activeSection === "maintenance" && (
-          <>
-            <h1 className="page-title">{tk("settings.maintenance") || "Maintenance"}</h1>
-            <div className="tf-card">
-              {/* Export Settings */}
-              <div style={{ padding: "12px 0", borderBottom: "1px solid var(--tf-border)" }}>
-                <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--tf-text)", marginBottom: 4 }}>
-                  {isZh ? "导出设置" : "Export Settings"}
-                </div>
-                <p style={{ fontSize: "0.75rem", color: "var(--tf-text-muted)", marginBottom: 8 }}>
-                  {isZh ? "将所有设置导出为 JSON 文件" : "Export all settings as a JSON file"}
-                </p>
-                <button className="btn btn-secondary" style={{ fontSize: "0.78rem" }} onClick={handleExportSettings}>
-                  {isZh ? "导出" : "Export"}
-                </button>
-              </div>
-
-              {/* Import Settings */}
-              <div style={{ padding: "12px 0", borderBottom: "1px solid var(--tf-border)" }}>
-                <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--tf-text)", marginBottom: 4 }}>
-                  {isZh ? "导入设置" : "Import Settings"}
-                </div>
-                <p style={{ fontSize: "0.75rem", color: "var(--tf-text-muted)", marginBottom: 8 }}>
-                  {isZh ? "从 JSON 文件导入设置" : "Import settings from a JSON file"}
-                </p>
-                <input type="file" accept=".json" onChange={handleImportSettings} style={{ fontSize: "0.78rem" }} />
-              </div>
-
-              {/* Check for Updates */}
-              <div style={{ padding: "12px 0", borderBottom: "1px solid var(--tf-border)" }}>
-                <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--tf-text)", marginBottom: 4 }}>
-                  {isZh ? "检查更新" : "Check for Updates"}
-                </div>
-                <p style={{ fontSize: "0.75rem", color: "var(--tf-text-muted)", marginBottom: 8 }}>
-                  {isZh ? "查看最新版本" : "Check for the latest release"}
-                </p>
-                <button className="btn btn-secondary" style={{ fontSize: "0.78rem" }} onClick={handleCheckUpdates}>
-                  {isZh ? "检查" : "Check"}
-                </button>
-                {updateStatus && (
-                  <div style={{ marginTop: 8, fontSize: "0.75rem", color: updateStatus.includes("v1.1.0") ? "var(--tf-success)" : "var(--tf-warning)" }}>
-                    {updateStatus}
-                  </div>
-                )}
-              </div>
-
-              {/* Open Logs */}
-              <div style={{ padding: "12px 0" }}>
-                <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--tf-text)", marginBottom: 4 }}>
-                  {isZh ? "操作日志" : "Operation Logs"}
-                </div>
-                <p style={{ fontSize: "0.75rem", color: "var(--tf-text-muted)", marginBottom: 8 }}>
-                  {isZh ? "打开本地日志文件夹" : "Open local logs folder"}
-                </p>
-                <button className="btn btn-secondary" style={{ fontSize: "0.78rem" }} onClick={handleOpenLogs}>
-                  {isZh ? "打开日志文件夹" : "Open Logs Folder"}
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {activeSection === "privacy" && (
-          <>
-            <h1 className="page-title">{tk("settings.privacy")}</h1>
-            <div className="tf-card">
-              <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", cursor: "pointer" }}>
-                <span style={{ color: "var(--tf-text)", fontSize: "0.85rem" }}>{tk("settings.localFirstMode")}</span>
-                <input type="checkbox" checked={settings.localFirst} onChange={e => saveSetting("localFirst", e.target.checked)} />
-              </label>
-              <hr className="tf-divider" />
-              <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", cursor: "pointer" }}>
-                <span style={{ color: "var(--tf-text)", fontSize: "0.85rem" }}>{tk("settings.redactBeforeSend")}</span>
-                <input type="checkbox" checked={settings.redactBeforeSend} onChange={e => saveSetting("redactBeforeSend", e.target.checked)} />
-              </label>
-              <hr className="tf-divider" />
-              <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", cursor: "pointer" }}>
-                <span style={{ color: "var(--tf-text)", fontSize: "0.85rem" }}>{tk("settings.saveConversations")}</span>
-                <input type="checkbox" checked={settings.saveConversations} onChange={e => saveSetting("saveConversations", e.target.checked)} />
-              </label>
-              <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--tf-border)" }}>
-                <button
-                  onClick={() => { storeSet("tokenfence-conversations", ""); alert(tk("settings.conversationsCleared")); }}
-                  className="btn btn-ghost" style={{ color: "var(--tf-danger)", fontSize: "0.8rem" }}>
-                  {tk("settings.clearConversations")}
-                </button>
-                <button onClick={resetLocalData} className="btn btn-danger" style={{ fontSize: "0.8rem", marginLeft: 12 }}>
-                  {tk("settings.resetData")}
-                </button>
-              </div>
-            </div>
-          </>
-        )}
+        <section className="settings-card">
+          <h2>{copy(language, 'Advanced', '高级')}</h2>
+          <Toggle checked={settings.experimentalFeatures} onChange={(v) => update('experimentalFeatures', v)} title={copy(language, 'Experimental features', '实验功能')} detail={copy(language, 'Keep disabled for public demos.', '公开演示时建议关闭。')} />
+          <Toggle checked={settings.debugMode} onChange={(v) => update('debugMode', v)} title={copy(language, 'Debug mode', '调试模式')} detail={copy(language, 'Never prints provider secrets or unredacted payloads.', '即使开启也不会打印 Provider 密钥或未脱敏请求。')} />
+          <button className="button danger full" onClick={() => dangerous(copy(language, 'Reset the entire application? All local settings, credentials, history and receipts will be removed.', '确定重置整个应用吗？本地设置、凭证、历史和回执都会被删除。'), () => { resetApplication(); window.location.reload(); }, copy(language, 'Application reset.', '应用已重置。'))}>{copy(language, 'Reset application', '重置应用')}</button>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

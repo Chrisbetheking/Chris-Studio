@@ -1,12 +1,14 @@
 {
   "name": "@tokenfence/desktop-ui",
   "private": true,
-  "version": "0.4.0-dev",
+  "version": "1.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test:core": "tsc --target ES2022 --module commonjs --moduleResolution node --lib ES2022,DOM --strict --outDir ../../../.tokenfence-test-build src/app/types.ts src/app/store.ts src/features/safety/scanner.ts && node scripts/core-privacy-test.cjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^1.6.0",

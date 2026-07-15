@@ -1,268 +1,176 @@
-import { useState, useEffect, useCallback } from "react";
-import { tk, onLangChange } from "@tokenfence/shared/src/i18n";
+import { useEffect, useState } from 'react';
+import type { Language, ProviderConfig, ProviderStatus } from '../app/types';
 import {
-  PROVIDERS,
-  PROVIDER_ENDPOINTS,
-  loadProviderConfigs,
-  saveProviderConfigs,
-  healthCheckProvider,
-} from "@tokenfence/shared/src/providers";
-import type { ProviderConfig } from "@tokenfence/shared/src/providers";
+  clearProviderCredentials,
+  loadProviderConfig,
+  loadProviderStatus,
+  loadSettings,
+  nowIso,
+  saveProviderConfig,
+  saveProviderStatus,
+} from '../app/store';
+import { testDeepSeekConnection } from '../features/providers/providerClient';
+import { Icon } from '../components/Icon';
+import { useToast } from '../components/Toast';
 
-async function fetchProviderModels(provider: string, apiKey: string, baseUrl?: string): Promise<{ id: string }[]> {
-  try {
-    const ep = PROVIDER_ENDPOINTS[provider];
-    if (!ep) return [];
-    const modelsUrl = baseUrl ? `${baseUrl}/models` : `${ep.baseUrl}/models`;
-    const resp = await fetch(modelsUrl, {
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    });
-    if (!resp.ok) return [];
-    const data = await resp.json();
-    const models = data?.data ?? data?.models ?? data ?? [];
-    return Array.isArray(models) ? models.map((m: any) => ({ id: m.id ?? m.name ?? m.model })) : [];
-  } catch {
-    return [];
-  }
-}
+const copy = (language: Language, en: string, zh: string) => language === 'zh-CN' ? zh : en;
 
-function healthLabel(status?: string): string {
-  switch (status) {
-    case "ok": return tk("status.healthy");
-    case "degraded": return tk("status.degraded");
-    case "error": return tk("status.failed");
-    default: return tk("common.unknown");
-  }
-}
+export function ProvidersScreen({ language, onDone }: { language: Language; onDone: () => void }) {
+  const [config, setConfig] = useState<ProviderConfig>(() => loadProviderConfig());
+  const [status, setStatus] = useState<ProviderStatus>(() => loadProviderStatus());
+  const [showKey, setShowKey] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
 
-function healthBadge(status?: string): string {
-  switch (status) {
-    case "ok": return "badge-green";
-    case "degraded": return "badge-amber";
-    case "error": return "badge-red";
-    default: return "badge-muted";
-  }
-}
-
-function EditProviderModal({ config, testing, onClose, onUpdate, onHealthCheck }: {
-  config: ProviderConfig;
-  testing: boolean;
-  onClose: () => void;
-  onUpdate: (updates: Partial<ProviderConfig>) => void;
-  onHealthCheck: () => void;
-}) {
-  try {
-    return (
-      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={onClose}>
-        <div className="card" style={{ background: "var(--surface)", borderRadius: 16, padding: 24, width: 440, maxWidth: "90vw", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 60px rgba(0,0,0,0.3)" }} onClick={(e) => e.stopPropagation()}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 600, color: "var(--text)" }}>{tk("providers.editProvider")}: {config.provider ?? "Unknown"}</h3>
-            <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "1.3rem", padding: "4px 8px" }}>&times;</button>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div>
-              <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginBottom: 4 }}>{tk("providers.model")}</label>
-              <input className="input" style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", fontSize: "0.85rem" }} value={config.model ?? ""} onChange={(e) => onUpdate({ model: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginBottom: 4 }}>{tk("providers.baseUrl")}</label>
-              <input className="input" style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", fontSize: "0.8rem", fontFamily: "monospace" }} value={config.baseUrl ?? ""} onChange={(e) => onUpdate({ baseUrl: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginBottom: 4 }}>{tk("providers.apiKey")}</label>
-              <input className="input" type="password" style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", fontSize: "0.8rem", fontFamily: "monospace" }} value={config.apiKey ?? ""} onChange={(e) => onUpdate({ apiKey: e.target.value })} placeholder={config.deployment === "local" ? tk("common.none") : "sk-..."} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: "0.78rem", color: "var(--text-secondary)", marginBottom: 4 }}>{tk("providersPage.customModelHint")}</label>
-              <input className="input" style={{ width: "100%", boxSizing: "border-box", padding: "8px 12px", fontSize: "0.8rem" }} value={config.customModelId ?? ""} onChange={(e) => onUpdate({ customModelId: e.target.value || undefined })} placeholder={tk("common.none")} />
-            </div>
-            {config.lastHealthError && (
-              <div style={{ color: "var(--red)", fontSize: "0.8rem", padding: "8px 12px", background: "rgba(255,0,0,0.05)", borderRadius: 8 }}>{tk("common.error")}: {config.lastHealthError}</div>
-            )}
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
-              <button className="btn btn-ghost" onClick={onClose}>{tk("actions.close")}</button>
-              <button className="btn btn-primary" onClick={onHealthCheck} disabled={testing}>{testing ? tk("providers.testing") : tk("providers.healthCheck")}</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  } catch (e: any) {
-    console.error("[EditProviderModal] render error:", e);
-    return (
-      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={onClose}>
-        <div className="card" style={{ background: "var(--surface)", borderRadius: 16, padding: 24, maxWidth: 400, textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontSize: "1.5rem", marginBottom: 8 }}>&#9888;</div>
-          <div style={{ fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>Provider editor failed</div>
-          <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: 16 }}>{e.message}</div>
-          <button className="btn btn-primary" onClick={onClose}>{tk("actions.close")}</button>
-        </div>
-      </div>
-    );
-  }
-}
-
-export function ProvidersScreen() {
-  const [, forceRender] = useState(0);
-  useEffect(() => { return onLangChange(() => forceRender((n) => n + 1)); }, []);
-
-  const [configs, setConfigs] = useState<ProviderConfig[]>(loadProviderConfigs());
-  const [testingId, setTestingId] = useState<string | null>(null);
-  const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
-  const [editingProvider, setEditingProvider] = useState<string | null>(null);
-
-  const updateConfig = useCallback((provider: string, updates: Partial<ProviderConfig>) => {
-    setConfigs((prev) => {
-      const next = prev.map((c) => (c.provider === provider ? { ...c, ...updates } : c));
-      saveProviderConfigs(next);
-      return next;
-    });
+  useEffect(() => {
+    const sync = () => {
+      setConfig(loadProviderConfig());
+      setStatus(loadProviderStatus());
+    };
+    window.addEventListener('tokenfence:provider-updated', sync);
+    return () => window.removeEventListener('tokenfence:provider-updated', sync);
   }, []);
 
-  const runHealthCheck = useCallback(async (provider: string) => {
-    setTestingId(provider);
-    const config = configs.find((c) => c.provider === provider);
-    if (!config) return;
-    const result = await healthCheckProvider(config);
-    setConfigs((prev) => {
-      const next = prev.map((c) => (c.provider === provider ? result : c));
-      saveProviderConfigs(next);
-      return next;
-    });
-    setTestingId(null);
-  }, [configs]);
+  const save = () => {
+    saveProviderConfig(config);
+    const next: ProviderStatus = config.apiKey.trim() ? { state: 'configured' } : { state: 'not-configured' };
+    saveProviderStatus(next);
+    setStatus(next);
+    toast.show(copy(language, 'Provider settings saved locally.', 'Provider 设置已保存在本机。'), 'success');
+  };
 
-  const runAllHealthChecks = useCallback(async () => {
-    for (const c of configs.filter((c) => c.enabled)) {
-      setTestingId(c.provider);
-      const result = await healthCheckProvider(c);
-      setConfigs((prev) => {
-        const next = prev.map((p) => (p.provider === c.provider ? result : p));
-        saveProviderConfigs(next);
-        return next;
-      });
-    }
-    setTestingId(null);
-  }, [configs]);
-
-  const refreshModelsFromProvider = useCallback(async (provider: string) => {
-    const cfg = configs.find((c) => c.provider === provider);
-    if (!cfg || !cfg.apiKey) {
-      setRefreshMsg(tk("providersPage.noKeyForRefresh"));
+  const test = async () => {
+    if (!config.apiKey.trim()) {
+      toast.show(copy(language, 'Enter a DeepSeek API key first.', '请先填写 DeepSeek API Key。'), 'warning');
       return;
     }
-    setTestingId(provider);
-    const models = await fetchProviderModels(provider, cfg.apiKey, cfg.baseUrl);
-    if (models.length > 0) {
-      setRefreshMsg(tk("providersPage.refreshedModels").replace("{count}", String(models.length)).replace("{provider}", provider));
-    } else {
-      setRefreshMsg(tk("providersPage.noModelsFound"));
-    }
-    setTestingId(null);
-  }, [configs]);
+    setBusy(true);
+    saveProviderConfig(config);
+    const result = await testDeepSeekConnection(config, loadSettings().requestTimeoutMs);
+    const next: ProviderStatus = result.ok
+      ? {
+          state: 'connected',
+          checkedAt: nowIso(),
+          latencyMs: result.latencyMs,
+          model: result.model ?? config.model,
+          message: 'Connection verified',
+        }
+      : {
+          state: 'error',
+          checkedAt: nowIso(),
+          message: result.errorMessage ?? 'Connection failed',
+        };
+    saveProviderStatus(next);
+    setStatus(next);
+    setBusy(false);
+    toast.show(
+      result.ok
+        ? copy(language, 'DeepSeek connection verified.', 'DeepSeek 连接验证成功。')
+        : copy(language, next.message ?? 'Connection failed.', `连接失败：${next.message ?? '请检查网络和 Key。'}`),
+      result.ok ? 'success' : 'error',
+    );
+  };
 
-  const editingConfig = editingProvider ? configs.find((c) => c.provider === editingProvider) : null;
+  const clear = () => {
+    if (!window.confirm(copy(language, 'Clear the saved API credential?', '确定清除已保存的 API 凭证吗？'))) return;
+    clearProviderCredentials();
+    setConfig(loadProviderConfig());
+    setStatus({ state: 'not-configured' });
+    toast.show(copy(language, 'Credential cleared.', '凭证已清除。'), 'success');
+  };
+
+  const stateLabel = {
+    'not-configured': copy(language, 'Not configured', '未配置'),
+    configured: copy(language, 'Configured — test required', '已配置—需要测试'),
+    connected: copy(language, 'Connected', '已连接'),
+    error: copy(language, 'Connection failed', '连接失败'),
+  }[status.state];
 
   return (
-    <div style={{ padding: "0 0 40px 0" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 className="page-title" style={{ marginBottom: 4 }}>{tk("providersPage.title")}</h1>
-        <p className="page-subtitle" style={{ margin: 0 }}>{tk("providersPage.subtitle")}</p>
+    <main className="page-scroll">
+      <div className="page-header">
+        <div>
+          <span className="eyebrow">AI PROVIDER</span>
+          <h1>{copy(language, 'Connect DeepSeek', '连接 DeepSeek')}</h1>
+          <p>{copy(language, 'Provider requests leave the renderer through the Tauri desktop backend, not a browser fetch.', 'Provider 请求通过 Tauri 桌面后端发出，不再由浏览器前端直连。')}</p>
+        </div>
+        <div className={`status-pill status-${status.state}`}><span />{stateLabel}</div>
       </div>
 
-      {refreshMsg && (
-        <div className="card" style={{ padding: "10px 14px", marginBottom: 16, background: "var(--surface-alt)", fontSize: "0.82rem", color: "var(--text)", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ flex: 1 }}>{refreshMsg}</span>
-          <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "0.9rem" }} onClick={() => setRefreshMsg(null)}>&times;</button>
+      <section className="provider-card">
+        <div className="provider-card-head">
+          <div className="provider-logo">DS</div>
+          <div>
+            <h2>DeepSeek</h2>
+            <p>https://api.deepseek.com/chat/completions</p>
+          </div>
+          <div className="provider-state-detail">
+            {status.checkedAt && <small>{copy(language, 'Last checked', '上次检测')} {new Date(status.checkedAt).toLocaleString()}</small>}
+            {status.latencyMs != null && <strong>{status.latencyMs} ms</strong>}
+          </div>
         </div>
-      )}
 
-      {/* Stats row */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
-        <button className="btn btn-primary" onClick={runAllHealthChecks} style={{ fontSize: "0.82rem" }}>{tk("providersPage.runAllHC")}</button>
-        <button className="btn btn-secondary" onClick={() => { for (const c of configs.filter((c) => c.enabled && c.apiKey)) refreshModelsFromProvider(c.provider); }} style={{ fontSize: "0.82rem" }}>{tk("providersPage.refreshModels")}</button>
-        <div style={{ display: "flex", gap: 8, marginLeft: 8 }}>
-          <span className="badge badge-green" style={{ fontSize: "0.78rem", padding: "4px 10px" }}>{configs.filter((c) => c.enabled).length} {tk("providersPage.enabledCount")}</span>
-          <span className="badge badge-blue" style={{ fontSize: "0.78rem", padding: "4px 10px" }}>{configs.filter((c) => c.lastHealthStatus === "ok").length} {tk("providersPage.healthyCount")}</span>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{configs.length} {tk("providersPage.enabledCount") === "enabled" ? "providers" : tk("providersPage.enabledCount")}</span>
-        </div>
-      </div>
-
-      {/* Provider cards grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>
-        {configs.map((config) => {
-          const testing = testingId === config.provider;
-          const configured = !!config.apiKey;
-          return (
-            <div key={config.provider} className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-              {/* Card header */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: configured ? "var(--primary)" : "var(--surface-alt)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", color: configured ? "white" : "var(--text-muted)", flexShrink: 0, fontWeight: 600 }}>
-                  {config.provider.slice(0, 2).toUpperCase()}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text)" }}>{config.provider}</div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
-                    <span className={`badge ${config.deployment === "local" ? "badge-green" : "badge-blue"}`} style={{ fontSize: "0.68rem" }}>
-                      {config.deployment === "local" ? tk("providers.local") : tk("providers.cloud")}
-                    </span>
-                    <span className={`badge ${healthBadge(config.lastHealthStatus)}`} style={{ fontSize: "0.68rem" }}>
-                      {healthLabel(config.lastHealthStatus)}
-                    </span>
-                    <span className={`badge ${config.enabled ? "badge-green" : "badge-muted"}`} style={{ fontSize: "0.68rem" }}>
-                      {config.enabled ? tk("status.enabled") : tk("status.disabled")}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Model summary */}
-              <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>
-                <span style={{ color: "var(--text-muted)" }}>{tk("providers.model")}:</span>{" "}
-                <span style={{ fontWeight: 500, color: "var(--text)" }}>{config.model || tk("providers.noModel")}</span>
-                {config.customModelId && (
-                  <span style={{ marginLeft: 8, fontSize: "0.7rem", color: "var(--text-muted)", fontFamily: "monospace" }}>({config.customModelId})</span>
-                )}
-              </div>
-
-              {/* Last check info */}
-              {config.lastHealthCheck && (
-                <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
-                  {tk("providers.lastCheck")}: {new Date(config.lastHealthCheck).toLocaleString()}
-                </div>
-              )}
-
-              {/* Actions */}
-              <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
-                <button className="btn btn-secondary" style={{ fontSize: "0.78rem", padding: "5px 14px" }} disabled={testing} onClick={() => runHealthCheck(config.provider)}>
-                  {testing ? tk("providers.testing") : tk("providers.healthCheck")}
-                </button>
-                <button className="btn btn-ghost" style={{ fontSize: "0.78rem", padding: "5px 14px" }} onClick={() => setEditingProvider(config.provider)}>
-                  {tk("providers.editProvider")}
-                </button>
-                {config.apiKey && (
-                  <button className="btn btn-ghost" style={{ fontSize: "0.78rem", padding: "5px 14px" }} disabled={testing} onClick={() => refreshModelsFromProvider(config.provider)}>
-                    {tk("providersPage.refreshModels")}
-                  </button>
-                )}
-              </div>
+        <div className="form-grid">
+          <label className="field field-wide">
+            <span>API Key</span>
+            <div className="input-with-action">
+              <input
+                type={showKey ? 'text' : 'password'}
+                value={config.apiKey}
+                onChange={(event) => setConfig({ ...config, apiKey: event.target.value })}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="sk-…"
+              />
+              <button type="button" className="icon-button" onClick={() => setShowKey((value) => !value)} aria-label="Toggle API key visibility">
+                <Icon name={showKey ? 'eyeOff' : 'eye'} />
+              </button>
             </div>
-          );
-        })}
-      </div>
+          </label>
 
-      {/* Edit Modal with error boundary */}
-      {editingProvider && editingConfig && (
-        <EditProviderModal
-          config={editingConfig}
-          testing={!!testingId}
-          onClose={() => setEditingProvider(null)}
-          onUpdate={(updates) => updateConfig(editingProvider!, updates)}
-          onHealthCheck={() => runHealthCheck(editingProvider!)}
-        />
-      )}
-    </div>
+          <label className="field">
+            <span>{copy(language, 'Model', '模型')}</span>
+            <select value={config.model} onChange={(event) => setConfig({ ...config, model: event.target.value })}>
+              <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+              <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+            </select>
+          </label>
+
+          <label className="field">
+            <span>{copy(language, 'Endpoint', '接口地址')}</span>
+            <input value={config.baseUrl} disabled />
+          </label>
+
+          <label className="toggle-row field-wide">
+            <input
+              type="checkbox"
+              checked={config.demoMode}
+              onChange={(event) => setConfig({ ...config, demoMode: event.target.checked })}
+            />
+            <span>
+              <strong>{copy(language, 'Local demo mode', '本地演示模式')}</strong>
+              <small>{copy(language, 'Generate a local safety demonstration without contacting DeepSeek.', '不连接 DeepSeek，仅在本地生成安全流程演示回复。')}</small>
+            </span>
+          </label>
+        </div>
+
+        {status.state === 'error' && <div className="inline-alert error"><Icon name="alert" />{status.message}</div>}
+
+        <div className="privacy-note">
+          <Icon name="lock" />
+          <div>
+            <strong>{copy(language, 'Stored locally on this device', '仅保存在此设备上')}</strong>
+            <p>{copy(language, 'The key is kept in the app’s local storage. TokenFence does not upload it, but this build does not claim OS keychain encryption.', 'Key 保存在应用本地存储中，TokenFence 不会上传；当前版本不虚假声称使用了系统钥匙串加密。')}</p>
+          </div>
+        </div>
+
+        <div className="button-row">
+          <button className="button secondary" onClick={save}>{copy(language, 'Save', '保存')}</button>
+          <button className="button primary" onClick={test} disabled={busy}>{busy ? copy(language, 'Testing…', '测试中…') : copy(language, 'Test connection', '测试连接')}</button>
+          <button className="button ghost danger" onClick={clear}>{copy(language, 'Clear credential', '清除凭证')}</button>
+          {(status.state === 'connected' || config.demoMode) && <button className="button ghost push-right" onClick={onDone}>{copy(language, 'Return to workspace', '返回工作台')} <Icon name="chevron" size={16} /></button>}
+        </div>
+      </section>
+    </main>
   );
 }

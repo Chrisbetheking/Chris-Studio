@@ -1,41 +1,41 @@
 {
-    "build":  {
-                  "distDir": "../ui/dist",
-                  "devPath": "http://localhost:1420",
-                  "beforeBuildCommand": "npm run ui:build",
-                  "beforeDevCommand": "npm run ui:dev"
-              },
-    "package":  {
-                    "productName": "TokenFence Studio",
-                    "version": "1.5.6"
-                },
-    "tauri":  {
-                  "bundle":  {
-                                 "active":  true,
-                                 "targets": "all",
-                                 "icon":  [
-                                              "icons/32x32.png",
-                                              "icons/128x128.png",
-                                              "icons/128x128@2x.png",
-                                              "icons/icon.icns",
-                                              "icons/icon.ico"
-                                          ],
-                                 "identifier": "com.tokenfence.studio"
-                             },
-                  "security":  {
-                                   "csp":  null
-                               },
-                  "windows":  [
-                                  {
-                                      "title": "TokenFence Studio",
-                                      "width":  1280,
-                                      "height":  800,
-                                      "minWidth":  900,
-                                      "minHeight":  600,
-                                      "resizable":  true,
-                                      "fullscreen":  false,
-                                      "decorations":  true
-                                  }
-                              ]
-              }
+  "build": {
+    "distDir": "../ui/dist",
+    "devPath": "http://localhost:1420",
+    "beforeBuildCommand": "npm run ui:build",
+    "beforeDevCommand": "npm run ui:dev"
+  },
+  "package": {
+    "productName": "TokenFence Studio",
+    "version": "1.6.0"
+  },
+  "tauri": {
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "com.tokenfence.studio"
+    },
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: data: blob:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost;"
+    },
+    "windows": [
+      {
+        "title": "TokenFence Studio — Safe AI Workspace",
+        "width": 1360,
+        "height": 860,
+        "minWidth": 900,
+        "minHeight": 620,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true
+      }
+    ]
+  }
 }

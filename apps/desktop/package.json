@@ -1,6 +1,6 @@
 {
   "name": "@tokenfence/desktop",
-  "version": "0.4.0-dev",
+  "version": "1.6.0",
   "private": true,
   "scripts": {
     "ui:install": "cd ui && npm install",
@@ -8,7 +8,8 @@
     "ui:build": "cd ui && npm run build",
     "dev": "tauri dev",
     "build": "npm run ui:build && tauri build",
-    "typecheck": "echo desktop-no-ts-check"
+    "typecheck": "cd ui && npm run typecheck",
+    "test:core": "cd ui && npm run test:core"
   },
   "dependencies": {
     "@tokenfence/shared": "*"

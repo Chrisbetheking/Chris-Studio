@@ -1,344 +1,103 @@
-import { useState, useEffect, useCallback, Component } from "react";
-import { tk, onLangChange } from "@tokenfence/shared/src/i18n";
-import { ThemeProvider, useTheme } from "./components/ThemeProvider";
-import { ChatWorkspace } from "./screens/ChatWorkspace";
-import { ProjectsScreen } from "./screens/ProjectsScreen";
-import { SettingsScreen } from "./screens/SettingsScreen";
-import { ProvidersScreen } from "./screens/ProvidersScreen";
-import { ModelsScreen } from "./screens/ModelsScreen";
-import { AboutScreen } from "./screens/AboutScreen";
-import { GuardScreen } from "./screens/GuardScreen";
-import { DocumentsScreen } from "./screens/DocumentsScreen";
-import { MatrixScreen } from "./screens/MatrixScreen";
-import { AgentLabScreen } from "./screens/AgentLabScreen";
-import { PluginStoreScreen } from "./screens/PluginStoreScreen";
-import { OutputScreen } from "./screens/OutputScreen";
-import { MindMapScreen } from "./screens/MindMapScreen";
-import { ComputerControlScreen } from "./screens/ComputerControlScreen";
-import { RoutingScreen } from "./screens/RoutingScreen";
-import { ArchiveScreen } from "./screens/ArchiveScreen";
-import { StorageScreen } from "./screens/StorageScreen";
-import { Dashboard } from "./screens/Dashboard";
-import { ToolboxScreen } from "./screens/ToolboxScreen";
-import { AgentPatchPanel } from "./components/AgentPatchPanel";
-import { LanguageSwitcher } from "./components/LanguageSwitcher";
+import { useEffect, useMemo, useState } from 'react';
+import type { AppSettings, Language, ScreenId } from './app/types';
+import { loadSettings } from './app/store';
+import { Icon, type IconName } from './components/Icon';
+import { ToastProvider } from './components/Toast';
+import { WorkspaceScreen } from './screens/WorkspaceScreen';
+import { HistoryScreen } from './screens/HistoryScreen';
+import { ProvidersScreen } from './screens/ProvidersScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
+import { AboutScreen } from './screens/AboutScreen';
 
-type Screen = "chat" | "projects" | "models" | "toolbox" | "settings" | "about"
-  | "guard" | "documents" | "matrix" | "providers" | "archive" | "storage"
-  | "agent-lab" | "plugins" | "output" | "mindmap" | "computer" | "routing" | "dashboard" | "agent-edit";
+const copy = (language: Language, en: string, zh: string) => language === 'zh-CN' ? zh : en;
 
-type FeatureStatus = "working" | "preview" | "coming_soon" | "needs_runtime";
+interface NavItem {
+  id: ScreenId;
+  icon: IconName;
+  en: string;
+  zh: string;
+}
 
-export const VERSION = "v1.5.6";
-
-const primaryNav: { id: Screen; icon: string }[] = [
-  { id: "chat", icon: "\u{1F4AC}" },
-  { id: "projects", icon: "\u{1F4C1}" },
-  { id: "models", icon: "\u{1F916}" },
-  { id: "toolbox", icon: "\u{1F9F0}" },
-  { id: "settings", icon: "\u2699\uFE0F" },
-  { id: "about", icon: "\u2139\uFE0F" },
+const NAV: NavItem[] = [
+  { id: 'workspace', icon: 'workspace', en: 'Workspace', zh: '工作台' },
+  { id: 'history', icon: 'history', en: 'History', zh: '历史记录' },
+  { id: 'providers', icon: 'server', en: 'Providers', zh: 'Provider' },
+  { id: 'settings', icon: 'settings', en: 'Settings', zh: '设置' },
+  { id: 'about', icon: 'info', en: 'About', zh: '关于' },
 ];
 
-type ToolGroup = {
-  labelKey: string;
-  items: { id: Screen; labelKey: string; status: FeatureStatus; icon: string }[];
-};
-
-const toolGroups: ToolGroup[] = [
-  {
-    labelKey: "common.security",
-    items: [
-      { id: "guard", labelKey: "nav.guard", status: "working", icon: "\u{1F6E1}\uFE0F" },
-      { id: "routing", labelKey: "nav.routing", status: "working", icon: "\u{1F4E1}" },
-    ],
-  },
-  {
-    labelKey: "common.documents",
-    items: [
-      { id: "documents", labelKey: "nav.documents", status: "preview", icon: "\u{1F4C4}" },
-      { id: "output", labelKey: "nav.outputs", status: "preview", icon: "\u{1F4E4}" },
-    ],
-  },
-  {
-    labelKey: "common.knowledge",
-    items: [
-      { id: "storage", labelKey: "nav.storage", status: "preview", icon: "\u{1F5C4}\uFE0F" },
-      { id: "archive", labelKey: "nav.archive", status: "coming_soon", icon: "\u{1F4E6}" },
-    ],
-  },
-  {
-    labelKey: "common.agent",
-    items: [
-      { id: "agent-lab", labelKey: "nav.agentLab", status: "preview", icon: "\u{1F9EA}" },
-      { id: "computer", labelKey: "nav.computerUse", status: "needs_runtime", icon: "\u{1F5A5}\uFE0F" },
-      { id: "plugins", labelKey: "nav.plugins", status: "preview", icon: "\u{1F9E9}" },
-    ],
-  },
-  {
-    labelKey: "common.creative",
-    items: [
-      { id: "mindmap", labelKey: "nav.mindMap", status: "preview", icon: "\u{1F9E0}" },
-      { id: "dashboard", labelKey: "nav.dashboard", status: "working", icon: "\u{1F4CA}" },
-      { id: "matrix", labelKey: "nav.matrix", status: "preview", icon: "\u{1F9EE}" },
-    ],
-  },
-];
-
-function statusBadge(s: FeatureStatus): { label: string; className: string } {
-  switch (s) {
-    case "working": return { label: tk("common.working"), className: "badge-green" };
-    case "preview": return { label: tk("common.preview"), className: "badge-amber" };
-    case "coming_soon": return { label: tk("common.comingSoon"), className: "badge-slate" };
-    case "needs_runtime": return { label: tk("common.needsLocalRuntime"), className: "badge-slate" };
-  }
+function resolvedTheme(settings: AppSettings): 'light' | 'dark' {
+  if (settings.theme !== 'system') return settings.theme;
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-const screenLabels: Record<Screen, string> = {
-  chat: "nav.chat", projects: "common.projects", models: "common.models",
-  toolbox: "common.toolbox", settings: "nav.settings", about: "nav.about",
-  guard: "nav.guard", documents: "nav.documents", matrix: "nav.matrix",
-  providers: "nav.providers", archive: "nav.archive", storage: "nav.storage",
-  "agent-lab": "nav.agentLab", plugins: "nav.plugins", output: "nav.outputs",
-  mindmap: "nav.mindMap", computer: "nav.computerUse", routing: "nav.routing",
-  dashboard: "nav.dashboard",
-  "agent-edit": "nav.agentEdit",
-};
-
-const screens: Record<string, React.ReactNode> = {
-  chat: <ChatWorkspace />,
-  projects: <ProjectsScreen />,
-  models: <ModelsScreen />,
-  settings: <SettingsScreen />,
-  about: <AboutScreen />,
-  guard: <GuardScreen />,
-  documents: <DocumentsScreen />,
-  matrix: <MatrixScreen />,
-  providers: <ProvidersScreen />,
-  archive: <ArchiveScreen />,
-  storage: <StorageScreen />,
-  "agent-lab": <AgentLabScreen />,
-  plugins: <PluginStoreScreen />,
-  output: <OutputScreen />,
-  mindmap: <MindMapScreen />,
-  computer: <ComputerControlScreen />,
-  routing: <RoutingScreen />,
-  dashboard: <Dashboard />,
-  "agent-edit": <AgentPatchPanel selectedFiles={[]} onClose={() => {}} />,
-  toolbox: <ToolboxScreen />,
-};
-
-/* ---- ToolboxScreen 闂佺偨鍎查弨鐨€dependent full-page layout ---- */
-function ToolboxLayout() {
-  const [activeTool, setActiveTool] = useState<Screen | null>(null);
-  if (activeTool && screens[activeTool]) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--tf-bg)" }}>
-        <div style={{
-          padding: "10px 20px", borderBottom: "1px solid var(--tf-border)",
-          display: "flex", alignItems: "center", gap: 14,
-          background: "var(--tf-surface)"
-        }}>
-          <button onClick={() => setActiveTool(null)} className="btn btn-ghost" style={{ fontSize: 12, fontWeight: 600 }}>
-            {"\u2190"} {tk("actions.back")}
-          </button>
-          <span style={{ fontWeight: 600, fontSize: 15, color: "var(--tf-text)" }}>{tk(screenLabels[activeTool])}</span>
-        </div>
-        <div style={{ flex: 1, overflow: "auto" }}>{screens[activeTool]}</div>
-      </div>
-    );
-  }
-  return (
-    <div style={{ padding: "32px 36px", maxWidth: 1280, margin: "0 auto", width: "100%", overflow: "auto" }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--tf-text)", marginBottom: 6 }}>{tk("common.toolbox")}</h1>
-      <p style={{ fontSize: 14, color: "var(--tf-text-muted)", marginBottom: 32 }}>
-        Tools and utilities ?status labels show readiness.
-      </p>
-      {toolGroups.map((group) => (
-        <div key={group.labelKey} style={{ marginBottom: 28 }}>
-          <h3 style={{
-            fontSize: 12, fontWeight: 700,
-            color: "var(--tf-text-muted)", marginBottom: 12,
-            textTransform: "uppercase", letterSpacing: "0.06em"
-          }}>
-            {tk(group.labelKey)}
-          </h3>
-          <div className="stats-grid">
-            {group.items.map((item) => {
-              const badge = statusBadge(item.status);
-              return (
-                <div
-                  key={item.id}
-                  className="stat-card"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => setActiveTool(item.id)}
-                >
-                  <div style={{ fontSize: 24, marginBottom: 6 }}>{item.icon}</div>
-                  <div className="stat-label" style={{ fontSize: 13, fontWeight: 600 }}>{tk(item.labelKey)}</div>
-                  <span className={`badge ${badge.className}`} style={{ fontSize: "0.62rem", marginTop: 8, display: "inline-block" }}>
-                    {badge.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ---- Theme toggle button ---- */
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const options: { value: "light" | "dark" | "system"; icon: string }[] = [
-    { value: "light", icon: "\u2600\uFE0F" },
-    { value: "dark", icon: "\u{1F319}" },
-    { value: "system", icon: "\u{1F4BB}" },
-  ];
-  return (
-    <div className="theme-toggle-group" style={{ marginBottom: 8 }}>
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          className={`theme-toggle-btn ${theme === opt.value ? "active" : ""}`}
-          onClick={() => setTheme(opt.value)}
-          title={opt.value}
-        >
-          {opt.icon}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-
-
-/* ---- ErrorBoundary ---- */
-type EBState = { hasError: boolean; error: string | null };
-class ErrorBoundary extends Component<{ children: React.ReactNode }, EBState> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error: Error): EBState {
-    return { hasError: true, error: error.message || String(error) };
-  }
-  render() {
-    if (this.state.hasError) {
-      const isZh = tk("common.yes") !== "Yes";
-      return (
-        <div style={{ padding: "40px", textAlign: "center", color: "var(--tf-text)" }}>
-          <h2 style={{ fontSize: 20, marginBottom: 12 }}>{isZh ? "页面加载失败" : "Page failed to load"}</h2>
-          <p style={{ fontSize: 14, color: "var(--tf-text-muted)", marginBottom: 16 }}>{this.state.error}</p>
-          <button
-            className="btn btn-primary"
-            onClick={() => { this.setState({ hasError: false, error: null }); }}
-            style={{ fontSize: 14, padding: "8px 20px" }}
-          >
-            {isZh ? "重试" : "Retry"}
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-/* ---- App Inner ---- */
-function AppInner() {
-  const [screen, setScreen] = useState<Screen>("chat");
-  const [, forceRender] = useState(0);
-  const [mascotVisible, setMascotVisible] = useState(() => {
-    try { const v = localStorage.getItem("tokenfence-mascot"); return v !== "hidden"; } catch { return true; }
-  });
+function TokenFenceApp() {
+  const initialSettings = useMemo(() => loadSettings(), []);
+  const [settings, setSettings] = useState<AppSettings>(initialSettings);
+  const [active, setActive] = useState<ScreenId>(initialSettings.startScreen);
+  const [openConversationId, setOpenConversationId] = useState<string | undefined>(undefined);
+  const [newSessionNonce, setNewSessionNonce] = useState(0);
+  const language = settings.language;
 
   useEffect(() => {
-    return onLangChange(() => forceRender((n) => n + 1));
-  }, []);
-
-  // Listen for cross-component navigation events (e.g. Chat "Configure provider")
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.screen) setScreen(detail.screen as Screen);
+    const apply = () => {
+      const next = loadSettings();
+      setSettings(next);
+      document.documentElement.dataset.theme = resolvedTheme(next);
+      document.documentElement.lang = next.language;
     };
-    window.addEventListener("tokenfence:navigate", handler);
-    return () => window.removeEventListener("tokenfence:navigate", handler);
+    apply();
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
+    media?.addEventListener('change', apply);
+    window.addEventListener('tokenfence:settings-updated', apply);
+    return () => {
+      media?.removeEventListener('change', apply);
+      window.removeEventListener('tokenfence:settings-updated', apply);
+    };
   }, []);
 
-  const toggleMascot = useCallback(() => {
-    const next = !mascotVisible;
-    setMascotVisible(next);
-    try { localStorage.setItem("tokenfence-mascot", next ? "visible" : "hidden"); } catch {}
-  }, [mascotVisible]);
-
-  const currentContent = <ErrorBoundary key={screen}>{(screen === "toolbox" ? <ToolboxLayout /> : screens[screen] ?? <ChatWorkspace />)}</ErrorBoundary>;
+  const startNew = () => {
+    setActive('workspace');
+    setOpenConversationId(undefined);
+    setNewSessionNonce((value) => value + 1);
+  };
 
   return (
-    <div className="app-layout">
-      <div className="app-layout-body">
-        {/* Sidebar */}
-        <nav className="sidebar">
-        <div className="sidebar-brand">
-          <span className="sidebar-brand-icon">TF</span>
-          <span className="sidebar-brand-text">TokenFence</span>
+    <div className="app-shell">
+      <aside className="app-sidebar">
+        <div className="brand">
+          <div className="brand-mark"><Icon name="shield" size={22} /></div>
+          <div><strong>TokenFence</strong><span>Safe AI Workspace</span></div>
         </div>
-        <div className="sidebar-nav">
-          {primaryNav.map(({ id, icon }) => (
-            <button
-              key={id}
-              className={`sidebar-item ${screen === id ? "active" : ""}`}
-              onClick={() => setScreen(id)}
-              title={tk(screenLabels[id])}
-            >
-              <span className="sidebar-item-icon">{icon}</span>
-              <span className="sidebar-item-label">{tk(screenLabels[id])}</span>
+
+        <button className="new-session" onClick={startNew}><Icon name="plus" />{copy(language, 'New session', '新建会话')}</button>
+
+        <nav className="app-nav" aria-label="Primary navigation">
+          {NAV.map((item) => (
+            <button key={item.id} className={active === item.id ? 'active' : ''} onClick={() => setActive(item.id)}>
+              <Icon name={item.icon} />
+              <span>{copy(language, item.en, item.zh)}</span>
             </button>
           ))}
-        </div>
-        <div className="sidebar-footer">
-          <ThemeToggle />
-          <LanguageSwitcher />
-          <div className="status-indicator" style={{ marginTop: 8 }}>
-            <span className="status-dot green"></span>
-            <span>{tk("status.localFirst")}</span>
-          </div>
-          <div className="version-text">{VERSION}</div>
-          <button
-            onClick={toggleMascot}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              fontSize: 11, color: "var(--tf-text-muted)", marginTop: 6,
-              padding: "2px 4px"
-            }}
-            title={mascotVisible ? tk("common.hideMascot") || "Hide mascot" : tk("common.showMascot") || "Show mascot"}
-          >
-            {mascotVisible ? "\u{1F441}\uFE0F " + (tk("common.hideMascot") || "Hide mascot") : "\u{1F441}\uFE0F " + (tk("common.showMascot") || "Show mascot")}
-          </button>
-        </div>
-      </nav>
+        </nav>
 
-      {/* Main */}
-      <main className="main-content">{currentContent}</main>
+        <div className="sidebar-foot">
+          <div className="local-badge"><Icon name="lock" size={15} /><span>{copy(language, 'Local-first records', '本地优先记录')}</span></div>
+          <small>v1.6.0</small>
+        </div>
+      </aside>
 
-      {/* Mascot */}
-      <div
-        className={`mascot ${mascotVisible ? "" : "hidden"}`}
-        onClick={() => setScreen("chat")}
-        title="Back to Chat"
-      >
-        <span style={{ fontSize: 48 }}>{String.fromCodePoint(0x1F916)}</span>
-      </div>
+      <div className="app-content">
+        {active === 'workspace' && <WorkspaceScreen language={language} openConversationId={openConversationId} newSessionNonce={newSessionNonce} onOpenProviders={() => setActive('providers')} />}
+        {active === 'history' && <HistoryScreen language={language} onOpen={(id) => { setOpenConversationId(id); setActive('workspace'); }} />}
+        {active === 'providers' && <ProvidersScreen language={language} onDone={() => setActive('workspace')} />}
+        {active === 'settings' && <SettingsScreen language={language} onSettingsChanged={setSettings} />}
+        {active === 'about' && <AboutScreen language={language} />}
       </div>
     </div>
   );
 }
 
 export function App() {
-  return (
-    <ThemeProvider>
-      <AppInner />
-    </ThemeProvider>
-  );
+  return <ToastProvider><TokenFenceApp /></ToastProvider>;
 }
