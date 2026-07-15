@@ -2,6 +2,8 @@
    TokenFence Studio — Model Registry v1.0.14
    ============================================================ */
 
+import { storeGet, storeSet } from './agent-runtime/safeStorage';
+
 export type ModelCapability =
   | "chat"
   | "reasoning"
@@ -236,7 +238,7 @@ export function pickBestAvailableModel(
   // 2. Pick favorites (stored in localStorage)
   let favorites: { providerId: string; modelId: string }[] = [];
   try {
-    const raw = localStorage.getItem("tokenfence-favorite-models");
+    const raw = storeGet("tokenfence-favorite-models");
     if (raw) favorites = JSON.parse(raw);
   } catch {}
   for (const fav of favorites) {
@@ -249,7 +251,7 @@ export function pickBestAvailableModel(
   // 3. Pick recent (stored in localStorage)
   let recents: { providerId: string; modelId: string }[] = [];
   try {
-    const raw = localStorage.getItem("tokenfence-recent-models");
+    const raw = storeGet("tokenfence-recent-models");
     if (raw) recents = JSON.parse(raw);
   } catch {}
   for (const r of recents) {
@@ -300,12 +302,12 @@ export function pickBestAvailableModel(
 
 export function addRecentModel(providerId: string, modelId: string): void {
   try {
-    const raw = localStorage.getItem("tokenfence-recent-models");
+    const raw = storeGet("tokenfence-recent-models");
     let recents: { providerId: string; modelId: string }[] = raw ? JSON.parse(raw) : [];
     recents = recents.filter(r => !(r.providerId === providerId && r.modelId === modelId));
     recents.unshift({ providerId, modelId });
     if (recents.length > 10) recents = recents.slice(0, 10);
-    localStorage.setItem("tokenfence-recent-models", JSON.stringify(recents));
+    storeSet("tokenfence-recent-models", JSON.stringify(recents));
   } catch {}
 }
 
