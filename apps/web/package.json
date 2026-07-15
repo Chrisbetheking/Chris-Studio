@@ -1,6 +1,6 @@
 {
   "name": "@tokenfence/web",
-  "version": "0.3.7",
+  "version": "1.6.0",
   "private": true,
   "description": "Local-first AI workspace with prompt safety, built-in document parsing, OCR, model routing, local archive, and agent bridges.",
   "type": "module",

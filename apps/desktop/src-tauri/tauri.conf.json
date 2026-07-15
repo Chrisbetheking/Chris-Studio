@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nickkuk/tauri-docs/v2/references/config-schema.json",
   "productName": "TokenFence Studio",
-  "version": "1.0.14",
+  "version": "1.6.0",
   "identifier": "com.tokenfence.studio",
   "build": {
     "frontendDist": "../ui/dist",

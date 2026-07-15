@@ -26,15 +26,15 @@ type Screen = "chat" | "projects" | "models" | "toolbox" | "settings" | "about"
 
 type FeatureStatus = "working" | "preview" | "coming_soon" | "needs_runtime";
 
-const VERSION = "v1.0.14";
+const VERSION = "v1.6.0";
 
 const primaryNav: { id: Screen; icon: string }[] = [
-  { id: "chat", icon: "\u{1F4AC}" },
-  { id: "projects", icon: "\u{1F4C1}" },
-  { id: "models", icon: "\u{1F916}" },
-  { id: "toolbox", icon: "\u{1F9F0}" },
-  { id: "settings", icon: "\u2699\uFE0F" },
-  { id: "about", icon: "\u2139\uFE0F" },
+  { id: "chat", icon: "" },
+  { id: "projects", icon: "" },
+  { id: "models", icon: "" },
+  { id: "toolbox", icon: "" },
+  { id: "settings", icon: "" },
+  { id: "about", icon: "" },
 ];
 
 type ToolGroup = {
@@ -46,38 +46,38 @@ const toolGroups: ToolGroup[] = [
   {
     labelKey: "common.security",
     items: [
-      { id: "guard", labelKey: "nav.guard", status: "working", icon: "\u{1F6E1}\uFE0F" },
-      { id: "routing", labelKey: "nav.routing", status: "working", icon: "\u{1F4E1}" },
+      { id: "guard", labelKey: "nav.guard", status: "working", icon: "" },
+      { id: "routing", labelKey: "nav.routing", status: "working", icon: "" },
     ],
   },
   {
     labelKey: "common.documents",
     items: [
-      { id: "documents", labelKey: "nav.documents", status: "preview", icon: "\u{1F4C4}" },
-      { id: "output", labelKey: "nav.outputs", status: "preview", icon: "\u{1F4E4}" },
+      { id: "documents", labelKey: "nav.documents", status: "preview", icon: "" },
+      { id: "output", labelKey: "nav.outputs", status: "preview", icon: "" },
     ],
   },
   {
     labelKey: "common.knowledge",
     items: [
-      { id: "storage", labelKey: "nav.storage", status: "preview", icon: "\u{1F5C4}\uFE0F" },
-      { id: "archive", labelKey: "nav.archive", status: "coming_soon", icon: "\u{1F4E6}" },
+      { id: "storage", labelKey: "nav.storage", status: "preview", icon: "" },
+      { id: "archive", labelKey: "nav.archive", status: "coming_soon", icon: "" },
     ],
   },
   {
     labelKey: "common.agent",
     items: [
-      { id: "agent-lab", labelKey: "nav.agentLab", status: "preview", icon: "\u{1F9EA}" },
-      { id: "computer", labelKey: "nav.computerUse", status: "needs_runtime", icon: "\u{1F5A5}\uFE0F" },
-      { id: "plugins", labelKey: "nav.plugins", status: "preview", icon: "\u{1F9E9}" },
+      { id: "agent-lab", labelKey: "nav.agentLab", status: "preview", icon: "" },
+      { id: "computer", labelKey: "nav.computerUse", status: "needs_runtime", icon: "" },
+      { id: "plugins", labelKey: "nav.plugins", status: "preview", icon: "" },
     ],
   },
   {
     labelKey: "common.creative",
     items: [
-      { id: "mindmap", labelKey: "nav.mindMap", status: "preview", icon: "\u{1F9E0}" },
-      { id: "dashboard", labelKey: "nav.dashboard", status: "working", icon: "\u{1F4CA}" },
-      { id: "matrix", labelKey: "nav.matrix", status: "preview", icon: "\u{1F9EE}" },
+      { id: "mindmap", labelKey: "nav.mindMap", status: "preview", icon: "" },
+      { id: "dashboard", labelKey: "nav.dashboard", status: "working", icon: "" },
+      { id: "matrix", labelKey: "nav.matrix", status: "preview", icon: "" },
     ],
   },
 ];

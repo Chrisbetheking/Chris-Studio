@@ -11,7 +11,7 @@
 ## 最新下载
 
 - [Android APK](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.0/TokenFence-Studio-Android-v1.0.0-release.apk)
-- [Windows 便携版 ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.0.14/TokenFence-Studio-Windows-v1.0.14-portable.zip)
+- [Windows 便携版 ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/download/v1.6.0/TokenFence-Studio-Windows-v1.6.0-portable.zip)
 
 > Windows 用户：请下载 portable ZIP，先完整解压，再运行解压文件夹里的 \	okenfence-studio.exe\。不要直接在 ZIP 压缩包预览里双击 EXE。
 
@@ -77,7 +77,7 @@ TokenFence Studio 是一个本地优先 AI 工作台，默认提供类似 Codex 
 
 ## Windows 使用方式
 
-下载 \TokenFence-Studio-Windows-v1.0.14-portable.zip\，先完整解压，再运行解压文件夹里的 \	okenfence-studio.exe\。
+下载 \TokenFence-Studio-Windows-v1.6.0-portable.zip\，先完整解压，再运行解压文件夹里的 \	okenfence-studio.exe\。
 
 不要直接在 ZIP 压缩包预览里双击 EXE。
 
