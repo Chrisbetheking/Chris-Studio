@@ -11,6 +11,7 @@
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
     "@tokenfence/shared": "file:../../../packages/shared",
+    "lucide-react": "^0.468.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
