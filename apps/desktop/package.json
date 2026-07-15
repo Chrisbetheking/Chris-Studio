@@ -1,6 +1,6 @@
 {
   "name": "@tokenfence/desktop",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "private": true,
   "scripts": {
     "ui:install": "cd ui && npm install",

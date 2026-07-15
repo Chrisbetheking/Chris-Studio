@@ -11,10 +11,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
-    "paths": {
-      "@shared/*": ["../../../packages/shared/src/*"]
-    }
+    "noEmit": true
   },
-  "include": ["src"]
+  "files": ["src/main.tsx"]
 }
