@@ -23,3 +23,6 @@ apps/desktop/src-tauri/target/
 ios/
 .tokenfence/
 *.tsbuildinfo
+
+*.zip
+tmp-portable/
