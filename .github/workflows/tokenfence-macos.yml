@@ -1,0 +1,237 @@
+name: TokenFence macOS Builds and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag, for example v1.6.1
+        required: true
+        default: v1.6.1
+        type: string
+      create_release:
+        description: Create or update the GitHub Release after successful builds
+        required: true
+        default: true
+        type: boolean
+      make_latest:
+        description: Mark this release as Latest
+        required: true
+        default: true
+        type: boolean
+      build_universal:
+        description: Also attempt the optional Universal macOS build
+        required: true
+        default: true
+        type: boolean
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tokenfence-macos-${{ github.ref }}-${{ github.event.inputs.version || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      should_release: ${{ steps.meta.outputs.should_release }}
+      make_latest: ${{ steps.meta.outputs.make_latest }}
+      build_universal: ${{ steps.meta.outputs.build_universal }}
+    steps:
+      - id: meta
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_CREATE_RELEASE: ${{ inputs.create_release }}
+          INPUT_MAKE_LATEST: ${{ inputs.make_latest }}
+          INPUT_BUILD_UNIVERSAL: ${{ inputs.build_universal }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            release_tag="$INPUT_VERSION"
+            should_release="$INPUT_CREATE_RELEASE"
+            make_latest="$INPUT_MAKE_LATEST"
+            build_universal="$INPUT_BUILD_UNIVERSAL"
+          else
+            release_tag="$REF_NAME"
+            should_release="true"
+            make_latest="true"
+            build_universal="true"
+          fi
+
+          if [[ ! "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
+            echo "Invalid version: $release_tag. Expected a tag such as v1.6.1." >&2
+            exit 1
+          fi
+
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "should_release=$should_release" >> "$GITHUB_OUTPUT"
+          echo "make_latest=$make_latest" >> "$GITHUB_OUTPUT"
+          echo "build_universal=$build_universal" >> "$GITHUB_OUTPUT"
+
+  verify-desktop:
+    name: Verify desktop UI and privacy boundary
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npm --workspace apps/desktop run typecheck
+      - run: npm --workspace apps/desktop run test:core
+      - run: npm --workspace apps/desktop run ui:build
+      - run: python3 scripts/verify_tokenfence_patch.py
+
+  architecture-builds:
+    name: macOS ${{ matrix.label }}
+    needs:
+      - prepare
+      - verify-desktop
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Apple-Silicon
+            runner: macos-15
+            target: aarch64-apple-darwin
+          - label: Intel
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+      - run: npm ci --legacy-peer-deps
+      - run: npm --workspace apps/desktop run ui:build
+      - name: Build Tauri bundle
+        working-directory: apps/desktop
+        run: npx tauri build --target ${{ matrix.target }}
+      - name: Package release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUNDLE="apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle"
+          OUT="dist-macos-${{ matrix.label }}"
+          mkdir -p "$OUT"
+
+          APP_PATH="$(find "$BUNDLE/macos" -maxdepth 1 -name '*.app' -print -quit)"
+          DMG_PATH="$(find "$BUNDLE/dmg" -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$APP_PATH"
+          test -n "$DMG_PATH"
+
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$APP_PATH" \
+            "$OUT/TokenFence-Studio-macOS-${{ matrix.label }}.app.zip"
+          cp "$DMG_PATH" "$OUT/TokenFence-Studio-macOS-${{ matrix.label }}.dmg"
+          shasum -a 256 "$OUT"/* > "$OUT/SHA256SUMS-${{ matrix.label }}.txt"
+          ls -lah "$OUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TokenFence-Studio-macOS-${{ matrix.label }}
+          path: dist-macos-${{ matrix.label }}/
+          if-no-files-found: error
+          retention-days: 30
+
+  universal-build:
+    name: macOS Universal
+    needs:
+      - prepare
+      - verify-desktop
+    if: needs.prepare.outputs.build_universal == 'true'
+    runs-on: macos-15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: aarch64-apple-darwin,x86_64-apple-darwin
+      - run: npm ci --legacy-peer-deps
+      - run: npm --workspace apps/desktop run ui:build
+      - name: Build universal Tauri bundle
+        working-directory: apps/desktop
+        run: npx tauri build --target universal-apple-darwin
+      - name: Package universal release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUNDLE="apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle"
+          OUT="dist-macos-Universal"
+          mkdir -p "$OUT"
+
+          APP_PATH="$(find "$BUNDLE/macos" -maxdepth 1 -name '*.app' -print -quit)"
+          DMG_PATH="$(find "$BUNDLE/dmg" -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$APP_PATH"
+          test -n "$DMG_PATH"
+
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$APP_PATH" \
+            "$OUT/TokenFence-Studio-macOS-Universal.app.zip"
+          cp "$DMG_PATH" "$OUT/TokenFence-Studio-macOS-Universal.dmg"
+          shasum -a 256 "$OUT"/* > "$OUT/SHA256SUMS-Universal.txt"
+          ls -lah "$OUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TokenFence-Studio-macOS-Universal
+          path: dist-macos-Universal/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-release:
+    name: Create or update GitHub Release
+    needs:
+      - prepare
+      - architecture-builds
+      - universal-build
+    if: always() && needs.prepare.outputs.should_release == 'true' && needs.architecture-builds.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: TokenFence-Studio-macOS-*
+          path: release-files
+          merge-multiple: true
+      - name: Verify downloaded files
+        shell: bash
+        run: |
+          set -euo pipefail
+          find release-files -maxdepth 1 -type f -print -exec ls -lh {} \;
+          test -n "$(find release-files -maxdepth 1 -name 'TokenFence-Studio-macOS-Apple-Silicon.dmg' -print -quit)"
+          test -n "$(find release-files -maxdepth 1 -name 'TokenFence-Studio-macOS-Intel.dmg' -print -quit)"
+      - name: Publish release and attach macOS downloads
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.release_tag }}
+          target_commitish: ${{ github.sha }}
+          name: TokenFence Studio ${{ needs.prepare.outputs.release_tag }}
+          body_path: docs/release/RELEASE_NOTES_v1.6.1.md
+          make_latest: ${{ needs.prepare.outputs.make_latest }}
+          files: |
+            release-files/*.dmg
+            release-files/*.zip
+            release-files/SHA256SUMS-*.txt
+          fail_on_unmatched_files: false
