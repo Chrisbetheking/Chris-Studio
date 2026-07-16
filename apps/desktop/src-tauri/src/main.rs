@@ -1918,7 +1918,7 @@ fn computer_request_permissions() -> ComputerActionResult {
     #[cfg(target_os = "macos")]
     {
         let accessibility_probe = Command::new("/usr/bin/osascript")
-            .args(["-e", "tell application "System Events" to count processes"])
+            .args(["-e", r#"tell application "System Events" to count processes"#])
             .output();
         let capture_path = std::env::temp_dir().join(format!("chris-studio-permission-probe-{}.png", unix_timestamp()));
         let screen_probe = Command::new("/usr/sbin/screencapture").arg("-x").arg(&capture_path).status();
