@@ -19,7 +19,6 @@ TokenFence Studio is a desktop AI workspace that reviews prompts and supported t
 |---|---|---|
 | Apple Silicon — M1/M2/M3/M4 and newer | [Download Apple Silicon DMG](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-macOS-Apple-Silicon.dmg) | [Download APP ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-macOS-Apple-Silicon.app.zip) |
 | Intel Mac | [Download Intel DMG](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-macOS-Intel.dmg) | [Download APP ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-macOS-Intel.app.zip) |
-| Universal — both architectures | [Download Universal DMG](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-macOS-Universal.dmg) | [Download APP ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-macOS-Universal.app.zip) |
 
 - [Open the latest GitHub Release](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest)
 - [Open the v1.6.1 Release page](https://github.com/Chrisbetheking/tokenfence-studio/releases/tag/v1.6.1)
@@ -48,7 +47,6 @@ The v1.6.1 release workflow currently publishes the new macOS packages. Windows 
 The current desktop line is **v1.6.1**.
 
 - Native macOS builds for Apple Silicon and Intel Macs
-- Optional Universal macOS bundle
 - DeepSeek credentials stored in the operating-system credential store
 - English and Simplified Chinese interface
 - Light, dark, and system themes

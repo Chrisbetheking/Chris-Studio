@@ -17,5 +17,14 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ureq = { version = "2.12", features = ["json"] }
 
+# main.rs uses the keyring crate for provider_secret_save/load/delete.
+# Keep the native backend target-specific so Linux verification does not
+# pull platform credential-store implementations into the build.
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3.6.3", default-features = false, features = ["apple-native"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3.6.3", default-features = false, features = ["windows-native"] }
+
 [features]
 custom-protocol = ["tauri/custom-protocol"]

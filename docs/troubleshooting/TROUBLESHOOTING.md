@@ -173,7 +173,6 @@ rustup target add aarch64-apple-darwin
 rustup target add x86_64-apple-darwin
 ```
 
-A Universal build requires both targets.
 
 ## 7. Xcode Command Line Tools are missing
 
@@ -270,11 +269,9 @@ Check the Intel job for:
 
 The workflow uses GitHub's `macos-15-intel` label. If GitHub changes runner availability, compare the workflow label with the current GitHub-hosted runners documentation.
 
-## 12. Universal build fails while both individual builds succeed
 
 The Universal job is optional. It requires both macOS Rust targets and all native dependencies to support combining architectures.
 
-Users can still download the separate Apple Silicon and Intel builds. Do not block a release only because the optional Universal job failed.
 
 ## 13. No `.dmg` or `.app.zip` appears in the artifact
 

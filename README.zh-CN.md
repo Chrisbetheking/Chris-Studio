@@ -19,7 +19,6 @@ TokenFence Studio 是一款桌面 AI 安全工作台。它会在请求发送给 
 |---|---|---|
 | Apple Silicon：M1/M2/M3/M4 及后续芯片 | [下载 Apple Silicon DMG](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-macOS-Apple-Silicon.dmg) | [下载 APP ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-macOS-Apple-Silicon.app.zip) |
 | Intel Mac | [下载 Intel DMG](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-macOS-Intel.dmg) | [下载 APP ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-macOS-Intel.app.zip) |
-| Universal：两种架构通用 | [下载 Universal DMG](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-macOS-Universal.dmg) | [下载 APP ZIP](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest/download/TokenFence-Studio-macOS-Universal.app.zip) |
 
 - [打开最新 GitHub Release](https://github.com/Chrisbetheking/tokenfence-studio/releases/latest)
 - [打开 v1.6.1 Release 页面](https://github.com/Chrisbetheking/tokenfence-studio/releases/tag/v1.6.1)
@@ -48,7 +47,6 @@ uname -m
 当前桌面端版本线为 **v1.6.1**。
 
 - 支持 Apple Silicon 与 Intel Mac 的原生 macOS 构建
-- 提供可选 Universal 通用安装包
 - DeepSeek 凭证保存到操作系统凭证库
 - 中英文界面
 - 跟随系统、浅色和深色主题

@@ -18,7 +18,6 @@
 5. After completion, download one of these artifacts:
    - `TokenFence-Studio-macOS-Apple-Silicon`
    - `TokenFence-Studio-macOS-Intel`
-   - `TokenFence-Studio-macOS-Universal` when the optional universal build succeeds.
 
 Apple Silicon is for M1/M2/M3/M4 and newer Apple chips. Intel is for older Intel-based Macs.
 

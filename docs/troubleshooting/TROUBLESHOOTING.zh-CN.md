@@ -173,7 +173,6 @@ rustup target add aarch64-apple-darwin
 rustup target add x86_64-apple-darwin
 ```
 
-Universal 构建需要同时安装两个目标。
 
 ## 7. 缺少 Xcode Command Line Tools
 

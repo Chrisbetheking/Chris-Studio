@@ -6,7 +6,6 @@ TokenFence Studio v1.6.1 introduces the first native macOS release line and stre
 
 - **Apple Silicon DMG:** M1, M2, M3, M4, and newer Apple chips.
 - **Intel DMG:** older Intel-based Macs.
-- **Universal DMG:** runs on both architectures when the optional Universal build succeeds.
 - **APP ZIP:** alternative package for testing when the DMG cannot be opened.
 
 To check the Mac architecture, open Terminal and run:
