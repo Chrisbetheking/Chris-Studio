@@ -1,19 +1,15 @@
-# TokenFence Studio v1.8.0：一次上传说明
+# Chris Studio v2.1.0：从这里开始
 
-这是完整仓库覆盖包，不需要逐个进入文件夹上传。
+本包是仓库根目录的一次覆盖上传包，包含：
 
-1. 解压 ZIP。
-2. 在 Finder 按 `Command + Shift + .`，确认 `.github` 文件夹可见。
-3. 打开解压后的 `TokenFence_Studio_v1.8.0_COMPLETE_ONE_UPLOAD` 文件夹。
-4. `Command + A` 全选文件夹内部的全部内容，一次拖到 GitHub 仓库根目录的 **Add file → Upload files**。
-5. 不要只上传 ZIP，也不要把外层目录本身嵌套进仓库。
-6. 提交后新建一次工作流，不要 Re-run 旧任务：
+- Chris Studio v2.1.0 桌面端源码；
+- 新 Logo 与新配色；
+- 身份与联系方式；
+- 同一对话内的项目、Git、Skills 和 Computer Use 命令；
+- 一次点击发送与实时耗时；
+- macOS 权限请求；
+- 修正后的 CI、旧 Release 占位工作流和双架构 macOS 发布工作流。
 
-```text
-Actions → TokenFence macOS Builds and Release → Run workflow
-version: v1.8.0
-create_release: true
-make_latest: true
-```
+先阅读：[一次上传说明](UPLOAD_COMPLETE_PACKAGE.md)
 
-没有 Apple Developer ID 凭证时会生成社区包和安装助手；要彻底消除浏览器下载后的“已损坏/无法验证”提示，需要在仓库 Secrets 中配置 README 所列 Apple 签名与公证凭证。
+主要改动：[v2.1.0 改造摘要](V2.1.0_CHANGE_SUMMARY.zh-CN.md)

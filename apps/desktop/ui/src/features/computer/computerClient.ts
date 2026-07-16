@@ -26,6 +26,11 @@ export async function pressKey(key: string, confirmed: boolean): Promise<Compute
   return await invoke<ComputerActionResult>('computer_press_key', { key, confirmed });
 }
 
+export async function requestComputerPermissions(): Promise<ComputerActionResult> {
+  if (!isDesktopRuntime()) return unavailable('request-permissions');
+  return await invoke<ComputerActionResult>('computer_request_permissions');
+}
+
 export async function openComputerPrivacySettings(): Promise<ComputerActionResult> {
   if (!isDesktopRuntime()) return unavailable('open-privacy-settings');
   return await invoke<ComputerActionResult>('computer_open_privacy_settings');

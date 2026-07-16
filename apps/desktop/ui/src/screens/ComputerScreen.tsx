@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ComputerAuditEntry, ComputerCapability, Language } from '../app/types';
 import { appendComputerAudit, clearComputerAudit, loadComputerAudit, makeId, nowIso } from '../app/store';
 import { getComputerCapabilities } from '../features/platform/desktopClient';
-import { captureScreen, clickPointer, openComputerPrivacySettings, pressKey, typeText } from '../features/computer/computerClient';
+import { captureScreen, clickPointer, openComputerPrivacySettings, pressKey, requestComputerPermissions, typeText } from '../features/computer/computerClient';
 import { Icon } from '../components/Icon';
 import { useToast } from '../components/Toast';
 
@@ -43,7 +43,7 @@ export function ComputerScreen({ language }: { language: Language }) {
   };
 
   return <main className="modern-page computer-page">
-    <header className="compact-page-header"><div><span className="section-kicker">COMPUTER USE · APPROVAL FIRST</span><h1>{copy(language, 'Permission-gated desktop control', '权限门控的桌面控制')}</h1><p>{copy(language, 'Screen capture, pointer and keyboard actions execute only after explicit approval and create an audit receipt.', '屏幕捕获、鼠标和键盘操作只有在明确批准后才会执行，并生成审计记录。')}</p></div><button className="button secondary" onClick={() => void openComputerPrivacySettings()}><Icon name="settings" />{copy(language, 'macOS permissions', 'macOS 权限')}</button></header>
+    <header className="compact-page-header"><div><span className="section-kicker">COMPUTER USE · APPROVAL FIRST</span><h1>{copy(language, 'Permission-gated desktop control', '权限门控的桌面控制')}</h1><p>{copy(language, 'Screen capture, pointer and keyboard actions execute only after explicit approval and create an audit receipt.', '屏幕捕获、鼠标和键盘操作只有在明确批准后才会执行，并生成审计记录。')}</p></div><div className="header-actions"><button className="button primary" onClick={async () => { const result = await requestComputerPermissions(); toast.show(result.message, result.ok ? 'success' : 'warning'); }}><Icon name="shield" />{copy(language, 'Request permissions', '请求系统权限')}</button><button className="button secondary" onClick={() => void openComputerPrivacySettings()}><Icon name="settings" />{copy(language, 'Open settings', '打开系统设置')}</button></div></header>
 
     <section className="capability-row-modern">{capabilities.map((capability) => <article key={capability.id}><span className={`cap-dot cap-${capability.status}`} /><div><strong>{capability.id}</strong><small>{capability.status}</small></div></article>)}</section>
 

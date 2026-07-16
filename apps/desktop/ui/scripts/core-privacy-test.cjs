@@ -15,9 +15,16 @@ global.CustomEvent = class CustomEvent { constructor(type) { this.type = type; }
 
 try {
   const scanner = require(path.join(buildRoot, 'features/safety/scanner.js'));
+  const identity = require(path.join(buildRoot, 'app/identity.js'));
   const store = require(path.join(buildRoot, 'app/store.js'));
   const optimizer = require(path.join(buildRoot, 'features/tokens/optimizer.js'));
   const knowledge = require(path.join(buildRoot, 'features/files/knowledge.js'));
+
+  if (!identity.isIdentityQuestion('你是谁？')) throw new Error('Chinese identity intent was not detected');
+  const identityText = identity.identityReply('zh-CN');
+  if (!identityText.includes('Chris Studio') || !identityText.includes('chriswangjob@163.com') || !identityText.includes('easymoneysniperchris')) {
+    throw new Error('Chris Studio identity or contact was not preserved');
+  }
 
   const prompt = scanner.scanText('api_key=DEMO_SECRET_1234567890abcdef and alice@example.com');
   if (prompt.riskLevel !== 'critical') throw new Error(`Expected critical risk, got ${prompt.riskLevel}`);
@@ -82,7 +89,7 @@ try {
     throw new Error('Corrupt-data backup was not sanitized');
   }
 
-  console.log('TOKENFENCE_CORE_PRIVACY_TESTS_PASSED');
+  console.log('CHRIS_STUDIO_CORE_TESTS_PASSED');
 } finally {
   fs.rmSync(buildRoot, { recursive: true, force: true });
 }

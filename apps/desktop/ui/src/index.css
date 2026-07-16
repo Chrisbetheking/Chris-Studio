@@ -9,17 +9,17 @@
   --panel: rgba(255, 255, 255, .92);
   --panel-solid: #ffffff;
   --panel-muted: #f3f6f9;
-  --panel-hover: #edf4f3;
+  --panel-hover: #f0effa;
   --text: #16202d;
   --text-strong: #0f1722;
   --muted: #67758a;
   --faint: #94a0b1;
   --line: #dce4ec;
   --line-strong: #cbd6e1;
-  --brand: #0f7668;
-  --brand-2: #0a5d54;
-  --brand-soft: #e3f3f0;
-  --brand-softer: #f0f8f6;
+  --brand: #6558d9;
+  --brand-2: #4f46b8;
+  --brand-soft: #eceafa;
+  --brand-softer: #f6f4fd;
   --success: #147a62;
   --success-soft: #e5f5ef;
   --warning: #a96708;
@@ -44,17 +44,17 @@
   --panel: rgba(21, 29, 39, .94);
   --panel-solid: #151d27;
   --panel-muted: #19232e;
-  --panel-hover: #1b2b2d;
+  --panel-hover: #242137;
   --text: #e7edf5;
   --text-strong: #f7fafc;
   --muted: #99a7b8;
   --faint: #6f7d8f;
   --line: #293442;
   --line-strong: #384555;
-  --brand: #57b8a5;
-  --brand-2: #74c8b7;
-  --brand-soft: #173631;
-  --brand-softer: #132824;
+  --brand: #a69bff;
+  --brand-2: #c0b8ff;
+  --brand-soft: #292540;
+  --brand-softer: #201d30;
   --success: #62c5a1;
   --success-soft: #17382d;
   --warning: #e3aa50;
@@ -135,9 +135,10 @@ kbd { padding: 2px 6px; border: 1px solid var(--line); border-bottom-width: 2px;
 .brand-compact strong { font-size: 16px; letter-spacing: -.025em; }
 .brand-mark, .about-logo {
   display: grid; place-items: center; color: white;
-  background: linear-gradient(145deg, #168477, #0b5f56); box-shadow: 0 9px 20px rgba(15, 118, 104, .2);
+  background: #11131a; box-shadow: 0 9px 24px rgba(33, 29, 56, .28);
 }
-.brand-mark { width: 34px; height: 34px; border-radius: 10px; }
+.brand-mark { width: 34px; height: 34px; border-radius: 10px; overflow: hidden; }
+.brand-mark img, .about-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .new-session {
   display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 42px; margin-bottom: 15px;
   border: 0; border-radius: 11px; color: white; background: linear-gradient(135deg, var(--brand), var(--brand-2));
@@ -480,3 +481,20 @@ input:focus, textarea:focus, select:focus { border-color: color-mix(in srgb, var
 }
 .agent-plan-output strong { display: block; margin-bottom: 6px; font-size: 10px; }
 .agent-plan-output pre { max-height: 180px; margin: 0; overflow: auto; color: var(--muted, #718096); font: 9px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+
+
+/* v2.1 unified conversation tools and latency feedback */
+.pending-message { opacity: .88; border-style: dashed; }
+.typing-dots { display: inline-flex; align-items: center; gap: 4px; margin-right: 6px; }
+.typing-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--brand); animation: chris-pulse 1.1s infinite ease-in-out; }
+.typing-dots i:nth-child(2) { animation-delay: .14s; }
+.typing-dots i:nth-child(3) { animation-delay: .28s; }
+@keyframes chris-pulse { 0%, 70%, 100% { opacity: .28; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-3px); } }
+.unified-tools-card em { color: var(--brand); font-size: 7px; font-style: normal; font-weight: 850; letter-spacing: .12em; }
+.tool-command-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
+.tool-command-grid button { display: flex; align-items: center; gap: 6px; min-width: 0; height: 32px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); background: var(--panel-muted); font-size: 8px; font-weight: 720; cursor: pointer; }
+.tool-command-grid button:hover { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 38%, var(--line)); background: var(--brand-soft); }
+.tool-preview-image { display: block; width: 100%; max-height: 180px; margin-top: 10px; border: 1px solid var(--line); border-radius: 9px; object-fit: contain; background: #05060a; }
+.about-logo { width: 76px; height: 76px; overflow: hidden; border-radius: 22px; }
+.support-contact { display: flex !important; flex-direction: column; align-items: center; gap: 4px !important; margin-top: 17px !important; color: var(--muted); font-size: 10px; }
+.support-contact strong { color: var(--text-strong); font-size: 11px; }

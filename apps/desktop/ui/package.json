@@ -1,14 +1,14 @@
 {
-  "name": "@tokenfence/desktop-ui",
+  "name": "@chris-studio/desktop-ui",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test:core": "tsc --target ES2022 --module commonjs --moduleResolution node --lib ES2022,DOM --strict --skipLibCheck --outDir ../../../.tokenfence-test-build src/app/types.ts src/app/store.ts src/features/safety/scanner.ts src/features/tokens/optimizer.ts src/features/files/knowledge.ts && node scripts/core-privacy-test.cjs"
+    "test:core": "tsc --target ES2022 --module commonjs --moduleResolution node --lib ES2022,DOM --strict --skipLibCheck --outDir ../../../.tokenfence-test-build src/app/types.ts src/app/identity.ts src/app/store.ts src/features/safety/scanner.ts src/features/tokens/optimizer.ts src/features/files/knowledge.ts && node scripts/core-privacy-test.cjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^1.6.0",

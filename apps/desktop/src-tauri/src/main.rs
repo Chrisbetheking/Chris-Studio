@@ -1914,6 +1914,36 @@ fn computer_press_key(key: String, confirmed: bool) -> ComputerActionResult {
 }
 
 #[tauri::command]
+fn computer_request_permissions() -> ComputerActionResult {
+    #[cfg(target_os = "macos")]
+    {
+        let accessibility_probe = Command::new("/usr/bin/osascript")
+            .args(["-e", "tell application "System Events" to count processes"])
+            .output();
+        let capture_path = std::env::temp_dir().join(format!("chris-studio-permission-probe-{}.png", unix_timestamp()));
+        let screen_probe = Command::new("/usr/sbin/screencapture").arg("-x").arg(&capture_path).status();
+        let _ = fs::remove_file(&capture_path);
+        let _ = Command::new("/usr/bin/open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            .spawn();
+        let accessibility_ok = accessibility_probe.as_ref().map(|output| output.status.success()).unwrap_or(false);
+        let screen_ok = screen_probe.as_ref().map(|status| status.success()).unwrap_or(false);
+        return computer_result(
+            accessibility_ok && screen_ok,
+            "request-permissions",
+            if accessibility_ok && screen_ok {
+                "Computer Use permissions are already available. Chris Studio can capture the screen and request approved keyboard or pointer actions.".to_string()
+            } else {
+                "Chris Studio requested macOS Accessibility and Screen Recording access. Enable Chris Studio in both Privacy & Security panels, then fully quit and reopen the app.".to_string()
+            },
+            None,
+        );
+    }
+    #[cfg(not(target_os = "macos"))]
+    computer_result(false, "request-permissions", "Computer Use permission requests are currently implemented for macOS builds.".to_string(), None)
+}
+
+#[tauri::command]
 fn computer_open_privacy_settings() -> ComputerActionResult {
     #[cfg(target_os = "macos")]
     {
@@ -2026,6 +2056,7 @@ fn main() {
             computer_click,
             computer_type_text,
             computer_press_key,
+            computer_request_permissions,
             computer_open_privacy_settings
         ])
         .run(tauri::generate_context!())

@@ -6,7 +6,7 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 REQUIRED = [
     "apps/desktop/package.json",
     "apps/desktop/ui/package.json",
@@ -41,11 +41,11 @@ REQUIRED = [
     ".github/workflows/tokenfence-macos.yml",
     "README.md",
     "README.zh-CN.md",
-    "docs/architecture/IMPLEMENTATION_STATUS_v2.0.md",
-    "docs/architecture/IMPLEMENTATION_STATUS_v2.0.zh-CN.md",
+    "docs/architecture/IMPLEMENTATION_STATUS_v2.1.md",
+    "docs/architecture/IMPLEMENTATION_STATUS_v2.1.zh-CN.md",
     "docs/macos/SIGNING_NOTARIZATION.md",
     "docs/macos/SIGNING_NOTARIZATION.zh-CN.md",
-    "docs/release/RELEASE_NOTES_v2.0.0.md",
+    "docs/release/RELEASE_NOTES_v2.1.0.md",
     "docs/troubleshooting/TROUBLESHOOTING.md",
     "docs/troubleshooting/TROUBLESHOOTING.zh-CN.md",
 ]
@@ -78,6 +78,7 @@ assert "project_run_preset" in main_rs and "execute_project_preset" in main_rs
 assert 'Command::new("git")' in main_rs and 'args(["apply", "--check"' in main_rs
 assert "project_write_file" in main_rs and ".tokenfence" in main_rs
 assert "computer_capture_screen" in main_rs and "computer_click" in main_rs and "computer_type_text" in main_rs
+assert "computer_request_permissions" in main_rs
 assert "computer_press_key" in main_rs and "This key is not in the Chris Studio allowlist" in main_rs
 assert "mcp_request" in main_rs and "tools/call" in main_rs and "Explicit approval is required for MCP tool execution" in main_rs
 assert "github_create_pull_request" in main_rs and "github_token_save" in main_rs
@@ -86,6 +87,8 @@ assert "provider_secret_save" in main_rs and "hydrate_provider_secret" in main_r
 assert "github_release_check" in main_rs and "open_external_url" in main_rs
 
 # Front-end execution paths.
+assert "CHRIS_STUDIO_SYSTEM_PROMPT" in workspace and "identityReply" in workspace
+assert "runInlineTool" in workspace and "requestComputerPermissions" in workspace
 assert "formatSafePayload(scan)" in workspace
 assert "reviewedHash === scan.hash" in workspace
 assert "recordTokenUsage" in workspace and "dailyTokenBudget" in workspace
@@ -151,5 +154,5 @@ for path in ROOT.rglob("*"):
     matches = [value for value in secret_pattern.findall(text) if "A-Za-z" not in value]
     assert not matches, f"possible committed credential in {path.relative_to(ROOT)}"
 
-print("CHRIS_STUDIO_V200_COMPLETE_UPLOAD_VERIFIED")
+print("CHRIS_STUDIO_V210_COMPLETE_UPLOAD_VERIFIED")
 print(f"files={sum(1 for path in ROOT.rglob('*') if path.is_file() and not ignored_parts.intersection(path.parts))}")

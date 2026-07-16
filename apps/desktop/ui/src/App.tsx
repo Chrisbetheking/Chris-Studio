@@ -26,6 +26,7 @@ import { ProjectsScreen } from './screens/ProjectsScreen';
 import { ComputerScreen } from './screens/ComputerScreen';
 import { SkillsScreen } from './screens/SkillsScreen';
 import { ConnectorsScreen } from './screens/ConnectorsScreen';
+import chrisStudioLogo from './assets/chris-studio-logo.png';
 
 const copy = (language: Language, en: string, zh: string) => language === 'zh-CN' ? zh : en;
 
@@ -150,7 +151,7 @@ function ChrisStudioApp() {
 
       <aside className="app-sidebar">
         <div className="brand-compact">
-          <div className="brand-mark"><Icon name="shield" size={20} /></div>
+          <div className="brand-mark"><img src={chrisStudioLogo} alt="Chris Studio" /></div>
           <strong>Chris Studio</strong>
         </div>
 
@@ -176,7 +177,7 @@ function ChrisStudioApp() {
 
         <div className="sidebar-foot">
           <div className="secure-foot"><Icon name="lock" size={14} /><span>{copy(language, 'Local safety layer', '本地安全层')}</span></div>
-          <small>v2.0.0 · macOS</small>
+          <small>v2.1.0 · macOS</small>
         </div>
       </aside>
 
