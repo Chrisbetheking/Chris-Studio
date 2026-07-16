@@ -1,6 +1,6 @@
 [package]
 name = "tokenfence-studio"
-version = "1.7.0"
+version = "1.7.1"
 description = "TokenFence Studio — Safe AI Workspace"
 authors = ["TokenFence Studio Contributors"]
 license = "MIT"

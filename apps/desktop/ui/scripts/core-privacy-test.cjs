@@ -18,6 +18,15 @@ try {
   const store = require(path.join(buildRoot, 'app/store.js'));
   const optimizer = require(path.join(buildRoot, 'features/tokens/optimizer.js'));
 
+  const providerClientSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/features/providers/providerClient.ts'),
+    'utf8',
+  );
+  const secureHydrationGuards = providerClientSource.match(/!resolved\.apiKey && !profile\.credentialStored/g) || [];
+  if (secureHydrationGuards.length !== 2) {
+    throw new Error('Provider client would block OS credential-store hydration before native invocation');
+  }
+
   const prompt = scanner.scanText('api_key=DEMO_SECRET_1234567890abcdef and alice@example.com');
   if (prompt.riskLevel !== 'critical') throw new Error(`Expected critical risk, got ${prompt.riskLevel}`);
   if (prompt.redactedText.includes('DEMO_SECRET') || prompt.redactedText.includes('alice@example.com')) {

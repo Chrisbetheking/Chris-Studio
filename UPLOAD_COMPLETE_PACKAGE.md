@@ -1,28 +1,21 @@
-# TokenFence Studio v1.7.0 — one-upload package
+# v1.7.1 一次上传说明
 
-This archive is rooted at the GitHub repository root. It contains every changed file required for the v1.7.0 product foundation, documentation and macOS workflow.
-
-## Upload once
-
-1. Extract the ZIP.
-2. In Finder press `Command + Shift + .` once so the hidden `.github` directory is visible.
-3. Open the repository root on GitHub and choose **Add file → Upload files**.
-4. Select every item inside the extracted folder and drag them into the upload area in one operation.
-5. Do not upload the ZIP itself; GitHub does not extract repository ZIP uploads.
-6. Commit with:
+1. 解压本 ZIP。
+2. Finder 按 `Command + Shift + .`，确认 `.github` 可见。
+3. 进入 GitHub 仓库根目录，选择 **Add file → Upload files**。
+4. 将解压目录中的全部内容一次性拖入并覆盖。
+5. 提交信息：
 
 ```text
-feat: upgrade TokenFence Studio to v1.7.0 product foundation
+fix: restore secure provider credential hydration in v1.7.1
 ```
 
-## Build the release
-
-Open **Actions → TokenFence macOS Builds and Release → Run workflow** and use:
+6. 新建一轮 Actions 工作流，不要 Re-run 旧任务：
 
 ```text
-version: v1.7.0
+version: v1.7.1
 create_release: true
 make_latest: true
 ```
 
-Create a new workflow run after the commit. Do not re-run an older v1.6.1 job because it remains attached to the old commit.
+本包包含完整 v1.7.0 功能基础，以及 v1.7.1 API Key / Keychain 读取修复。

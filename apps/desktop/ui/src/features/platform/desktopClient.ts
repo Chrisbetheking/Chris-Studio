@@ -23,7 +23,7 @@ export function isDesktopRuntime(): boolean {
 export async function getPlatformInfo(): Promise<PlatformInfo> {
   if (!isDesktopRuntime()) {
     return {
-      appVersion: '1.7.0-web-preview',
+      appVersion: '1.7.1-web-preview',
       os: navigator.platform || 'browser',
       arch: 'browser',
       secureStore: 'Desktop runtime required',
@@ -35,7 +35,7 @@ export async function getPlatformInfo(): Promise<PlatformInfo> {
     return await invoke<PlatformInfo>('platform_info');
   } catch {
     return {
-      appVersion: '1.7.0',
+      appVersion: '1.7.1',
       os: 'unknown',
       arch: 'unknown',
       secureStore: 'Unavailable',

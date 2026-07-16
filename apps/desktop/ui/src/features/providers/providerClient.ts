@@ -68,7 +68,12 @@ export async function testProviderConnection(profile: ProviderProfile, timeoutMs
   }
   try {
     const resolved = await runtimeConfig(profile, timeoutMs);
-    if (resolved.requiresCredential && !resolved.apiKey) return missingCredential(profile);
+    // A securely saved profile intentionally has an empty in-memory apiKey.
+    // Only block when neither a typed key nor the persisted credential marker exists;
+    // otherwise let the native backend hydrate the secret from Keychain/Credential Manager.
+    if (resolved.requiresCredential && !resolved.apiKey && !profile.credentialStored) {
+      return missingCredential(profile);
+    }
     return await invoke<ProviderReply>('provider_connection_test', { config: resolved });
   } catch (error) {
     return safeFailure(error);
@@ -86,7 +91,11 @@ export async function sendProviderChat(
   }
   try {
     const resolved = await runtimeConfig({ ...profile, model: modelOverride || profile.model }, timeoutMs);
-    if (resolved.requiresCredential && !resolved.apiKey) return missingCredential(profile);
+    // Do not reject secure profiles in the WebView just because the key is absent
+    // from React state. The Rust command resolves it from the OS credential store.
+    if (resolved.requiresCredential && !resolved.apiKey && !profile.credentialStored) {
+      return missingCredential(profile);
+    }
     return await invoke<ProviderReply>('provider_chat', {
       request: {
         config: resolved,

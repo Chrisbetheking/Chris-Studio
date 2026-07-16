@@ -168,7 +168,7 @@ function TokenFenceApp() {
 
         <div className="sidebar-foot">
           <div className="secure-foot"><Icon name="lock" size={14} /><span>{copy(language, 'Local safety layer', '本地安全层')}</span></div>
-          <small>v1.7.0 · macOS</small>
+          <small>v1.7.1 · macOS</small>
         </div>
       </aside>
 

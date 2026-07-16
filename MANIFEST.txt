@@ -1,10 +1,12 @@
 .github/workflows/tokenfence-macos.yml
 .github/workflows/tokenfence-v1.6-verify.yml
+MANIFEST.sha256
 README.md
 README.zh-CN.md
 UPLOAD_COMPLETE_PACKAGE.md
 V1.7.0_CHANGE_SUMMARY.zh-CN.md
 V1.7.0_CI_INSTALL_FIX.zh-CN.md
+V1.7.1_API_KEY_FIX.zh-CN.md
 apps/desktop/package.json
 apps/desktop/src-tauri/Cargo.toml
 apps/desktop/src-tauri/src/main.rs

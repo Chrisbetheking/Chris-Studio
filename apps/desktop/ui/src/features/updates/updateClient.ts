@@ -6,7 +6,7 @@ export async function checkForUpdates(owner: string, repo: string): Promise<Upda
   if (!isDesktopRuntime()) {
     return {
       ok: false,
-      currentVersion: '1.7.0',
+      currentVersion: '1.7.1',
       updateAvailable: false,
       assets: [],
       errorMessage: 'Update checks run inside the desktop app.',
@@ -17,7 +17,7 @@ export async function checkForUpdates(owner: string, repo: string): Promise<Upda
   } catch (error) {
     return {
       ok: false,
-      currentVersion: '1.7.0',
+      currentVersion: '1.7.1',
       updateAvailable: false,
       assets: [],
       errorMessage: error instanceof Error ? error.message : 'The update request could not be completed.',

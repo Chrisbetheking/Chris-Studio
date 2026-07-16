@@ -5,7 +5,7 @@ import { Icon } from '../components/Icon';
 import { openExternal } from '../features/updates/updateClient';
 
 const copy = (language: Language, en: string, zh: string) => language === 'zh-CN' ? zh : en;
-const fallback: PlatformInfo = { appVersion: '1.7.0', os: 'Loading…', arch: 'Loading…', secureStore: 'Loading…', desktopRuntime: true };
+const fallback: PlatformInfo = { appVersion: '1.7.1', os: 'Loading…', arch: 'Loading…', secureStore: 'Loading…', desktopRuntime: true };
 export function AboutScreen({ language }: { language: Language }) {
   const [platform, setPlatform] = useState<PlatformInfo>(fallback);
   useEffect(() => { void getPlatformInfo().then(setPlatform); }, []);
