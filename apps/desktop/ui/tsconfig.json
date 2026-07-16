@@ -11,7 +11,11 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["../../../packages/shared/src/*"]
+    }
   },
-  "files": ["src/main.tsx"]
+  "include": ["src/main.tsx", "src/vite-env.d.ts"]
 }
