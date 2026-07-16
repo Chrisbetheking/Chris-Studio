@@ -1,50 +1,51 @@
-.github/workflows/tokenfence-macos.yml	6827
-.github/workflows/tokenfence-v1.6-verify.yml	1332
-README.md	7052
-README.zh-CN.md	8580
-UPLOAD_COMPLETE_PACKAGE.md	996
-V1.7.0_CHANGE_SUMMARY.zh-CN.md	1382
-apps/desktop/package.json	499
-apps/desktop/src-tauri/Cargo.toml	1076
-apps/desktop/src-tauri/src/main.rs	34354
-apps/desktop/src-tauri/tauri.conf.json	1087
-apps/desktop/ui/index.html	408
-apps/desktop/ui/package-lock.json	131396
-apps/desktop/ui/package.json	986
-apps/desktop/ui/scripts/core-privacy-test.cjs	3795
-apps/desktop/ui/src/App.tsx	9226
-apps/desktop/ui/src/app/providerRegistry.ts	7406
-apps/desktop/ui/src/app/skills.ts	7829
-apps/desktop/ui/src/app/store.ts	13611
-apps/desktop/ui/src/app/types.ts	5842
-apps/desktop/ui/src/components/Icon.tsx	6178
-apps/desktop/ui/src/components/Toast.tsx	1725
-apps/desktop/ui/src/features/files/fileProcessor.ts	5360
-apps/desktop/ui/src/features/files/routing.ts	1309
-apps/desktop/ui/src/features/platform/desktopClient.ts	3305
-apps/desktop/ui/src/features/providers/providerClient.ts	3300
-apps/desktop/ui/src/features/safety/scanner.ts	7773
-apps/desktop/ui/src/features/tokens/optimizer.ts	2298
-apps/desktop/ui/src/features/updates/updateClient.ts	1015
-apps/desktop/ui/src/index.css	50543
-apps/desktop/ui/src/main.tsx	241
-apps/desktop/ui/src/screens/AboutScreen.tsx	2996
-apps/desktop/ui/src/screens/AgentsScreen.tsx	6383
-apps/desktop/ui/src/screens/FilesScreen.tsx	5821
-apps/desktop/ui/src/screens/HistoryScreen.tsx	4121
-apps/desktop/ui/src/screens/ProvidersScreen.tsx	15515
-apps/desktop/ui/src/screens/RoutingScreen.tsx	5027
-apps/desktop/ui/src/screens/SettingsScreen.tsx	9007
-apps/desktop/ui/src/screens/UpdatesScreen.tsx	3431
-apps/desktop/ui/src/screens/WorkspaceScreen.tsx	25057
-apps/desktop/ui/src/vite-env.d.ts	109
-apps/desktop/ui/tsconfig.json	532
-apps/desktop/ui/vite.config.ts	450
-docs/architecture/OPEN_SOURCE_INSPIRATION.md	3872
-docs/architecture/ROADMAP_v1.7.md	3585
-docs/macos/MACOS_BUILD_AND_TEST.md	2313
-docs/release/RELEASE_NOTES_v1.7.0.md	1429
-docs/troubleshooting/TROUBLESHOOTING.md	14018
-docs/troubleshooting/TROUBLESHOOTING.zh-CN.md	14220
-scripts/build-macos.sh	1063
-scripts/verify_tokenfence_patch.py	6479
+.github/workflows/tokenfence-macos.yml
+.github/workflows/tokenfence-v1.6-verify.yml
+README.md
+README.zh-CN.md
+UPLOAD_COMPLETE_PACKAGE.md
+V1.7.0_CHANGE_SUMMARY.zh-CN.md
+V1.7.0_CI_INSTALL_FIX.zh-CN.md
+apps/desktop/package.json
+apps/desktop/src-tauri/Cargo.toml
+apps/desktop/src-tauri/src/main.rs
+apps/desktop/src-tauri/tauri.conf.json
+apps/desktop/ui/index.html
+apps/desktop/ui/package-lock.json
+apps/desktop/ui/package.json
+apps/desktop/ui/scripts/core-privacy-test.cjs
+apps/desktop/ui/src/App.tsx
+apps/desktop/ui/src/app/providerRegistry.ts
+apps/desktop/ui/src/app/skills.ts
+apps/desktop/ui/src/app/store.ts
+apps/desktop/ui/src/app/types.ts
+apps/desktop/ui/src/components/Icon.tsx
+apps/desktop/ui/src/components/Toast.tsx
+apps/desktop/ui/src/features/files/fileProcessor.ts
+apps/desktop/ui/src/features/files/routing.ts
+apps/desktop/ui/src/features/platform/desktopClient.ts
+apps/desktop/ui/src/features/providers/providerClient.ts
+apps/desktop/ui/src/features/safety/scanner.ts
+apps/desktop/ui/src/features/tokens/optimizer.ts
+apps/desktop/ui/src/features/updates/updateClient.ts
+apps/desktop/ui/src/index.css
+apps/desktop/ui/src/main.tsx
+apps/desktop/ui/src/screens/AboutScreen.tsx
+apps/desktop/ui/src/screens/AgentsScreen.tsx
+apps/desktop/ui/src/screens/FilesScreen.tsx
+apps/desktop/ui/src/screens/HistoryScreen.tsx
+apps/desktop/ui/src/screens/ProvidersScreen.tsx
+apps/desktop/ui/src/screens/RoutingScreen.tsx
+apps/desktop/ui/src/screens/SettingsScreen.tsx
+apps/desktop/ui/src/screens/UpdatesScreen.tsx
+apps/desktop/ui/src/screens/WorkspaceScreen.tsx
+apps/desktop/ui/src/vite-env.d.ts
+apps/desktop/ui/tsconfig.json
+apps/desktop/ui/vite.config.ts
+docs/architecture/OPEN_SOURCE_INSPIRATION.md
+docs/architecture/ROADMAP_v1.7.md
+docs/macos/MACOS_BUILD_AND_TEST.md
+docs/release/RELEASE_NOTES_v1.7.0.md
+docs/troubleshooting/TROUBLESHOOTING.md
+docs/troubleshooting/TROUBLESHOOTING.zh-CN.md
+scripts/build-macos.sh
+scripts/verify_tokenfence_patch.py

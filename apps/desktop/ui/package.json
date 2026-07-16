@@ -11,20 +11,20 @@
     "test:core": "tsc --target ES2022 --module commonjs --moduleResolution node --lib ES2022,DOM --strict --skipLibCheck --outDir ../../../.tokenfence-test-build src/app/types.ts src/app/store.ts src/features/safety/scanner.ts src/features/tokens/optimizer.ts && node scripts/core-privacy-test.cjs"
   },
   "dependencies": {
-    "@tauri-apps/api": "^1.6.0",
-    "exceljs": "^4.4.0",
-    "mammoth": "^1.9.1",
-    "pdfjs-dist": "^5.4.149",
+    "@tauri-apps/api": "1.6.0",
+    "exceljs": "4.4.0",
+    "mammoth": "1.9.1",
+    "pdfjs-dist": "5.4.149",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "tesseract.js": "^6.0.1"
+    "tesseract.js": "6.0.1"
   },
   "devDependencies": {
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "typescript": "~5.5.4",
-    "vite": "^6.3.5"
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "@vitejs/plugin-react": "4.3.1",
+    "typescript": "5.5.4",
+    "vite": "6.3.5"
   },
   "overrides": {
     "uuid": "11.1.1"
