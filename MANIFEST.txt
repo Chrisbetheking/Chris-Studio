@@ -1,15 +1,19 @@
-     12761  db0819e76dc155fa26f8bdfd77662fc5e8d05cc625ab9727031eabca7817314d  .github/workflows/tokenfence-macos.yml
+     13653  cd250b62294f885902ae6b5d571179cc31c9e43365288feb6e65783bcacbc31b  .github/workflows/tokenfence-macos.yml
       1639  473327d6e4f5ff72b9abbc6c17931757be45b871cfa95f9d096efd2d0a70382d  .github/workflows/tokenfence-v1.6-verify.yml
       1817  eaf30526d4b0d6de2987c09583abbc3b40738066a76fdd98d942ce6bba5144dd  FAST_TRACK_ROADMAP.zh-CN.md
+      3129  320abb836a4c99cc395b82e3eb5770fb07603a39f78f402c159251fafaa70bf7  FILES_TO_UPLOAD.txt
+       767  c68e3d9a12d6fe2eda29bc5fed10c5cd182664985819ccec32fba1ec2cfc600e  MACOS_RELEASE_CHECKLIST_v1.8.zh-CN.md
        762  7b3a10548686b5ff8f5039b1857197f6fc6015705091a8066e0f0f5de8587d2e  MACOS_RELEASE_CHECKLIST_v2.0.zh-CN.md
       6438  3a35448fccc3435e02b2f028902184dc40d1d907ac0a95baf63b3ca0f2ffebc3  README.md
       8097  f7db0989b873e9f2d36e1b5a161f96192ac7bf77a8a4dd74b3fd75cb1c4f3dba  README.zh-CN.md
       1530  1ef43bd835c85f94adfdc6f7962206e37da5df0fe23f9ee66d1e5c4300924612  RENAME_TO_CHRIS_STUDIO.zh-CN.md
-      1184  b859ba5b3341c81df9e77817208c7aa9e63e0b1105d4905bc3ab479da546ccd5  START_HERE.zh-CN.md
-      1911  de0576fee4c316154b32f76b158c1c83aa36c73dc979a6b78214584bfec887dd  UPLOAD_COMPLETE_PACKAGE.md
+       919  54f44850ad12e3675195679330861ca51a3578d1bd1b0e63fce9975a03f87971  START_HERE.zh-CN.md
+      1662  4c13c4a734e426ce81443220ab6a260ead58aa0d2d931678f5676f1cc51f815c  UPLOAD_COMPLETE_PACKAGE.md
+      1191  8f5e9cf190dec6a1a078539b38c0e0a79595399b9932a954520696a6f8230d38  V1.8.0_CHANGE_SUMMARY.zh-CN.md
       1186  4a708c5f5edd1735bfff5cbd3d547497448d19895a6301f04f9e467ae97f846c  V2.0.0_CHANGE_SUMMARY.zh-CN.md
-       499  1ada519cacf933e475bc47f548fb79fb203a7952ee7e3971bbf94dc440ff6929  apps/desktop/package.json
-      1085  88ce319ff33d4895934d42ebd7ac4dd57f1d2000891da350d48dc7277387881e  apps/desktop/src-tauri/Cargo.toml
+       733  71a7dc9b81a70d39a0f4d24b2430030acf8d0defa38b16e167e9016d3bbcc9b2  V2.0.0_NATIVE_DIALOG_FIX.zh-CN.md
+       479  e58cdc379fa16de089f947e55b42abfe0cc0787edbcc0f5e5dcf8c1bfc1d1f82  apps/desktop/package.json
+      1098  6b5a6ed11606e1f8cbad353fde3e3ef6c6e363464110a19c0a27c2c21c4041a8  apps/desktop/src-tauri/Cargo.toml
         35  8af41c0062014fc594e4bb9899e60ee9930ab57d4cf0c73041ff557d6ec736e6  apps/desktop/src-tauri/build.rs
      13296  334d43ac2e87b9087e997f3021eea0859be4eefd9aad7335723a0fc08f3d0510  apps/desktop/src-tauri/icons/128x128.png
      28496  041ecc79c7436653e725d39d0f74cfd5906f895b3d42e0948e8e0ef3f11c9a01  apps/desktop/src-tauri/icons/128x128@2x.png
@@ -18,8 +22,8 @@
     215733  212a5abf5c878d104d10a60e43acb9e61bd4f2fb3bc309a4b5c3676d861fd10a  apps/desktop/src-tauri/icons/icon.icns
      56483  60a2c7e1b8eaa5cd15efd2c2f27e9417c8c08b9b9d8b404ab948dcd29f73c4ad  apps/desktop/src-tauri/icons/icon.ico
      55881  7107bf26420ffeaca25aea5e0b7c61ed600207194f92ad3de325214c478d584f  apps/desktop/src-tauri/icons/icon.png
-     85281  20fdc301008e5f49a5ffb326064f0c79d8fc990d878c61371436a1636b055cad  apps/desktop/src-tauri/src/main.rs
-      1082  9ea88657421239112df1c35f11b3b2ab77cb69938a12fc3c333fbd1657922c3f  apps/desktop/src-tauri/tauri.conf.json
+     85272  cd25e80bf29ca5bffd7bed1354ddef5ac4e354465e7f990eb19607956f990098  apps/desktop/src-tauri/src/main.rs
+      1274  c997fea84c754e9441394626fa88a87d8e03cb161622da9f1adf16ff98bacd70  apps/desktop/src-tauri/tauri.conf.json
        403  535cd4f4a6baca4370208197e9b8ce0b161a1ef21176c0897068d27afd97a1ba  apps/desktop/ui/index.html
     114914  f77663f232991c849d528d48b1e27937d5ee3d6c185c2f4143e4e119b25dcaca  apps/desktop/ui/package-lock.json
       1018  cc3402cb86f2d4e33525ef3ccb21d6c1aefc861985948448ff20e949daa55968  apps/desktop/ui/package.json

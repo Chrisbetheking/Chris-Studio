@@ -8,7 +8,7 @@ use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tauri::{CustomMenuItem, Manager, Menu, MenuItem, State, Submenu};
+use tauri::{CustomMenuItem, Menu, MenuItem, State, Submenu};
 use url::Url;
 
 

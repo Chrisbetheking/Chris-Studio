@@ -7,7 +7,7 @@
     "ui:dev": "cd ui && npm run dev",
     "ui:build": "cd ui && npm run build",
     "dev": "tauri dev",
-    "build": "npm run ui:build && tauri build",
+    "build": "tauri build",
     "typecheck": "cd ui && npm run typecheck",
     "test:core": "cd ui && npm run test:core"
   },
