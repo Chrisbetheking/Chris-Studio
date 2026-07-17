@@ -14,6 +14,7 @@ const sourceFiles = [
   "src/features/tokens/optimizer.ts",
   "src/features/files/knowledge.ts",
   "src/features/agent-runtime/reliableRun.ts",
+  "src/features/agent-runtime/runtimeStore.ts",
   "src/features/agent-runtime/rollbackPlan.ts",
   "src/features/providers/providerTelemetry.ts",
   "src/features/computer-use/sessionGuard.ts",
@@ -22,6 +23,7 @@ const sourceFiles = [
 const compiledModuleTests = [
   "scripts/v2-2-reliability-test.cjs",
   "scripts/v2-2-safety-runtime-test.cjs",
+  "scripts/v2-2-runtime-store-test.cjs",
 ];
 
 // core-privacy-test.cjs is intentionally last among tests that consume the
@@ -29,6 +31,7 @@ const compiledModuleTests = [
 const remainingTests = [
   "scripts/core-privacy-test.cjs",
   "scripts/v2-2-product-metadata-test.cjs",
+  "scripts/v2-2-workspace-integration-test.cjs",
 ];
 
 function fail(message) {
@@ -89,6 +92,7 @@ function compileCoreModules() {
   const requiredOutputs = [
     "app/types.js",
     "features/agent-runtime/reliableRun.js",
+    "features/agent-runtime/runtimeStore.js",
     "features/agent-runtime/rollbackPlan.js",
     "features/providers/providerTelemetry.js",
     "features/computer-use/sessionGuard.js",

@@ -22,6 +22,67 @@ function synchronizeAppText(source, version) {
   return next;
 }
 
+function synchronizeReliabilityAppText(source) {
+  let next = source;
+  const importStatement = "import { ReliabilityDock } from './components/ReliabilityDock';";
+
+  if (!next.includes("./components/ReliabilityDock")) {
+    const assetImport = /import\s+chrisStudioLogo\s+from\s+['\"]\.\/assets\/chris-studio-logo\.png['\"];?/;
+    const match = next.match(assetImport);
+    if (!match) {
+      throw new Error('Cannot mount the reliable runtime dock; the Chris Studio logo import was not found.');
+    }
+    next = next.replace(match[0], `${importStatement}\n${match[0]}`);
+  }
+
+  if (!/<ReliabilityDock\s*\/>/.test(next)) {
+    const appMarker = /<ChrisStudioApp\s*\/>/;
+    if (!appMarker.test(next)) {
+      throw new Error('Cannot mount the reliable runtime dock; <ChrisStudioApp /> was not found.');
+    }
+    next = next.replace(appMarker, (match) => `${match}\n      <ReliabilityDock />`);
+  }
+
+  return next;
+}
+
+function synchronizeAdapterImport(source, legacy, reliable, label) {
+  if (source.includes(reliable)) return source;
+  if (!source.includes(legacy)) {
+    throw new Error(`Cannot synchronize ${label}; import source was not found.`);
+  }
+  return source.split(legacy).join(reliable);
+}
+
+function synchronizeWorkspaceRuntimeAdapters(source) {
+  let next = source;
+  const adapters = [
+    {
+      legacy: "../features/providers/providerClient",
+      reliable: "../features/providers/providerClientReliable",
+      label: 'provider runtime adapter',
+    },
+    {
+      legacy: "../features/computer/computerClient",
+      reliable: "../features/computer/computerClientReliable",
+      label: 'Computer Use runtime adapter',
+    },
+  ];
+
+  for (const adapter of adapters) {
+    next = synchronizeAdapterImport(next, adapter.legacy, adapter.reliable, adapter.label);
+  }
+
+  return next;
+}
+
+function synchronizeComputerScreenRuntimeAdapter(source) {
+  const legacy = "../features/computer/computerClient";
+  const reliable = "../features/computer/computerClientReliable";
+  if (!source.includes(legacy) && !source.includes(reliable)) return source;
+  return synchronizeAdapterImport(source, legacy, reliable, "Computer screen runtime adapter");
+}
+
 function synchronizeChatWorkspaceText(source) {
   let next = source;
 
@@ -84,7 +145,16 @@ function main() {
     throw new Error(`Invalid desktop UI package version: ${version}`);
   }
 
-  syncFile(path.join(UI_ROOT, 'src/App.tsx'), (source) => synchronizeAppText(source, version));
+  syncFile(path.join(UI_ROOT, 'src/App.tsx'), (source) =>
+    synchronizeReliabilityAppText(synchronizeAppText(source, version)));
+  syncFile(
+    path.join(UI_ROOT, 'src/screens/WorkspaceScreen.tsx'),
+    synchronizeWorkspaceRuntimeAdapters,
+  );
+  syncFile(
+    path.join(UI_ROOT, 'src/screens/ComputerScreen.tsx'),
+    synchronizeComputerScreenRuntimeAdapter,
+  );
   syncFile(
     path.join(UI_ROOT, 'src/screens/ChatWorkspace.tsx'),
     synchronizeChatWorkspaceText,
@@ -97,5 +167,8 @@ if (require.main === module) {
 
 module.exports = {
   synchronizeAppText,
+  synchronizeReliabilityAppText,
+  synchronizeWorkspaceRuntimeAdapters,
+  synchronizeComputerScreenRuntimeAdapter,
   synchronizeChatWorkspaceText,
 };
