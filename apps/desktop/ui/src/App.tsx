@@ -13,6 +13,8 @@ import { isDesktopRuntime, saveProviderSecret } from './features/platform/deskto
 import { providerDefinition } from './app/providerRegistry';
 import { Icon, type IconName } from './components/Icon';
 import { ToastProvider } from './components/Toast';
+import { RecentConversations } from './components/RecentConversations';
+import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { WorkspaceScreen } from './screens/WorkspaceScreen';
 import { HistoryScreen } from './screens/HistoryScreen';
 import { ProvidersScreen } from './screens/ProvidersScreen';
@@ -26,6 +28,7 @@ import { ProjectsScreen } from './screens/ProjectsScreen';
 import { ComputerScreen } from './screens/ComputerScreen';
 import { SkillsScreen } from './screens/SkillsScreen';
 import { ConnectorsScreen } from './screens/ConnectorsScreen';
+import { ReliabilityDock } from './components/ReliabilityDock';
 import chrisStudioLogo from './assets/chris-studio-logo.png';
 
 const copy = (language: Language, en: string, zh: string) => language === 'zh-CN' ? zh : en;
@@ -164,6 +167,7 @@ function ChrisStudioApp() {
           <kbd>⌘ K</kbd>
         </button>
         <div className="dragbar-actions">
+          <LanguageSwitcher language={language} />
           <select className="provider-quick-select" value={activeProvider.id} onChange={(event) => changeProvider(event.target.value)} aria-label="Active provider">
             {loadProviderProfiles().filter((profile) => profile.enabled).map((profile) => (
               <option key={profile.id} value={profile.id}>{profile.displayName} · {profile.model}</option>
@@ -183,9 +187,16 @@ function ChrisStudioApp() {
 
         <button className="new-session" onClick={startNew}><Icon name="plus" />{copy(language, 'New task', '新建任务')}</button>
 
+        <RecentConversations
+          language={language}
+          activeConversationId={active === 'workspace' ? openConversationId : undefined}
+          onOpen={(id) => { setOpenConversationId(id); setActive('workspace'); }}
+          onViewAll={() => setActive('history')}
+        />
+
         <nav className="app-nav" aria-label="Primary navigation">
           <span className="nav-label">{copy(language, 'WORKSPACE', '工作')}</span>
-          {NAV.filter((item) => item.group === 'core').map((item) => (
+          {NAV.filter((item) => item.group === 'core' && item.id !== 'history').map((item) => (
             <button key={item.id} className={active === item.id ? 'active' : ''} onClick={() => activate(item.id)} title={copy(language, item.en, item.zh)}>
               <Icon name={item.icon} />
               <span>{copy(language, item.en, item.zh)}</span>
@@ -216,13 +227,13 @@ function ChrisStudioApp() {
         </nav>
         <div className="sidebar-foot">
           <div className="secure-foot"><Icon name="lock" size={14} /><span>{copy(language, 'Local safety layer', '本地安全层')}</span></div>
-          <small>v2.1.0 · macOS</small>
+          <small>v2.2.0 · macOS</small>
         </div>
       </aside>
 
       <div className="app-content">
         <div className="screen-context-mobile">{copy(language, current?.en ?? '', current?.zh ?? '')}</div>
-        {active === 'workspace' && <WorkspaceScreen language={language} openConversationId={openConversationId} newSessionNonce={newSessionNonce} onOpenProviders={() => activate('providers')} onOpenRouting={() => activate('routing')} onOpenAgents={() => activate('agents')} />}
+        {active === 'workspace' && <WorkspaceScreen language={language} openConversationId={openConversationId} newSessionNonce={newSessionNonce} onOpenProviders={() => activate('providers')} onOpenRouting={() => activate('routing')} onOpenAgents={() => activate('agents')} onConversationChange={setOpenConversationId} />}
         {active === 'projects' && <ProjectsScreen language={language} />}
         {active === 'computer' && <ComputerScreen language={language} />}
         {active === 'skills' && <SkillsScreen language={language} />}
@@ -241,5 +252,6 @@ function ChrisStudioApp() {
 }
 
 export function App() {
-  return <ToastProvider><ChrisStudioApp /></ToastProvider>;
+  return <ToastProvider><ChrisStudioApp />
+      <ReliabilityDock /></ToastProvider>;
 }

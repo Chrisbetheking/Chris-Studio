@@ -45,7 +45,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   language: 'zh-CN',
   theme: 'system',
   startScreen: 'workspace',
-  autoOpenInspector: true,
+  autoOpenInspector: false,
   autoScan: true,
   autoRedactCritical: true,
   blockCriticalSends: true,

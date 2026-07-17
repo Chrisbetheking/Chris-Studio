@@ -1,40 +1,18 @@
-import { useState, useEffect } from "react";
-import { getLang, setLang, onLangChange } from "@tokenfence/shared/src/i18n";
-import type { SupportedLanguage } from "@tokenfence/shared/src/i18n";
+import type { AppSettings, Language } from '../app/types';
+import { loadSettings, saveSettings } from '../app/store';
 
-export function LanguageSwitcher() {
-  const [lang, setLangState] = useState<SupportedLanguage>(getLang());
-
-  useEffect(() => {
-    const unsub = onLangChange((l) => setLangState(l));
-    return unsub;
-  }, []);
-
-  const toggle = () => {
-    const next = lang === "en" ? "zh-CN" : "en";
-    setLang(next);
+export function LanguageSwitcher({ language }: { language: Language }) {
+  const setLanguage = (next: Language) => {
+    const settings: AppSettings = loadSettings();
+    if (settings.language === next) return;
+    saveSettings({ ...settings, language: next });
   };
 
-  const label = lang === "en" ? "\u4E2D\u6587" : "English"; // always show opposite language
-
   return (
-    <button
-      onClick={toggle}
-      title={lang === "en" ? "Switch to Chinese" : "Switch to English"}
-      style={{
-        background: "var(--tf-surface-alt)",
-        border: "1px solid var(--tf-border)",
-        color: "var(--tf-text-secondary)",
-        padding: "4px 10px",
-        borderRadius: 6,
-        cursor: "pointer",
-        fontSize: "0.8rem",
-        fontWeight: 500,
-        fontFamily: "inherit",
-        width: "100%",
-      }}
-    >
-      {label}
-    </button>
+    <div className="language-switcher" role="group" aria-label="Language">
+      <button type="button" className={language === 'zh-CN' ? 'active' : ''} onClick={() => setLanguage('zh-CN')}>中</button>
+      <span>/</span>
+      <button type="button" className={language === 'en' ? 'active' : ''} onClick={() => setLanguage('en')}>EN</button>
+    </div>
   );
 }

@@ -3,26 +3,29 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
+use std::collections::HashSet;
 use std::fs;
+use std::io::{BufRead, BufReader};
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{CustomMenuItem, Menu, MenuItem, State, Submenu};
 use url::Url;
 
 
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct AppState {
-    project_root: Mutex<Option<PathBuf>>,
+    project_root: Arc<Mutex<Option<PathBuf>>>,
+    cancelled_provider_streams: Arc<Mutex<HashSet<String>>>,
 }
 const MAX_TIMEOUT_MS: u64 = 180_000;
 const MIN_TIMEOUT_MS: u64 = 5_000;
 const CREDENTIAL_SERVICE: &str = "com.tokenfence.studio.provider";
 const MAX_MESSAGE_CHARS: usize = 1_000_000;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct ProviderConfigInput {
     profile_id: String,
@@ -41,7 +44,7 @@ struct ProviderMessage {
     content: Value,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct ProviderChatRequest {
     config: ProviderConfigInput,
@@ -73,6 +76,53 @@ impl ProviderReply {
             error_message: Some(message.to_string()),
             latency_ms,
         }
+    }
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ProviderStreamEvent {
+    stream_id: String,
+    kind: String,
+    text: Option<String>,
+    model: Option<String>,
+    error_code: Option<String>,
+    error_message: Option<String>,
+}
+
+fn emit_provider_stream(
+    window: &tauri::Window,
+    stream_id: &str,
+    kind: &str,
+    text: Option<String>,
+    model: Option<String>,
+    error_code: Option<String>,
+    error_message: Option<String>,
+) {
+    let _ = window.emit(
+        "chris-studio://provider-stream",
+        ProviderStreamEvent {
+            stream_id: stream_id.to_string(),
+            kind: kind.to_string(),
+            text,
+            model,
+            error_code,
+            error_message,
+        },
+    );
+}
+
+fn provider_stream_cancelled(state: &AppState, stream_id: &str) -> bool {
+    state
+        .cancelled_provider_streams
+        .lock()
+        .map(|streams| streams.contains(stream_id))
+        .unwrap_or(true)
+}
+
+fn clear_provider_stream_cancel(state: &AppState, stream_id: &str) {
+    if let Ok(mut streams) = state.cancelled_provider_streams.lock() {
+        streams.remove(stream_id);
     }
 }
 
@@ -524,6 +574,160 @@ fn send_openai_compatible(
     }
 }
 
+
+fn send_openai_compatible_stream(
+    window: &tauri::Window,
+    state: &AppState,
+    stream_id: &str,
+    config: &ProviderConfigInput,
+    base_url: &str,
+    model: &str,
+    timeout_ms: u64,
+    messages: Vec<ProviderMessage>,
+    max_tokens: u32,
+    temperature: f64,
+    started: Instant,
+) -> ProviderReply {
+    let url = endpoint(base_url, "/chat/completions");
+    let body = json!({
+        "model": model,
+        "messages": messages,
+        "stream": true,
+        "max_tokens": max_tokens.clamp(1, 32768),
+        "temperature": temperature.clamp(0.0, 2.0)
+    });
+
+    let agent = ureq::AgentBuilder::new()
+        .timeout(Duration::from_millis(timeout_ms))
+        .build();
+    let mut request = agent
+        .post(&url)
+        .set("Content-Type", "application/json")
+        .set("Accept", "text/event-stream, application/json");
+    if !config.api_key.trim().is_empty() {
+        request = request.set("Authorization", &format!("Bearer {}", config.api_key.trim()));
+    }
+    if config.provider_id == "openrouter" {
+        request = request
+            .set("HTTP-Referer", "https://github.com/Chrisbetheking/chris-studio")
+            .set("X-Title", "Chris Studio");
+    }
+
+    match request.send_json(body) {
+        Ok(response) => {
+            let status = response.status();
+            let content_type = response
+                .header("Content-Type")
+                .unwrap_or_default()
+                .to_ascii_lowercase();
+
+            if !content_type.contains("text/event-stream") {
+                let payload: Value = match response.into_json() {
+                    Ok(value) => value,
+                    Err(_) => {
+                        let message = "The provider returned a response that was neither valid JSON nor an SSE stream.";
+                        emit_provider_stream(window, stream_id, "error", None, None, Some("INVALID_RESPONSE".to_string()), Some(message.to_string()));
+                        return ProviderReply::failure(status, "INVALID_RESPONSE", message, started.elapsed().as_millis());
+                    }
+                };
+                let content = payload
+                    .pointer("/choices/0/message/content")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(ToOwned::to_owned);
+                let resolved_model = payload
+                    .get("model")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .or_else(|| Some(model.to_string()));
+                if let Some(text) = content.clone() {
+                    emit_provider_stream(window, stream_id, "delta", Some(text), resolved_model.clone(), None, None);
+                    emit_provider_stream(window, stream_id, "done", None, resolved_model.clone(), None, None);
+                    return ProviderReply { ok: true, status, content, model: resolved_model, error_code: None, error_message: None, latency_ms: started.elapsed().as_millis() };
+                }
+                let message = parse_error_message(&payload).unwrap_or_else(|| "The provider returned no assistant content.".to_string());
+                emit_provider_stream(window, stream_id, "error", None, resolved_model, Some("EMPTY_RESPONSE".to_string()), Some(message.clone()));
+                return ProviderReply::failure(status, "EMPTY_RESPONSE", &message, started.elapsed().as_millis());
+            }
+
+            let mut output = String::new();
+            let mut resolved_model = Some(model.to_string());
+            let reader = BufReader::new(response.into_reader());
+            for line in reader.lines() {
+                if provider_stream_cancelled(state, stream_id) {
+                    let message = "The provider stream was stopped by the user.";
+                    emit_provider_stream(window, stream_id, "cancelled", None, resolved_model.clone(), Some("CANCELLED".to_string()), Some(message.to_string()));
+                    clear_provider_stream_cancel(state, stream_id);
+                    return ProviderReply::failure(0, "CANCELLED", message, started.elapsed().as_millis());
+                }
+                let line = match line {
+                    Ok(value) => value,
+                    Err(_) => {
+                        let message = "The provider stream ended before the response could be read.";
+                        emit_provider_stream(window, stream_id, "error", None, resolved_model.clone(), Some("STREAM_READ_ERROR".to_string()), Some(message.to_string()));
+                        return ProviderReply::failure(status, "STREAM_READ_ERROR", message, started.elapsed().as_millis());
+                    }
+                };
+                let trimmed = line.trim();
+                if trimmed.is_empty() || trimmed.starts_with(':') || !trimmed.starts_with("data:") {
+                    continue;
+                }
+                let data = trimmed.trim_start_matches("data:").trim();
+                if data == "[DONE]" {
+                    break;
+                }
+                let payload: Value = match serde_json::from_str(data) {
+                    Ok(value) => value,
+                    Err(_) => continue,
+                };
+                if let Some(message) = parse_error_message(&payload) {
+                    emit_provider_stream(window, stream_id, "error", None, resolved_model.clone(), Some("PROVIDER_STREAM_ERROR".to_string()), Some(message.clone()));
+                    return ProviderReply::failure(status, "PROVIDER_STREAM_ERROR", &message, started.elapsed().as_millis());
+                }
+                if let Some(value) = payload.get("model").and_then(Value::as_str) {
+                    resolved_model = Some(value.to_string());
+                }
+                if let Some(reasoning) = payload.pointer("/choices/0/delta/reasoning_content").and_then(Value::as_str).filter(|value| !value.is_empty()) {
+                    emit_provider_stream(window, stream_id, "reasoning", Some(reasoning.to_string()), resolved_model.clone(), None, None);
+                }
+                if let Some(delta) = payload.pointer("/choices/0/delta/content").and_then(Value::as_str).filter(|value| !value.is_empty()) {
+                    output.push_str(delta);
+                    emit_provider_stream(window, stream_id, "delta", Some(delta.to_string()), resolved_model.clone(), None, None);
+                }
+            }
+
+            if output.trim().is_empty() {
+                let message = "The provider stream completed without assistant content.";
+                emit_provider_stream(window, stream_id, "error", None, resolved_model.clone(), Some("EMPTY_RESPONSE".to_string()), Some(message.to_string()));
+                return ProviderReply::failure(status, "EMPTY_RESPONSE", message, started.elapsed().as_millis());
+            }
+            emit_provider_stream(window, stream_id, "done", None, resolved_model.clone(), None, None);
+            ProviderReply {
+                ok: true,
+                status,
+                content: Some(output),
+                model: resolved_model,
+                error_code: None,
+                error_message: None,
+                latency_ms: started.elapsed().as_millis(),
+            }
+        }
+        Err(ureq::Error::Status(status, response)) => {
+            let payload: Option<Value> = response.into_json().ok();
+            let (code, fallback) = status_message(status, &config.provider_id);
+            let message = payload.as_ref().and_then(parse_error_message).unwrap_or(fallback);
+            emit_provider_stream(window, stream_id, "error", None, Some(model.to_string()), Some(code.clone()), Some(message.clone()));
+            ProviderReply::failure(status, &code, &message, started.elapsed().as_millis())
+        }
+        Err(ureq::Error::Transport(_)) => {
+            let message = "Network connection failed. Check internet access, proxy, DNS and system time.";
+            emit_provider_stream(window, stream_id, "error", None, Some(model.to_string()), Some("NETWORK_ERROR".to_string()), Some(message.to_string()));
+            ProviderReply::failure(0, "NETWORK_ERROR", message, started.elapsed().as_millis())
+        }
+    }
+}
+
 fn send_anthropic(
     config: &ProviderConfigInput,
     base_url: &str,
@@ -741,6 +945,68 @@ fn send_request(
     }
 }
 
+
+fn send_stream_request(
+    window: &tauri::Window,
+    state: &AppState,
+    stream_id: &str,
+    mut config: ProviderConfigInput,
+    messages: Vec<ProviderMessage>,
+    max_tokens: u32,
+    temperature: f64,
+) -> ProviderReply {
+    let started = Instant::now();
+    if let Err(error) = hydrate_provider_secret(&mut config, started) {
+        emit_provider_stream(window, stream_id, "error", None, None, error.error_code.clone(), error.error_message.clone());
+        return error;
+    }
+    let (base_url, model, timeout_ms) = match validate_config(&config) {
+        Ok(value) => value,
+        Err(mut error) => {
+            error.latency_ms = started.elapsed().as_millis();
+            emit_provider_stream(window, stream_id, "error", None, None, error.error_code.clone(), error.error_message.clone());
+            return error;
+        }
+    };
+    if let Err(error) = validate_messages(&messages, started) {
+        emit_provider_stream(window, stream_id, "error", None, Some(model), error.error_code.clone(), error.error_message.clone());
+        return error;
+    }
+
+    match config.api_style.as_str() {
+        "openai-compatible" => send_openai_compatible_stream(
+            window,
+            state,
+            stream_id,
+            &config,
+            &base_url,
+            &model,
+            timeout_ms,
+            messages,
+            max_tokens,
+            temperature,
+            started,
+        ),
+        "anthropic" => {
+            let reply = send_anthropic(&config, &base_url, &model, timeout_ms, messages, max_tokens, temperature, started);
+            if reply.ok {
+                if let Some(content) = reply.content.clone() {
+                    emit_provider_stream(window, stream_id, "delta", Some(content), reply.model.clone(), None, None);
+                }
+                emit_provider_stream(window, stream_id, "done", None, reply.model.clone(), None, None);
+            } else {
+                emit_provider_stream(window, stream_id, "error", None, reply.model.clone(), reply.error_code.clone(), reply.error_message.clone());
+            }
+            reply
+        }
+        _ => {
+            let message = "This provider API style is not supported by the streaming runtime.";
+            emit_provider_stream(window, stream_id, "error", None, Some(model), Some("UNSUPPORTED_API_STYLE".to_string()), Some(message.to_string()));
+            ProviderReply::failure(0, "UNSUPPORTED_API_STYLE", message, started.elapsed().as_millis())
+        }
+    }
+}
+
 fn credential_user(profile_id: &str) -> Result<String, String> {
     let trimmed = profile_id.trim();
     if trimmed.is_empty() || trimmed.len() > 160 {
@@ -843,6 +1109,64 @@ fn provider_chat(request: ProviderChatRequest) -> ProviderReply {
         request.max_tokens.unwrap_or(3072),
         request.temperature.unwrap_or(0.25),
     )
+}
+
+
+#[tauri::command]
+async fn provider_chat_stream(
+    window: tauri::Window,
+    state: State<'_, AppState>,
+    request: ProviderChatRequest,
+    stream_id: String,
+) -> ProviderReply {
+    if stream_id.trim().is_empty() || stream_id.len() > 160 {
+        return ProviderReply::failure(0, "INVALID_STREAM_ID", "The provider stream identifier is invalid.", 0);
+    }
+
+    // The HTTP/SSE reader is blocking. Run it away from Tauri's command thread so
+    // the UI remains responsive and provider_stream_cancel can be handled while
+    // a long answer is still arriving.
+    let app_state = state.inner().clone();
+    drop(state);
+    let worker_stream_id = stream_id.clone();
+    clear_provider_stream_cancel(&app_state, &worker_stream_id);
+    match tauri::async_runtime::spawn_blocking(move || {
+        let reply = send_stream_request(
+            &window,
+            &app_state,
+            &worker_stream_id,
+            request.config,
+            request.messages,
+            request.max_tokens.unwrap_or(3072),
+            request.temperature.unwrap_or(0.25),
+        );
+        clear_provider_stream_cancel(&app_state, &worker_stream_id);
+        reply
+    })
+    .await
+    {
+        Ok(reply) => reply,
+        Err(_) => ProviderReply::failure(
+            0,
+            "STREAM_WORKER_ERROR",
+            "The provider streaming worker stopped unexpectedly.",
+            0,
+        ),
+    }
+}
+
+#[tauri::command]
+fn provider_stream_cancel(state: State<AppState>, stream_id: String) -> bool {
+    if stream_id.trim().is_empty() || stream_id.len() > 160 {
+        return false;
+    }
+    match state.cancelled_provider_streams.lock() {
+        Ok(mut streams) => {
+            streams.insert(stream_id);
+            true
+        }
+        Err(_) => false,
+    }
 }
 
 #[tauri::command]
@@ -2058,6 +2382,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             provider_connection_test,
             provider_chat,
+            provider_chat_stream,
+            provider_stream_cancel,
             provider_secret_save,
             provider_secret_load,
             provider_secret_delete,

@@ -115,15 +115,15 @@ function saveConversations(convs: Conversation[]): void {
 
 function checkDeveloperIdentityQuestion(text: string): string | null {
   const isZh = tk("common.yes") !== "Yes";
-  const zhPatterns = /\u5F00\u53D1\u8005|\u8C01\u5F00\u53D1\u7684|\u4F5C\u8005|\u600E\u4E48\u8054\u7CFB|\u8054\u7CFB\u65B9\u5F0F|\u5BA2\u670D|\u53CD\u9988.*?bug|\u5F00\u53D1\u56E2\u961F|\u56E2\u961F\u5F00\u53D1/;
-  const enPatterns = /who developed|who is the developer|who created|author of|contact developer|support email|wechat|bug report|development team/i;
+  const zhPatterns = /\u4F60\u662F\u8C01|\u4F60\u662F\u4EC0\u4E48|\u4F60\u53EB\u4EC0\u4E48|\u4F60\u7684\u540D\u5B57|\u5F00\u53D1\u8005|\u8C01\u5F00\u53D1\u7684|\u4F5C\u8005|\u600E\u4E48\u8054\u7CFB|\u8054\u7CFB\u65B9\u5F0F|\u5BA2\u670D|\u53CD\u9988.*?bug|\u5F00\u53D1\u56E2\u961F|\u56E2\u961F\u5F00\u53D1/;
+  const enPatterns = /who are you|what are you|what is your name|who developed|who is the developer|who created|author of|contact developer|support email|wechat|bug report|development team/i;
   const zhMatch = zhPatterns.test(text);
   const enMatch = enPatterns.test(text);
   if (zhMatch || enMatch) {
     if (isZh) {
-      return "TokenFence Studio \u7531 Chris \u5F00\u53D1\u5E76\u7EF4\u62A4.\n\n\u5982\u679C\u9047\u5230\u95EE\u9898\u3001\u5E0C\u671B\u62A5\u544A bug\u3001\u8BF7\u6C42\u529F\u80FD\u6216\u8054\u7CFB\u5F00\u53D1\u8005\uFF0C\u8BF7\u4F7F\u7528\uFF1A\n\n\u90AE\u7BB1\uFF1Achriswangjob@163.com\n\u5FAE\u4FE1\uFF1Aeasymoneysniperchris";
+      return "\u6211\u662F Chris Studio\uFF0C\u7531 Chris \u5168\u7A0B\u8BBE\u8BA1\u548C\u5EFA\u9020\u3002\n\n\u5982\u679C\u9047\u5230\u95EE\u9898\u3001\u5E0C\u671B\u62A5\u544A bug\u3001\u8BF7\u6C42\u529F\u80FD\u6216\u8054\u7CFB\u5F00\u53D1\u8005\uFF0C\u8BF7\u4F7F\u7528\uFF1A\n\n\u90AE\u7BB1\uFF1Achriswangjob@163.com\n\u5FAE\u4FE1\uFF1Aeasymoneysniperchris";
     } else {
-      return "TokenFence Studio is developed and maintained by Chris.\n\nIf you encounter issues, want to report bugs, request features, or contact the developer, please use:\n\nEmail: chriswangjob@163.com\nWeChat: easymoneysniperchris";
+      return "I am Chris Studio, designed and built end-to-end by Chris.\n\nIf you encounter issues, want to report bugs, request features, or contact the developer, please use:\n\nEmail: chriswangjob@163.com\nWeChat: easymoneysniperchris";
     }
   }
   return null;
@@ -1048,7 +1048,7 @@ export function ChatWorkspace() {
 
     const apiMessages: { role: string; content: string }[] = [];
 
-    if (withUserMsg.messages.length === 1) apiMessages.push({ role: "system", content: (isZh ? "你是 TokenFence Studio 内置助手。TokenFence Studio 由 Chris 开发并维护。如果你遇到问题、想反馈 bug、提出功能建议，或者想联系开发者，可以通过以下方式联系：邮箱 chriswangjob@163.com，微信 easymoneysniperchris。请提供有帮助且简洁的回复。" : "You are an AI assistant in TokenFence Studio. TokenFence Studio is developed and maintained by Chris. If you encounter issues, want to report bugs, request features, or contact the developer, please email chriswangjob@163.com or use WeChat: easymoneysniperchris. Be helpful and concise.") });
+    if (withUserMsg.messages.length === 1) apiMessages.push({ role: "system", content: (isZh ? "你是 TokenFence Studio 内置助手。我是 Chris Studio，由 Chris 全程设计和建造。如果你遇到问题、想反馈 bug、提出功能建议，或者想联系开发者，可以通过以下方式联系：邮箱 chriswangjob@163.com，微信 easymoneysniperchris。请提供有帮助且简洁的回复。" : "You are an AI assistant in TokenFence Studio. I am Chris Studio, designed and built end-to-end by Chris. If you encounter issues, want to report bugs, request features, or contact the developer, please email chriswangjob@163.com or use WeChat: easymoneysniperchris. Be helpful and concise.") });
 
     for (const m of withUserMsg.messages) apiMessages.push({ role: m.role, content: m.content });
 

@@ -8,6 +8,7 @@ import type {
   Language,
   ProviderProfile,
   ProviderStatus,
+  PayloadScanResult,
   RiskLevel,
   SafetyReceipt,
   WorkspaceMode,
@@ -37,9 +38,9 @@ import {
 import { providerDefinition } from '../app/providerRegistry';
 import { skillPrompt } from '../app/skills';
 import { formatSafePayload, maxRisk, scanPayload } from '../features/safety/scanner';
-import { sendProviderChat } from '../features/providers/providerClient';
+import { sendProviderChat, sendProviderChatStream } from '../features/providers/providerClientReliable';
 import { CHRIS_STUDIO_SYSTEM_PROMPT, identityReply, isIdentityQuestion } from '../app/identity';
-import { captureScreen, clickPointer, openApplication, pressKey, requestComputerPermissions, typeText } from '../features/computer/computerClient';
+import { captureScreen, clickPointer, openApplication, pressKey, requestComputerPermissions, typeText } from '../features/computer/computerClientReliable';
 import { chooseProjectFolder, projectGitDiff, projectGitStatus, runProjectPreset } from '../features/projects/projectClient';
 import { processFile } from '../features/files/fileProcessor';
 import { routeAttachments } from '../features/files/routing';
@@ -145,6 +146,7 @@ export function WorkspaceScreen({
   onOpenProviders,
   onOpenRouting,
   onOpenAgents,
+  onConversationChange,
 }: {
   language: Language;
   openConversationId?: string;
@@ -152,6 +154,7 @@ export function WorkspaceScreen({
   onOpenProviders: () => void;
   onOpenRouting: () => void;
   onOpenAgents: () => void;
+  onConversationChange?: (id: string | undefined) => void;
 }) {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [prompt, setPrompt] = useState('');
@@ -165,11 +168,14 @@ export function WorkspaceScreen({
   const [mode, setMode] = useState<WorkspaceMode>('chat');
   const [reviewedHash, setReviewedHash] = useState<string | null>(null);
   const [criticalApproved, setCriticalApproved] = useState(false);
-  const [inspectorOpen, setInspectorOpen] = useState(() => loadSettings().autoOpenInspector);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [requestStartedAt, setRequestStartedAt] = useState<number | null>(null);
   const [requestStage, setRequestStage] = useState<RequestStage>('idle');
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [streamingContent, setStreamingContent] = useState('');
+  const [streamingReasoning, setStreamingReasoning] = useState('');
+  const streamAbort = useRef<AbortController | null>(null);
   const [toolPreview, setToolPreview] = useState('');
   const [fileBusy, setFileBusy] = useState(false);
   const [fileProgress, setFileProgress] = useState(0);
@@ -178,6 +184,10 @@ export function WorkspaceScreen({
   const composerInput = useRef<HTMLTextAreaElement | null>(null);
   const messageEnd = useRef<HTMLDivElement | null>(null);
   const toast = useToast();
+
+  useEffect(() => {
+    onConversationChange?.(conversation?.id);
+  }, [conversation?.id, onConversationChange]);
 
   useEffect(() => {
     if (!requestStartedAt) { setElapsedMs(0); return; }
@@ -191,7 +201,7 @@ export function WorkspaceScreen({
     return () => window.removeEventListener('chris-studio:focus-composer', focusComposer);
   }, []);
 
-  const scan = useMemo(() => scanPayload(prompt, attachments, settings.customSensitiveTerms), [prompt, attachments, settings.customSensitiveTerms]);
+  const [scan, setScan] = useState<PayloadScanResult>(() => scanPayload('', [], loadSettings().customSensitiveTerms));
   const optimization = useMemo(() => optimizeText(prompt, settings.tokenOptimizationMode), [prompt, settings.tokenOptimizationMode]);
   const routingDecision = useMemo(() => routeAttachments(attachments, profiles, loadRoutingRules(), provider.id, language), [attachments, profiles, provider.id, language]);
   const knowledgeHits = useMemo(() => searchKnowledge(loadKnowledgeIndex(), prompt, 5), [prompt]);
@@ -206,7 +216,7 @@ export function WorkspaceScreen({
   const providerReady = effectiveProvider.providerId === 'local-demo'
     || (!providerDef.requiresCredential || effectiveProvider.credentialStored) && effectiveStatus.state === 'connected';
   const mustApproveCritical = settings.blockCriticalSends && scan.riskLevel === 'critical';
-  const projectedInputTokens = Math.max(0, scan.estimatedTokens - optimization.savedTokens);
+  const projectedInputTokens = Math.max(0, (isReviewed ? scan.estimatedTokens : optimization.originalTokens) - optimization.savedTokens);
   const todayUsage = tokenUsageSummary();
 
   useEffect(() => {
@@ -258,11 +268,13 @@ export function WorkspaceScreen({
   useEffect(() => {
     setReviewedHash(null);
     setCriticalApproved(false);
-  }, [prompt, attachments]);
+    // Keep typing lightweight. The actual request payload is scanned only after Send.
+    setScan(scanPayload('', [], settings.customSensitiveTerms));
+  }, [prompt, attachments, settings.customSensitiveTerms]);
 
   useEffect(() => {
     messageEnd.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [conversation?.messages.length]);
+  }, [conversation?.messages.length, streamingContent]);
 
   const selectProvider = (id: string) => {
     saveActiveProviderId(id);
@@ -476,13 +488,25 @@ ${typeResult.message}`, !typeResult.ok);
       setSending(false);
       setRequestStage('idle');
       setRequestStartedAt(null);
+      streamAbort.current = null;
+      setStreamingContent('');
+      setStreamingReasoning('');
     }
     return true;
   };
 
-  const send = async (reviewOverride = false) => {
-    if (!hasInput || (!isReviewed && !reviewOverride) || sending) return;
-    if (mustApproveCritical && !criticalApproved) {
+  const stopCurrentRequest = () => {
+    streamAbort.current?.abort();
+    streamAbort.current = null;
+    setRequestStage('finalizing');
+    toast.show(copy(language, 'Stopping the current response…', '正在停止当前响应…'), 'warning');
+  };
+
+  const send = async (reviewOverride = false, scanOverride?: PayloadScanResult) => {
+    const requestScan = scanOverride ?? scan;
+    const requestIsReviewed = reviewedHash === requestScan.hash;
+    if (!hasInput || (!requestIsReviewed && !reviewOverride) || sending) return;
+    if (settings.blockCriticalSends && requestScan.riskLevel === 'critical' && !criticalApproved) {
       toast.show(copy(language, 'Confirm the redacted critical payload before sending.', '请先确认严重风险内容的脱敏版本。'), 'warning');
       return;
     }
@@ -510,17 +534,19 @@ ${typeResult.message}`, !typeResult.ok);
     }
 
     setSending(true);
+    setStreamingContent('');
+    setStreamingReasoning('');
     setRequestStage('reviewing');
     setRequestStartedAt(Date.now());
     let pending: Conversation | null = null;
 
     try {
-      const safePayload = formatSafePayload(scan);
+      const safePayload = formatSafePayload(requestScan);
       const now = nowIso();
       const current = conversation ?? newConversation(effectiveProvider, mode, mode === 'agent' ? activeAgent?.id : undefined);
       const userMessage: ChatMessage = {
         id: makeId('message'), role: 'user', content: safePayload, createdAt: now,
-        provider: effectiveProvider.displayName, model: effectiveModel, riskLevel: scan.riskLevel,
+        provider: effectiveProvider.displayName, model: effectiveModel, riskLevel: requestScan.riskLevel,
       };
       pending = {
         ...current,
@@ -530,7 +556,7 @@ ${typeResult.message}`, !typeResult.ok);
         model: effectiveModel,
         mode,
         agentId: mode === 'agent' ? activeAgent?.id : undefined,
-        riskSummary: maxRisk(current.riskSummary, scan.riskLevel),
+        riskSummary: maxRisk(current.riskSummary, requestScan.riskLevel),
         messages: [...current.messages, userMessage],
       };
       setConversation(pending);
@@ -564,18 +590,48 @@ ${formatKnowledgeContext(knowledgeHits)}`,
       setRequestStage('provider');
 
       if (effectiveProvider.providerId === 'local-demo') {
-        assistantContent = localDemoReply(language, scan.findings.length, scan.estimatedTokens, optimization.savedTokens);
+        assistantContent = localDemoReply(language, requestScan.findings.length, requestScan.estimatedTokens, optimization.savedTokens);
         receiptResult = 'demo';
       } else {
         try {
-          const result = await sendProviderChat(effectiveProvider, requestMessages, settings.requestTimeoutMs, effectiveModel, attachments, includeVisionImages);
-          if (result.ok && result.content) assistantContent = result.content;
+          const abortController = new AbortController();
+          streamAbort.current = abortController;
+          let streamed = '';
+          let reasoning = '';
+          const result = await sendProviderChatStream(
+            effectiveProvider,
+            requestMessages,
+            settings.requestTimeoutMs,
+            effectiveModel,
+            attachments,
+            includeVisionImages,
+            {
+              onDelta: (delta) => {
+                streamed += delta;
+                setStreamingContent(streamed);
+              },
+              onReasoning: (delta) => {
+                reasoning += delta;
+                setStreamingReasoning(reasoning);
+              },
+            },
+            abortController.signal,
+          );
+          streamAbort.current = null;
+          if (result.ok && (streamed || result.content)) assistantContent = streamed || result.content || '';
           else {
-            failed = true;
+            failed = result.errorCode !== 'CANCELLED';
             receiptResult = 'failed';
-            assistantContent = copy(language, `Request failed: ${result.errorMessage ?? 'Unknown provider error.'}`, `请求失败：${result.errorMessage ?? '未知模型错误。'}`);
+            const partial = streamed.trim();
+            const errorMessage = result.errorCode === 'CANCELLED'
+              ? copy(language, 'Response stopped.', '响应已停止。')
+              : copy(language, `Request failed: ${result.errorMessage ?? 'Unknown provider error.'}`, `请求失败：${result.errorMessage ?? '未知模型错误。'}`);
+            assistantContent = partial ? `${partial}
+
+${errorMessage}` : errorMessage;
           }
         } catch (error) {
+          streamAbort.current = null;
           failed = true;
           receiptResult = 'failed';
           assistantContent = copy(
@@ -596,9 +652,9 @@ ${formatKnowledgeContext(knowledgeHits)}`,
       if (settings.localHistoryEnabled) saveConversation(completed);
       if (settings.safetyReceiptsEnabled) saveReceipt({
         id: makeId('receipt'), conversationId: completed.id, createdAt: nowIso(), provider: effectiveProvider.displayName,
-        model: effectiveModel, riskLevel: scan.riskLevel, findingKinds: Array.from(new Set(scan.findings.map((finding) => finding.kind))),
+        model: effectiveModel, riskLevel: requestScan.riskLevel, findingKinds: Array.from(new Set(requestScan.findings.map((finding) => finding.kind))),
         attachmentNames: attachments.map((file) => file.name), requestCharacters: safePayload.length,
-        estimatedTokens: scan.estimatedTokens, optimizedTokens: Math.max(0, scan.estimatedTokens - optimization.savedTokens), result: receiptResult,
+        estimatedTokens: requestScan.estimatedTokens, optimizedTokens: Math.max(0, requestScan.estimatedTokens - optimization.savedTokens), result: receiptResult,
       });
       recordTokenUsage({
         id: makeId('usage'), createdAt: nowIso(), provider: effectiveProvider.displayName, model: effectiveModel,
@@ -629,6 +685,9 @@ ${formatKnowledgeContext(knowledgeHits)}`,
       setSending(false);
       setRequestStage('idle');
       setRequestStartedAt(null);
+      streamAbort.current = null;
+      setStreamingContent('');
+      setStreamingReasoning('');
     }
   };
 
@@ -638,13 +697,30 @@ ${formatKnowledgeContext(knowledgeHits)}`,
       void send();
       return;
     }
-    setReviewedHash(scan.hash);
-    if (scan.findings.length === 0 && scan.riskLevel === 'safe') {
-      void send(true);
+
+    // Safety scanning is intentionally triggered by the send action rather than while the user types.
+    setRequestStage('reviewing');
+    const nextScan = scanPayload(prompt, attachments, settings.customSensitiveTerms);
+    setScan(nextScan);
+    setReviewedHash(nextScan.hash);
+    if (settings.autoOpenInspector && nextScan.findings.length > 0) setInspectorOpen(true);
+    if (nextScan.riskLevel === 'critical' && settings.blockCriticalSends) {
+      setInspectorOpen(true);
+      toast.show(copy(language, 'Critical values were detected. Review the redacted payload before it can be sent.', '检测到严重风险内容，请确认脱敏后的请求再发送。'), 'warning');
       return;
     }
-    setInspectorOpen(true);
-    toast.show(copy(language, 'Review the detected items, then send the redacted payload.', '请先检查检测结果，再发送脱敏后的请求。'), 'warning');
+    if (nextScan.riskLevel === 'high' || nextScan.riskLevel === 'medium') {
+      const approved = window.confirm(copy(
+        language,
+        `Chris Studio found ${nextScan.findings.length} sensitive item${nextScan.findings.length === 1 ? '' : 's'} after you pressed Send. Send the redacted payload?`,
+        `点击发送后，Chris Studio 检测到 ${nextScan.findings.length} 处敏感内容。是否发送脱敏后的请求？`,
+      ));
+      if (!approved) {
+        setInspectorOpen(true);
+        return;
+      }
+    }
+    void send(true, nextScan);
   };
 
   const empty = !conversation?.messages.length;
@@ -691,7 +767,7 @@ ${formatKnowledgeContext(knowledgeHits)}`,
                   {message.model && <footer>{message.model}</footer>}
                 </article>
               ))}
-              {sending && <article className="message-bubble assistant pending-message"><header><span>Chris Studio</span><small>{(elapsedMs / 1000).toFixed(1)}s</small></header><div><span className="typing-dots"><i /><i /><i /></span>{requestStageLabel(language, requestStage)}</div></article>}
+              {sending && <article className="message-bubble assistant pending-message streaming-message"><header><span>Chris Studio</span><small>{(elapsedMs / 1000).toFixed(1)}s</small></header>{streamingReasoning && <details className="stream-reasoning"><summary>{copy(language, 'Reasoning', '思考过程')}</summary><div>{streamingReasoning}</div></details>}<div>{streamingContent || <><span className="typing-dots"><i /><i /><i /></span>{requestStageLabel(language, requestStage)}</>}</div></article>}
               <div ref={messageEnd} />
             </div>
           )}
@@ -705,10 +781,10 @@ ${formatKnowledgeContext(knowledgeHits)}`,
             <div className="composer-modern-footer">
               <input ref={fileInput} type="file" multiple hidden accept=".txt,.md,.json,.csv,.log,.xml,.yaml,.yml,.js,.jsx,.ts,.tsx,.py,.rs,.go,.java,.html,.css,.pdf,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.webp" onChange={(event) => { void addFiles(event.target.files); event.currentTarget.value = ''; }} />
               <button className="icon-button" onClick={() => fileInput.current?.click()} disabled={fileBusy}><Icon name="paperclip" /></button>
-              <div className="composer-metrics"><span><Icon name="sparkles" size={14} />{optimization.originalTokens} → {optimization.optimizedTokens}</span><span className={`risk-text risk-${scan.riskLevel}`}>{riskLabel(language, scan.riskLevel)}</span><span>{attachments.length} {copy(language, 'files', '文件')}</span>{knowledgeHits.length > 0 && <span>{knowledgeHits.length} RAG</span>}</div>
+              <div className="composer-metrics"><span><Icon name="sparkles" size={14} />{optimization.originalTokens} → {optimization.optimizedTokens}</span><span className="send-scan-note"><Icon name="shield" size={13} />{copy(language, 'Scans after send', '发送后检测')}</span><span>{attachments.length} {copy(language, 'files', '文件')}</span>{knowledgeHits.length > 0 && <span>{knowledgeHits.length} RAG</span>}</div>
               {optimization.savedTokens > 0 && <button className="compact-action" onClick={applyOptimization}><Icon name="wand" />-{optimization.savedTokens} tokens</button>}
               {visionImageCount > 0 && providerDef.capabilities.vision && <button className={`compact-action ${includeVisionImages ? 'active' : ''}`} onClick={() => setIncludeVisionImages((value) => !value)}><Icon name="image" />{includeVisionImages ? copy(language, 'Vision on', '视觉已启用') : copy(language, 'Use vision', '启用视觉')}</button>}
-              <button className="button primary" onClick={submit} disabled={sending || !hasInput || fileBusy || (isReviewed && mustApproveCritical && !criticalApproved)}><Icon name={mode === 'agent' ? 'bot' : 'send'} />{sending ? `${requestStageLabel(language, requestStage)} ${(elapsedMs / 1000).toFixed(1)}s` : !isReviewed && scan.findings.length > 0 ? copy(language, 'Review findings', '审查并继续') : mode === 'agent' ? copy(language, 'Run in workspace', '在工作台运行') : copy(language, 'Send', '发送')}</button>
+              <button className={`button primary ${sending ? 'stop-request' : ''}`} onClick={sending ? stopCurrentRequest : submit} disabled={!sending && (!hasInput || fileBusy || (isReviewed && mustApproveCritical && !criticalApproved))}><Icon name={sending ? 'x' : mode === 'agent' ? 'bot' : 'send'} />{sending ? copy(language, 'Stop', '停止') : isReviewed && scan.findings.length > 0 ? copy(language, 'Send redacted', '发送脱敏内容') : mode === 'agent' ? copy(language, 'Run in workspace', '在工作台运行') : copy(language, 'Send', '发送')}</button>
             </div>
           </div>
           <div className="composer-caption"><span>{effectiveProvider.displayName} · {effectiveModel}</span><span>{sending ? `${copy(language, 'Elapsed', '已用时')} ${(elapsedMs / 1000).toFixed(1)}s` : effectiveStatus.state === 'connected' ? copy(language, 'Connected · ⌘↵ to send', '已连接 · ⌘↵ 发送') : effectiveProvider.providerId === 'local-demo' ? copy(language, 'Offline sandbox', '离线沙箱') : copy(language, 'Connection required', '需要连接')}</span></div>
@@ -718,7 +794,7 @@ ${formatKnowledgeContext(knowledgeHits)}`,
       {inspectorOpen && (
         <aside className="inspector-modern">
           <header><div><span className="section-kicker">CHRIS STUDIO CONTROL</span><h2>{copy(language, 'Request control', '请求控制')}</h2></div><button className="icon-button" onClick={() => setInspectorOpen(false)}><Icon name="x" /></button></header>
-          <div className={`risk-hero risk-panel-${scan.riskLevel}`}><div><strong>{scan.riskScore}</strong><span>/100</span></div><div><small>{copy(language, 'CURRENT RISK', '当前风险')}</small><h3>{riskLabel(language, scan.riskLevel)}</h3><p>{isReviewed ? copy(language, 'Locked to this exact payload', '已锁定到当前请求') : copy(language, 'Edit requires a new review', '编辑后需要重新审查')}</p></div></div>
+          <div className={`risk-hero risk-panel-${scan.riskLevel}`}><div><strong>{scan.riskScore}</strong><span>/100</span></div><div><small>{copy(language, 'CURRENT RISK', '当前风险')}</small><h3>{riskLabel(language, scan.riskLevel)}</h3><p>{isReviewed ? copy(language, 'Locked to this exact payload', '已锁定到当前请求') : copy(language, 'Scan starts after Send', '点击发送后开始检测')}</p></div></div>
           <div className="inspector-card token-card"><div className="inspector-card-title"><span><Icon name="sparkles" />Token budget</span><strong>{scan.estimatedTokens}</strong></div><div className="token-bar"><span style={{ width: `${Math.min(100, scan.estimatedTokens / 80)}%` }} /></div><div className="token-stats"><span>{copy(language, 'Local saving', '本地节约')}<strong>{optimization.savedTokens}</strong></span><span>{copy(language, 'Context limit', '上下文轮次')}<strong>{settings.conversationContextLimit}</strong></span></div></div>
           <div className="inspector-card"><div className="inspector-card-title"><span><Icon name="route" />{copy(language, 'Routing', '模型路由')}</span><button onClick={onOpenRouting}>{copy(language, 'Edit', '编辑')}</button></div><div className="route-summary"><span className="provider-avatar tiny" style={{ '--provider-accent': providerDefinition(effectiveProvider.providerId).accent } as React.CSSProperties}>{providerDefinition(effectiveProvider.providerId).shortName}</span><div><strong>{effectiveProvider.displayName}</strong><small>{effectiveModel}</small></div></div><p className="route-reason">{routingDecision?.reason}</p></div>
           {mode === 'agent' && activeAgent && <div className="inspector-card"><div className="inspector-card-title"><span><Icon name="bot" />Agent</span><button onClick={onOpenAgents}>{copy(language, 'Skills', 'Skills')}</button></div><strong className="agent-name-inspector">{activeAgent.name}</strong><div className="skill-dot-row">{activeAgent.skillIds.slice(0, 5).map((id) => <span key={id}>{id}</span>)}</div><p className="route-reason">{copy(language, `Permission mode: ${activeAgent.permissionMode}`, `权限模式：${activeAgent.permissionMode}`)}</p></div>}
