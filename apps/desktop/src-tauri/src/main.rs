@@ -1118,19 +1118,25 @@ async fn provider_chat_stream(
     state: State<'_, AppState>,
     request: ProviderChatRequest,
     stream_id: String,
-) -> ProviderReply {
+) -> Result<ProviderReply, String> {
     if stream_id.trim().is_empty() || stream_id.len() > 160 {
-        return ProviderReply::failure(0, "INVALID_STREAM_ID", "The provider stream identifier is invalid.", 0);
+        return Ok(ProviderReply::failure(
+            0,
+            "INVALID_STREAM_ID",
+            "The provider stream identifier is invalid.",
+            0,
+        ));
     }
 
-    // The HTTP/SSE reader is blocking. Run it away from Tauri's command thread so
-    // the UI remains responsive and provider_stream_cancel can be handled while
-    // a long answer is still arriving.
+    // Tauri v1 requires async commands that receive borrowed command arguments
+    // such as State<'_, T> to return Result. Clone the managed state before the
+    // await so the blocking SSE worker owns everything it needs.
     let app_state = state.inner().clone();
     drop(state);
     let worker_stream_id = stream_id.clone();
     clear_provider_stream_cancel(&app_state, &worker_stream_id);
-    match tauri::async_runtime::spawn_blocking(move || {
+
+    let reply = match tauri::async_runtime::spawn_blocking(move || {
         let reply = send_stream_request(
             &window,
             &app_state,
@@ -1152,7 +1158,9 @@ async fn provider_chat_stream(
             "The provider streaming worker stopped unexpectedly.",
             0,
         ),
-    }
+    };
+
+    Ok(reply)
 }
 
 #[tauri::command]

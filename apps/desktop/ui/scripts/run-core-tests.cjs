@@ -32,6 +32,7 @@ const compiledModuleTests = [
 // core-privacy-test.cjs is intentionally last among tests that consume the
 // temporary CommonJS build because the legacy test removes that directory.
 const remainingTests = [
+  "scripts/v2-2-tauri-command-contract-test.cjs",
   "scripts/core-privacy-test.cjs",
   "scripts/v2-2-product-metadata-test.cjs",
   "scripts/v2-2-workspace-integration-test.cjs",
