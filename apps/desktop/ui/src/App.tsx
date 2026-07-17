@@ -187,44 +187,46 @@ function ChrisStudioApp() {
 
         <button className="new-session" onClick={startNew}><Icon name="plus" />{copy(language, 'New task', '新建任务')}</button>
 
-        <RecentConversations
-          language={language}
-          activeConversationId={active === 'workspace' ? openConversationId : undefined}
-          onOpen={(id) => { setOpenConversationId(id); setActive('workspace'); }}
-          onViewAll={() => setActive('history')}
-        />
+        <div className="sidebar-scroll-region">
+          <RecentConversations
+            language={language}
+            activeConversationId={active === 'workspace' ? openConversationId : undefined}
+            onOpen={(id) => { setOpenConversationId(id); setActive('workspace'); }}
+            onViewAll={() => setActive('history')}
+          />
 
-        <nav className="app-nav" aria-label="Primary navigation">
-          <span className="nav-label">{copy(language, 'WORKSPACE', '工作')}</span>
-          {NAV.filter((item) => item.group === 'core' && item.id !== 'history').map((item) => (
-            <button key={item.id} className={active === item.id ? 'active' : ''} onClick={() => activate(item.id)} title={copy(language, item.en, item.zh)}>
-              <Icon name={item.icon} />
-              <span>{copy(language, item.en, item.zh)}</span>
+          <nav className="app-nav" aria-label="Primary navigation">
+            <span className="nav-label">{copy(language, 'WORKSPACE', '工作')}</span>
+            {NAV.filter((item) => item.group === 'core' && item.id !== 'history').map((item) => (
+              <button key={item.id} className={active === item.id ? 'active' : ''} onClick={() => activate(item.id)} title={copy(language, item.en, item.zh)}>
+                <Icon name={item.icon} />
+                <span>{copy(language, item.en, item.zh)}</span>
+              </button>
+            ))}
+            <button className={`nav-group-toggle ${toolsExpanded ? 'expanded' : ''}`} onClick={() => setToolsExpanded((value) => !value)} aria-expanded={toolsExpanded}>
+              <Icon name="sliders" />
+              <span>{copy(language, 'Tools and models', '工具与模型')}</span>
+              <Icon name="chevron" size={14} className="nav-group-chevron" />
             </button>
-          ))}
-          <button className={`nav-group-toggle ${toolsExpanded ? 'expanded' : ''}`} onClick={() => setToolsExpanded((value) => !value)} aria-expanded={toolsExpanded}>
-            <Icon name="sliders" />
-            <span>{copy(language, 'Tools and models', '工具与模型')}</span>
-            <Icon name="chevron" size={14} className="nav-group-chevron" />
-          </button>
-          {(toolsExpanded || NAV.some((item) => item.id === active && item.group === 'tools')) && (
-            <div className="nav-tool-group">
-              {NAV.filter((item) => item.group === 'tools').map((item) => (
-                <button key={item.id} className={active === item.id ? 'active' : ''} onClick={() => activate(item.id)} title={copy(language, item.en, item.zh)}>
-                  <Icon name={item.icon} />
-                  <span>{copy(language, item.en, item.zh)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          <span className="nav-label nav-label-system">{copy(language, 'SYSTEM', '系统')}</span>
-          {NAV.filter((item) => item.group === 'system').map((item) => (
-            <button key={item.id} className={active === item.id ? 'active' : ''} onClick={() => activate(item.id)} title={copy(language, item.en, item.zh)}>
-              <Icon name={item.icon} />
-              <span>{copy(language, item.en, item.zh)}</span>
-            </button>
-          ))}
-        </nav>
+            {(toolsExpanded || NAV.some((item) => item.id === active && item.group === 'tools')) && (
+              <div className="nav-tool-group">
+                {NAV.filter((item) => item.group === 'tools').map((item) => (
+                  <button key={item.id} className={active === item.id ? 'active' : ''} onClick={() => activate(item.id)} title={copy(language, item.en, item.zh)}>
+                    <Icon name={item.icon} />
+                    <span>{copy(language, item.en, item.zh)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <span className="nav-label nav-label-system">{copy(language, 'SYSTEM', '系统')}</span>
+            {NAV.filter((item) => item.group === 'system').map((item) => (
+              <button key={item.id} className={active === item.id ? 'active' : ''} onClick={() => activate(item.id)} title={copy(language, item.en, item.zh)}>
+                <Icon name={item.icon} />
+                <span>{copy(language, item.en, item.zh)}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
         <div className="sidebar-foot">
           <div className="secure-foot"><Icon name="lock" size={14} /><span>{copy(language, 'Local safety layer', '本地安全层')}</span></div>
           <small>v2.2.0 · macOS</small>

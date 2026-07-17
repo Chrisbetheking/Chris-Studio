@@ -47,9 +47,11 @@ assert.throws(
 
 const providerClient = fs.readFileSync(path.join(uiRoot, 'src/features/providers/providerClient.ts'), 'utf8');
 assert.match(providerClient, /listen<ProviderStreamEvent>\('chris-studio:\/\/provider-stream'/);
-assert.match(providerClient, /invoke<ProviderReply>\('provider_chat_stream'/);
+assert.match(providerClient, /invoke<boolean>\('provider_chat_stream'/);
 assert.match(providerClient, /provider_stream_cancel/);
-assert.match(providerClient, /Promise\.race\(\[invokeReply, abortReply\]\)/);
+assert.match(providerClient, /payload.kind === 'done'/);
+assert.match(providerClient, /return await completion/);
+assert.match(providerClient, /streamedContent \+= payload.text/);
 assert.match(providerClient, /maxTokens: 8192/);
 
 const reliableProvider = fs.readFileSync(path.join(uiRoot, 'src/features/providers/providerClientReliable.ts'), 'utf8');
@@ -66,6 +68,7 @@ assert.equal((workspace.match(/scanPayload\(prompt, attachments/g) || []).length
 
 const app = fs.readFileSync(path.join(uiRoot, 'src/App.tsx'), 'utf8');
 assert.match(app, /<LanguageSwitcher/);
+assert.match(app, /className="sidebar-scroll-region"/);
 assert.match(app, /<RecentConversations/);
 
 
@@ -86,9 +89,21 @@ const rust = fs.readFileSync(path.join(repoRoot, 'apps/desktop/src-tauri/src/mai
 assert.match(rust, /"stream": true/);
 assert.match(rust, /text\/event-stream/);
 assert.match(rust, /reasoning_content/);
-assert.match(rust, /async fn provider_chat_stream/);
+assert.match(rust, /fn provider_chat_stream/);
+assert.doesNotMatch(rust, /async fn provider_chat_stream/);
+assert.match(rust, /Result<bool, String>/);
+assert.match(rust, /Ok\(true\)/);
 assert.match(rust, /tauri::async_runtime::spawn_blocking/);
 assert.match(rust, /fn provider_stream_cancel/);
 assert.match(rust, /provider_chat_stream,\s*provider_stream_cancel/s);
+
+
+const css = fs.readFileSync(path.join(uiRoot, 'src/index.css'), 'utf8');
+assert.match(css, /\.app-sidebar\s*\{[\s\S]*?overflow:\s*hidden/);
+assert.match(css, /\.sidebar-scroll-region\s*\{[\s\S]*?flex:\s*1 1 auto/);
+assert.match(css, /\.sidebar-scroll-region\s*\{[\s\S]*?overflow-y:\s*auto/);
+assert.match(css, /\.app-nav\s*\{[\s\S]*?overflow:\s*visible/);
+assert.doesNotMatch(css, /\.recent-conversations-list\s*\{[^}]*overflow-y:\s*auto/);
+assert.match(css, /@media \(max-width: 980px\)[\s\S]*?\.recent-conversations\s*\{\s*display:\s*none/);
 
 console.log('v2.2 Codex layout, streaming and model Computer Use tests passed');

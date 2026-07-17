@@ -17,6 +17,7 @@ const sourceFiles = [
   "src/features/agent-runtime/runtimeStore.ts",
   "src/features/agent-runtime/rollbackPlan.ts",
   "src/features/providers/providerTelemetry.ts",
+  "src/features/providers/providerClient.ts",
   "src/features/computer-use/sessionGuard.ts",
   "src/features/computer-use/modelComputerProtocol.ts",
   "src/features/computer/computerClientReliable.ts",
@@ -27,6 +28,7 @@ const compiledModuleTests = [
   "scripts/v2-2-safety-runtime-test.cjs",
   "scripts/v2-2-runtime-store-test.cjs",
   "scripts/v2-2-codex-streaming-test.cjs",
+  "scripts/v2-2-provider-stream-session-test.cjs",
 ];
 
 // core-privacy-test.cjs is intentionally last among tests that consume the
@@ -99,6 +101,7 @@ function compileCoreModules() {
     "features/agent-runtime/runtimeStore.js",
     "features/agent-runtime/rollbackPlan.js",
     "features/providers/providerTelemetry.js",
+    "features/providers/providerClient.js",
     "features/computer-use/sessionGuard.js",
     "features/computer-use/modelComputerProtocol.js",
     "features/computer/computerClientReliable.js",

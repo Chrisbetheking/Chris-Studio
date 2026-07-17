@@ -1113,54 +1113,60 @@ fn provider_chat(request: ProviderChatRequest) -> ProviderReply {
 
 
 #[tauri::command]
-async fn provider_chat_stream(
+fn provider_chat_stream(
     window: tauri::Window,
-    state: State<'_, AppState>,
+    state: State<AppState>,
     request: ProviderChatRequest,
     stream_id: String,
-) -> Result<ProviderReply, String> {
+) -> Result<bool, String> {
     if stream_id.trim().is_empty() || stream_id.len() > 160 {
-        return Ok(ProviderReply::failure(
-            0,
-            "INVALID_STREAM_ID",
-            "The provider stream identifier is invalid.",
-            0,
-        ));
+        return Err("The provider stream identifier is invalid.".to_string());
     }
 
-    // Tauri v1 requires async commands that receive borrowed command arguments
-    // such as State<'_, T> to return Result. Clone the managed state before the
-    // await so the blocking SSE worker owns everything it needs.
-    let app_state = state.inner().clone();
-    drop(state);
+    // Start the blocking SSE worker and return immediately. Tauri v1 can delay
+    // renderer-side event delivery while a command invocation is still open,
+    // which makes a real stream look like one completed response. The worker
+    // owns cloned state/window handles and communicates exclusively through
+    // chris-studio://provider-stream events.
+    let worker_state = state.inner().clone();
+    let cleanup_state = worker_state.clone();
+    let worker_window = window.clone();
+    let error_window = window;
     let worker_stream_id = stream_id.clone();
-    clear_provider_stream_cancel(&app_state, &worker_stream_id);
+    let error_stream_id = stream_id.clone();
+    clear_provider_stream_cancel(&worker_state, &worker_stream_id);
 
-    let reply = match tauri::async_runtime::spawn_blocking(move || {
-        let reply = send_stream_request(
-            &window,
-            &app_state,
-            &worker_stream_id,
-            request.config,
-            request.messages,
-            request.max_tokens.unwrap_or(3072),
-            request.temperature.unwrap_or(0.25),
-        );
-        clear_provider_stream_cancel(&app_state, &worker_stream_id);
-        reply
-    })
-    .await
-    {
-        Ok(reply) => reply,
-        Err(_) => ProviderReply::failure(
-            0,
-            "STREAM_WORKER_ERROR",
-            "The provider streaming worker stopped unexpectedly.",
-            0,
-        ),
-    };
+    tauri::async_runtime::spawn(async move {
+        let worker = tauri::async_runtime::spawn_blocking(move || {
+            let reply = send_stream_request(
+                &worker_window,
+                &worker_state,
+                &worker_stream_id,
+                request.config,
+                request.messages,
+                request.max_tokens.unwrap_or(3072),
+                request.temperature.unwrap_or(0.25),
+            );
+            clear_provider_stream_cancel(&worker_state, &worker_stream_id);
+            reply
+        })
+        .await;
 
-    Ok(reply)
+        if worker.is_err() {
+            clear_provider_stream_cancel(&cleanup_state, &error_stream_id);
+            emit_provider_stream(
+                &error_window,
+                &error_stream_id,
+                "error",
+                None,
+                None,
+                Some("STREAM_WORKER_ERROR".to_string()),
+                Some("The provider streaming worker stopped unexpectedly.".to_string()),
+            );
+        }
+    });
+
+    Ok(true)
 }
 
 #[tauri::command]
