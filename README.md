@@ -1,23 +1,26 @@
-# Chris Studio v2.1.0
+# Chris Studio v2.2.0
 
 <p align="center"><strong>A local-first Safe AI Agent workspace for multiple models, lower token usage and reviewed computer actions.</strong></p>
 
-Chris Studio sits between the user and AI providers. Before a request leaves the Mac, it can scan sensitive content, process attachments, compact context, route files, retrieve local knowledge and require approval for native actions. v2.1.0 turns the project into a practical desktop Agent foundation with scoped repository editing, GitHub workflows, macOS Computer Use and reviewed MCP tool connections.
+Chris Studio sits between the user and AI providers. Before a request leaves the Mac, it can scan sensitive content, process attachments, compact context, route files, retrieve local knowledge and require approval for native actions. v2.2.0 hardens that desktop Agent foundation: long tasks now have a tested run-state core with checkpoints, loop limits, three-attempt repair boundaries, explicit cancellation and receipts, while the macOS Release path becomes retryable and verifiable.
 
 [简体中文](README.zh-CN.md) · [Rename guide](RENAME_TO_CHRIS_STUDIO.zh-CN.md) · [Fast-track roadmap](FAST_TRACK_ROADMAP.zh-CN.md) · [Implementation status](docs/architecture/IMPLEMENTATION_STATUS_v2.0.md) · [macOS signing](docs/macos/SIGNING_NOTARIZATION.md) · [Troubleshooting](docs/troubleshooting/TROUBLESHOOTING.md)
 
 
 Support: `chriswangjob@163.com` · WeChat: `easymoneysniperchris`
 
-## v2.1 highlights
+## v2.2 highlights
 
-- Chris Studio answers identity questions locally and never introduces itself as the underlying provider.
-- Product identity and support: designed and built by Chris; `chriswangjob@163.com`; WeChat `easymoneysniperchris`.
-- One-click send for safe prompts, Cmd/Ctrl+Enter, elapsed request timing and clearer progress feedback.
-- Codex-style local commands in the same conversation: `/project`, `/git status`, `/git diff`, `/check`, `/skills`, `/permissions`, `/screen`, `/type`, `/click`, `/key`.
-- A macOS permission probe requests Accessibility and Screen Recording before opening System Settings.
-- New obsidian/ivory/violet visual identity and app icon.
-- CI, legacy release and macOS release workflows now install the nested desktop UI dependencies explicitly.
+- Reliability work stays inside the unified workbench instead of adding more disconnected feature pages.
+- A typed Agent run controller records status, checkpoints, loops, repair attempts, patch backups and final receipts.
+- Automatic repair is capped at three attempts by default; patch backups can be converted into a path-safe reverse rollback plan and a portable JSON receipt.
+- Provider usage/error telemetry is normalized across common SDK field names without hard-coded pricing; optional rate cards remain user/configuration supplied.
+- Computer Use gets one-time approval tickets, an emergency stop, a hard deadline and coordinate-overlay data before any future UI wiring.
+- Product identity and displayed desktop version are synchronized before development, type-check and production builds.
+- The macOS release publisher is repository-owned, idempotent and retryable; every local asset is checked again against the remote Release.
+- Version metadata must match across the root workspace, desktop package, desktop UI, Cargo and Tauri configuration before builds begin.
+- Apple Silicon and Intel release bundles are verified independently before publishing.
+- GitHub-maintained checkout, setup-node and artifact actions use their current Node 24 generations.
 
 ## Downloads
 
@@ -35,9 +38,9 @@ Support: `chriswangjob@163.com` · WeChat: `easymoneysniperchris`
 - [Community installer](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Install-Chris-Studio-Intel.command)
 - [SHA-256](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/SHA256SUMS-Intel.txt)
 
-Direct links become available after the v2.1.0 Release workflow succeeds. Developer ID signed and notarized packages pass the normal macOS trust flow. Without Apple credentials, the workflow publishes ad-hoc signed community packages and an app-specific installer helper.
+Direct links become available after the v2.2.0 Release workflow succeeds. Developer ID signed and notarized packages pass the normal macOS trust flow. Without Apple credentials, the workflow publishes ad-hoc signed community packages and an app-specific installer helper.
 
-## Implemented in v2.1.0
+## Product capabilities carried into v2.2.0
 
 ### Multi-provider workspace
 
@@ -144,12 +147,12 @@ cd apps/desktop
 tauri build
 ```
 
-## Release v2.1.0
+## Release v2.2.0
 
 Run `Chris Studio macOS Builds and Release` from GitHub Actions with:
 
 ```text
-version: v2.1.0
+version: v2.2.0
 create_release: true
 make_latest: true
 ```

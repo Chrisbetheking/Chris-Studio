@@ -1,9 +1,9 @@
 {
   "name": "@chris-studio/desktop",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "scripts": {
-    "ui:install": "cd ui && npm install",
+    "ui:install": "cd ui && npm ci --legacy-peer-deps --no-audit --no-fund",
     "ui:dev": "cd ui && npm run dev",
     "ui:build": "cd ui && npm run build",
     "dev": "tauri dev",

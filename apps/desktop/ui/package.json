@@ -1,14 +1,20 @@
 {
   "name": "@chris-studio/desktop-ui",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "type": "module",
   "scripts": {
+    "metadata:sync": "node scripts/sync-product-metadata.cjs",
+    "metadata:test": "node scripts/v2-2-product-metadata-test.cjs",
+    "predev": "npm run metadata:sync",
     "dev": "vite",
+    "pretypecheck": "npm run metadata:sync",
     "typecheck": "tsc --noEmit",
+    "prebuild": "npm run metadata:sync",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test:core": "tsc --target ES2022 --module commonjs --moduleResolution node --lib ES2022,DOM --strict --skipLibCheck --outDir ../../../.tokenfence-test-build src/app/types.ts src/app/identity.ts src/app/store.ts src/features/safety/scanner.ts src/features/tokens/optimizer.ts src/features/files/knowledge.ts && node scripts/core-privacy-test.cjs"
+    "pretest:core": "npm run metadata:sync",
+    "test:core": "tsc --target ES2022 --module commonjs --moduleResolution node --lib ES2022,DOM --strict --skipLibCheck --outDir ../../../.tokenfence-test-build src/app/types.ts src/app/identity.ts src/app/store.ts src/features/safety/scanner.ts src/features/tokens/optimizer.ts src/features/files/knowledge.ts src/features/agent-runtime/reliableRun.ts src/features/agent-runtime/rollbackPlan.ts src/features/providers/providerTelemetry.ts src/features/computer-use/sessionGuard.ts && node scripts/core-privacy-test.cjs && node scripts/v2-2-reliability-test.cjs && node scripts/v2-2-safety-runtime-test.cjs && node scripts/v2-2-product-metadata-test.cjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^1.6.0",

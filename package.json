@@ -1,8 +1,8 @@
 {
-  "name": "tokenfence-studio",
-  "version": "0.3.7",
+  "name": "chris-studio",
+  "version": "2.2.0",
   "private": true,
-  "description": "Local-first AI workspace with prompt safety, built-in document parsing, OCR, model routing, local archive, and agent bridges. Now with Android mobile and desktop app support.",
+  "description": "Chris Studio local-first AI Agent workspace with prompt safety, document parsing, OCR, model routing, reviewed native actions, and release diagnostics.",
   "scripts": {
     "dev": "npm --workspace apps/web run dev",
     "build": "npm --workspace apps/web run build",
