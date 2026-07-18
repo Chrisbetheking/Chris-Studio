@@ -1,7 +1,7 @@
 {
   "name": "@chris-studio/desktop-ui",
   "private": true,
-  "version": "2.2.0",
+  "version": "2.3.0-alpha.1",
   "type": "module",
   "scripts": {
     "metadata:sync": "node scripts/sync-product-metadata.cjs",

@@ -1,6 +1,6 @@
 {
   "name": "@chris-studio/desktop",
-  "version": "2.2.0",
+  "version": "2.3.0-alpha.1",
   "private": true,
   "scripts": {
     "ui:install": "cd ui && npm ci --legacy-peer-deps --no-audit --no-fund",

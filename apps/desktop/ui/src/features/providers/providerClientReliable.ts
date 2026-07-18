@@ -14,13 +14,20 @@ import {
   getRuntimeSignal,
   publishReliableReceipt,
   raceWithRuntimeStop,
+  requestRuntimeStop,
   RuntimeStopError,
   updateRuntimeRun,
 } from "../agent-runtime/runtimeStore";
 import { normalizeProviderError } from "./providerTelemetry";
 
-type ProviderSend = typeof sendProviderChatBase;
-type ProviderResult = Awaited<ReturnType<ProviderSend>>;
+export interface ProviderRuntimeContext {
+  parentId?: string;
+  role?: string;
+  task?: string;
+  signal?: AbortSignal;
+}
+
+type ProviderResult = Awaited<ReturnType<typeof sendProviderChatBase>>;
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -108,16 +115,25 @@ async function raceWithReliableController<T>(
   });
 }
 
-export const sendProviderChat: ProviderSend = (async (...args: Parameters<ProviderSend>) => {
-  const [profile, messages, timeoutMs, model] = args;
+export async function sendProviderChat(
+  profile: Parameters<typeof sendProviderChatBase>[0],
+  messages: Parameters<typeof sendProviderChatBase>[1],
+  timeoutMs: Parameters<typeof sendProviderChatBase>[2],
+  modelOverride?: Parameters<typeof sendProviderChatBase>[3],
+  attachments: Parameters<typeof sendProviderChatBase>[4] = [],
+  includeVisionImages: Parameters<typeof sendProviderChatBase>[5] = false,
+  runtimeContext?: ProviderRuntimeContext,
+): Promise<ProviderResult> {
   const provider = providerLabel(profile);
-  const modelLabel = text(model) || text((profile as { model?: unknown })?.model) || undefined;
-  const task = taskFromMessages(messages);
+  const modelLabel = text(modelOverride) || text((profile as { model?: unknown })?.model) || undefined;
+  const task = runtimeContext?.task?.trim() || taskFromMessages(messages);
   const runtime = beginRuntimeRun({
+    parentId: runtimeContext?.parentId,
     kind: "provider",
     task,
     provider,
     model: modelLabel,
+    action: runtimeContext?.role,
     maxAttempts: 4,
   });
   const timeout = Math.max(0, Number(timeoutMs) || 0);
@@ -129,6 +145,11 @@ export const sendProviderChat: ProviderSend = (async (...args: Parameters<Provid
     hardTimeoutMs: timeout > 0 ? Math.max(timeout + 5_000, timeout * 4) : undefined,
   });
   publishReliableReceipt(runtime.id, controller.start("planning"));
+  const stopFromExternalSignal = () => {
+    requestRuntimeStop(runtime.id, String(runtimeContext?.signal?.reason || "Stopped by user."));
+  };
+  if (runtimeContext?.signal?.aborted) stopFromExternalSignal();
+  else runtimeContext?.signal?.addEventListener("abort", stopFromExternalSignal, { once: true });
 
   try {
     for (;;) {
@@ -143,7 +164,11 @@ export const sendProviderChat: ProviderSend = (async (...args: Parameters<Provid
 
       let result: ProviderResult;
       try {
-        result = await raceWithReliableController(runtime.id, controller, sendProviderChatBase(...args));
+        result = await raceWithReliableController(
+          runtime.id,
+          controller,
+          sendProviderChatBase(profile, messages, timeoutMs, modelOverride, attachments, includeVisionImages),
+        );
       } catch (error) {
         if (error instanceof RuntimeStopError || error instanceof ReliableRunTimedOutError) throw error;
         result = cancelledResult(error instanceof Error ? error.message : String(error));
@@ -152,7 +177,9 @@ export const sendProviderChat: ProviderSend = (async (...args: Parameters<Provid
       if (resultOk(result)) {
         controller.finishCheckpoint("provider-request", true, `Completed on attempt ${attempt}.`);
         publishReliableReceipt(runtime.id, controller.complete());
-        finishRuntimeRun(runtime.id, "completed", `Completed with ${provider}.`);
+        finishRuntimeRun(runtime.id, "completed", runtimeContext?.role
+          ? `${runtimeContext.role} completed with ${provider}.`
+          : `Completed with ${provider}.`);
         return result;
       }
 
@@ -197,19 +224,10 @@ export const sendProviderChat: ProviderSend = (async (...args: Parameters<Provid
     publishReliableReceipt(runtime.id, controller.fail(normalized.safeMessage));
     finishRuntimeRun(runtime.id, "failed", normalized.safeMessage);
     return cancelledResult(normalized.safeMessage);
+  } finally {
+    runtimeContext?.signal?.removeEventListener("abort", stopFromExternalSignal);
   }
-}) as ProviderSend;
-
-type ProviderStreamSend = (
-  profile: Parameters<typeof sendProviderChatStreamBase>[0],
-  messages: Parameters<typeof sendProviderChatStreamBase>[1],
-  timeoutMs: Parameters<typeof sendProviderChatStreamBase>[2],
-  modelOverride: Parameters<typeof sendProviderChatStreamBase>[3],
-  attachments: Parameters<typeof sendProviderChatStreamBase>[4],
-  includeVisionImages: Parameters<typeof sendProviderChatStreamBase>[5],
-  callbacks: ProviderStreamCallbacks,
-  signal?: AbortSignal,
-) => Promise<ProviderReply>;
+}
 
 function linkedAbortController(signals: Array<AbortSignal | undefined>): {
   controller: AbortController;
@@ -236,24 +254,27 @@ function linkedAbortController(signals: Array<AbortSignal | undefined>): {
  * preventing duplicate partial answers while still recovering from transient
  * connection, timeout, rate-limit and provider-server failures.
  */
-export const sendProviderChatStream: ProviderStreamSend = async (
-  profile,
-  messages,
-  timeoutMs,
-  modelOverride,
-  attachments,
-  includeVisionImages,
-  callbacks,
-  externalSignal,
-) => {
+export async function sendProviderChatStream(
+  profile: Parameters<typeof sendProviderChatStreamBase>[0],
+  messages: Parameters<typeof sendProviderChatStreamBase>[1],
+  timeoutMs: Parameters<typeof sendProviderChatStreamBase>[2],
+  modelOverride: Parameters<typeof sendProviderChatStreamBase>[3],
+  attachments: Parameters<typeof sendProviderChatStreamBase>[4],
+  includeVisionImages: Parameters<typeof sendProviderChatStreamBase>[5],
+  callbacks: ProviderStreamCallbacks,
+  externalSignal?: AbortSignal,
+  runtimeContext?: ProviderRuntimeContext,
+): Promise<ProviderReply> {
   const provider = providerLabel(profile);
   const modelLabel = text(modelOverride) || text((profile as { model?: unknown })?.model) || undefined;
-  const task = taskFromMessages(messages);
+  const task = runtimeContext?.task?.trim() || taskFromMessages(messages);
   const runtime = beginRuntimeRun({
+    parentId: runtimeContext?.parentId,
     kind: "provider",
     task,
     provider,
     model: modelLabel,
+    action: runtimeContext?.role,
     maxAttempts: 4,
   });
   const timeout = Math.max(0, Number(timeoutMs) || 0);
@@ -368,4 +389,4 @@ export const sendProviderChatStream: ProviderStreamSend = async (
     finishRuntimeRun(runtime.id, "failed", normalized.safeMessage);
     return { ok: false, status: 0, errorCode: "CLIENT_ERROR", errorMessage: normalized.safeMessage, latencyMs: 0 };
   }
-};
+}

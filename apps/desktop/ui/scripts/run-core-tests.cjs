@@ -10,14 +10,17 @@ const sourceFiles = [
   "src/app/types.ts",
   "src/app/identity.ts",
   "src/app/store.ts",
+  "src/app/providerRegistry.ts",
   "src/features/safety/scanner.ts",
   "src/features/tokens/optimizer.ts",
   "src/features/files/knowledge.ts",
   "src/features/agent-runtime/reliableRun.ts",
+  "src/features/agent-runtime/collaborativeRun.ts",
   "src/features/agent-runtime/runtimeStore.ts",
   "src/features/agent-runtime/rollbackPlan.ts",
   "src/features/providers/providerTelemetry.ts",
   "src/features/providers/providerClient.ts",
+  "src/features/providers/providerClientReliable.ts",
   "src/features/computer-use/sessionGuard.ts",
   "src/features/computer-use/modelComputerProtocol.ts",
   "src/features/computer/computerClientReliable.ts",
@@ -29,6 +32,7 @@ const compiledModuleTests = [
   "scripts/v2-2-runtime-store-test.cjs",
   "scripts/v2-2-codex-streaming-test.cjs",
   "scripts/v2-2-provider-stream-session-test.cjs",
+  "scripts/v2-3-collaboration-test.cjs",
 ];
 
 // core-privacy-test.cjs is intentionally last among tests that consume the
@@ -51,7 +55,10 @@ function runNodeScript(relativePath) {
   if (!fs.existsSync(absolutePath)) fail(`Missing test script: ${relativePath}`);
   const result = spawnSync(process.execPath, [absolutePath], {
     cwd: uiRoot,
-    env: process.env,
+    env: {
+      ...process.env,
+      NODE_PATH: [path.join(uiRoot, "node_modules"), process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
+    },
     stdio: "inherit",
   });
   if (result.error) throw result.error;
@@ -100,6 +107,7 @@ function compileCoreModules() {
   const requiredOutputs = [
     "app/types.js",
     "features/agent-runtime/reliableRun.js",
+    "features/agent-runtime/collaborativeRun.js",
     "features/agent-runtime/runtimeStore.js",
     "features/agent-runtime/rollbackPlan.js",
     "features/providers/providerTelemetry.js",
@@ -121,6 +129,7 @@ try {
   for (const script of compiledModuleTests) runNodeScript(script);
   for (const script of remainingTests) runNodeScript(script);
   console.log("CHRIS_STUDIO_V2_2_CORE_TEST_SUITE_PASSED");
+  console.log("CHRIS_STUDIO_V2_3_ALPHA1_COLLABORATION_PASSED");
 } finally {
   fs.rmSync(buildRoot, { recursive: true, force: true });
 }

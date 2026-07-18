@@ -170,16 +170,19 @@ const stamp = new Date(0).toISOString();
 export const DEFAULT_AGENTS: AgentProfile[] = [
   {
     id: 'tokenfence-coder', name: 'Chris Studio Coder', description: 'Codex-style coding workflow with security and release checks.',
+    collaborationMode: 'plan-execute-review', maxRevisionRounds: 0,
     skillIds: ['secure-coder', 'repo-onboarding', 'release-doctor', 'token-compressor', 'privacy-review'],
     permissionMode: 'ask', enabled: true, createdAt: stamp, updatedAt: stamp,
   },
   {
     id: 'document-analyst', name: 'Document Analyst', description: 'PDF, OCR and spreadsheet analysis with compact context.',
+    collaborationMode: 'single', maxRevisionRounds: 0,
     skillIds: ['pdf-research', 'ocr-cleanup', 'spreadsheet-analyst', 'token-compressor', 'privacy-review'],
     permissionMode: 'read-only', enabled: true, createdAt: stamp, updatedAt: stamp,
   },
   {
     id: 'desktop-operator', name: 'Desktop Operator (Beta)', description: 'Permission-gated computer-use planning and approved actions.',
+    collaborationMode: 'single', maxRevisionRounds: 0,
     skillIds: ['computer-use-guard', 'privacy-review'],
     permissionMode: 'ask', enabled: true, createdAt: stamp, updatedAt: stamp,
   },

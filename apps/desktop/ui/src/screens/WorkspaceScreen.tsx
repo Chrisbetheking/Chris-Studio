@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AgentProfile,
+  AgentRunReceipt,
   AppSettings,
   AttachmentDraft,
   ChatMessage,
@@ -38,7 +39,8 @@ import {
 import { providerDefinition } from '../app/providerRegistry';
 import { skillPrompt } from '../app/skills';
 import { formatSafePayload, maxRisk, scanPayload } from '../features/safety/scanner';
-import { sendProviderChat, sendProviderChatStream } from '../features/providers/providerClientReliable';
+import { sendProviderChatStream } from '../features/providers/providerClientReliable';
+import { runCollaborativeAgent } from '../features/agent-runtime/collaborativeRun';
 import { CHRIS_STUDIO_SYSTEM_PROMPT, identityReply, isIdentityQuestion } from '../app/identity';
 import { captureScreen, clickPointer, openApplication, pressKey, requestComputerPermissions, typeText } from '../features/computer/computerClientReliable';
 import { chooseProjectFolder, projectGitDiff, projectGitStatus, runProjectPreset } from '../features/projects/projectClient';
@@ -115,6 +117,54 @@ const riskLabel = (language: Language, level: RiskLevel) => ({
   critical: copy(language, 'Critical', '严重风险'),
 }[level]);
 
+function agentPhaseLabel(language: Language, phase: AgentRunReceipt['phase']): string {
+  const labels: Record<AgentRunReceipt['phase'], [string, string]> = {
+    idle: ['Ready', '就绪'],
+    planning: ['Planning', '规划中'],
+    executing: ['Executing', '执行中'],
+    reviewing: ['Independent review', '独立审查中'],
+    revising: ['Bounded revision', '有限修订中'],
+    completed: ['Completed', '已完成'],
+    partial: ['Draft completed · review unavailable', '草稿已完成 · 审查不可用'],
+    failed: ['Failed', '失败'],
+    cancelled: ['Stopped', '已停止'],
+  };
+  return copy(language, labels[phase][0], labels[phase][1]);
+}
+
+function agentRoleLabel(language: Language, role: AgentRunReceipt['roles'][number]['role']): string {
+  if (role === 'planner') return copy(language, 'Planner', '规划');
+  if (role === 'reviewer') return copy(language, 'Reviewer', '审查');
+  return copy(language, 'Executor', '执行');
+}
+
+function AgentRunPanel({ receipt, language, compact = false }: { receipt: AgentRunReceipt; language: Language; compact?: boolean }) {
+  return (
+    <section className={`agent-run-panel phase-${receipt.phase} ${compact ? 'compact' : ''}`}>
+      <header className="agent-run-panel-head">
+        <span><Icon name="bot" />{copy(language, 'Plan → Execute → Review', '规划 → 执行 → 审查')}</span>
+        <strong>{agentPhaseLabel(language, receipt.phase)}</strong>
+      </header>
+      <div className="agent-role-strip">
+        {receipt.roles.map((role) => (
+          <div key={role.role} className={`agent-role-chip status-${role.status}`}>
+            <span>{agentRoleLabel(language, role.role)}</span>
+            <strong>{role.model}</strong>
+            <small>{role.status}</small>
+          </div>
+        ))}
+      </div>
+      {receipt.plan.length > 0 && (
+        <ol className="agent-plan-list">
+          {receipt.plan.map((step) => <li key={step.id} className={`status-${step.status}`}><span /> <div><strong>{step.title}</strong>{step.detail && !compact && <small>{step.detail}</small>}</div></li>)}
+        </ol>
+      )}
+      {receipt.reviewSummary && <details className="agent-review-summary" open={receipt.phase === 'partial' || receipt.phase === 'failed'}><summary>{copy(language, 'Review receipt', '审查回执')} · {receipt.reviewVerdict || '—'}</summary><pre>{receipt.reviewSummary}</pre></details>}
+      {receipt.errorMessage && <p className="agent-run-error">{receipt.errorMessage}</p>}
+    </section>
+  );
+}
+
 function newConversation(provider: ProviderProfile, mode: WorkspaceMode, agentId?: string): Conversation {
   const timestamp = nowIso();
   return {
@@ -175,6 +225,7 @@ export function WorkspaceScreen({
   const [elapsedMs, setElapsedMs] = useState(0);
   const [streamingContent, setStreamingContent] = useState('');
   const [streamingReasoning, setStreamingReasoning] = useState('');
+  const [liveAgentRun, setLiveAgentRun] = useState<AgentRunReceipt | null>(null);
   const streamAbort = useRef<AbortController | null>(null);
   const [toolPreview, setToolPreview] = useState('');
   const [fileBusy, setFileBusy] = useState(false);
@@ -217,6 +268,9 @@ export function WorkspaceScreen({
     || (!providerDef.requiresCredential || effectiveProvider.credentialStored) && effectiveStatus.state === 'connected';
   const mustApproveCritical = settings.blockCriticalSends && scan.riskLevel === 'critical';
   const projectedInputTokens = Math.max(0, (isReviewed ? scan.estimatedTokens : optimization.originalTokens) - optimization.savedTokens);
+  const collaborativeAgentEnabled = mode === 'agent' && activeAgent?.collaborationMode === 'plan-execute-review' && effectiveProvider.providerId !== 'local-demo';
+  const projectedModelCalls = collaborativeAgentEnabled ? 3 + (activeAgent?.maxRevisionRounds === 1 ? 1 : 0) : 1;
+  const projectedBudgetTokens = projectedInputTokens * projectedModelCalls;
   const todayUsage = tokenUsageSummary();
 
   useEffect(() => {
@@ -540,14 +594,15 @@ ${typeResult.message}`, !typeResult.ok);
       toast.show(copy(language, `This request is about ${projectedInputTokens} tokens and exceeds the ${settings.maxRequestTokens} per-request limit.`, `本次请求约 ${projectedInputTokens} Token，超过单次 ${settings.maxRequestTokens} Token 的限制。`), 'error');
       return;
     }
-    if (todayUsage.totalTokens + projectedInputTokens > settings.dailyTokenBudget) {
-      const approved = window.confirm(copy(language, `This request may exceed today's ${settings.dailyTokenBudget}-token budget. Continue?`, `本次请求可能超过今日 ${settings.dailyTokenBudget} Token 预算，仍然继续吗？`));
+    if (todayUsage.totalTokens + projectedBudgetTokens > settings.dailyTokenBudget) {
+      const approved = window.confirm(copy(language, `This ${projectedModelCalls}-call workflow may exceed today's ${settings.dailyTokenBudget}-token budget. Continue?`, `本次 ${projectedModelCalls} 次模型调用工作流可能超过今日 ${settings.dailyTokenBudget} Token 预算，仍然继续吗？`));
       if (!approved) return;
     }
 
     setSending(true);
     setStreamingContent('');
     setStreamingReasoning('');
+    setLiveAgentRun(null);
     setRequestStage('reviewing');
     setRequestStartedAt(Date.now());
     let pending: Conversation | null = null;
@@ -601,6 +656,9 @@ ${formatKnowledgeContext(knowledgeHits)}`,
       }
 
       let assistantContent = '';
+      let assistantModel = effectiveModel;
+      let assistantProvider = 'Chris Studio';
+      let agentRunReceipt: AgentRunReceipt | undefined;
       let failed = false;
       let receiptResult: SafetyReceipt['result'] = 'sent';
       setRequestStage('provider');
@@ -614,38 +672,83 @@ ${formatKnowledgeContext(knowledgeHits)}`,
           streamAbort.current = abortController;
           let streamed = '';
           let reasoning = '';
-          const result = await sendProviderChatStream(
-            effectiveProvider,
-            requestMessages,
-            settings.requestTimeoutMs,
-            effectiveModel,
-            attachments,
-            includeVisionImages,
-            {
-              onDelta: (delta) => {
-                streamed += delta;
-                setStreamingContent(streamed);
+
+          if (collaborativeAgentEnabled && activeAgent) {
+            const result = await runCollaborativeAgent({
+              agent: activeAgent,
+              profiles,
+              defaultProfile: effectiveProvider,
+              messages: requestMessages,
+              timeoutMs: settings.requestTimeoutMs,
+              attachments,
+              includeVisionImages,
+              signal: abortController.signal,
+              callbacks: {
+                onReceipt: (receipt) => setLiveAgentRun(receipt),
+                onExecutorDelta: (delta) => {
+                  streamed += delta;
+                  setStreamingContent(streamed);
+                },
+                onExecutorReasoning: (delta) => {
+                  reasoning += delta;
+                  setStreamingReasoning(reasoning);
+                },
+                onResetExecutor: () => {
+                  streamed = '';
+                  reasoning = '';
+                  setStreamingContent('');
+                  setStreamingReasoning('');
+                },
               },
-              onReasoning: (delta) => {
-                reasoning += delta;
-                setStreamingReasoning(reasoning);
+            });
+            agentRunReceipt = result.receipt;
+            assistantContent = result.content || streamed;
+            assistantModel = result.executorProfile.model;
+            assistantProvider = result.executorProfile.displayName;
+            failed = !result.ok && result.receipt.phase !== 'cancelled';
+            if (!result.ok) {
+              receiptResult = 'failed';
+              const message = result.receipt.phase === 'cancelled'
+                ? copy(language, 'Agent workflow stopped.', 'Agent 工作流已停止。')
+                : copy(language, `Agent workflow failed: ${result.errorMessage || 'Unknown error.'}`, `Agent 工作流失败：${result.errorMessage || '未知错误。'}`);
+              assistantContent = assistantContent.trim() ? `${assistantContent.trim()}
+
+${message}` : message;
+            }
+          } else {
+            const result = await sendProviderChatStream(
+              effectiveProvider,
+              requestMessages,
+              settings.requestTimeoutMs,
+              effectiveModel,
+              attachments,
+              includeVisionImages,
+              {
+                onDelta: (delta) => {
+                  streamed += delta;
+                  setStreamingContent(streamed);
+                },
+                onReasoning: (delta) => {
+                  reasoning += delta;
+                  setStreamingReasoning(reasoning);
+                },
               },
-            },
-            abortController.signal,
-          );
-          streamAbort.current = null;
-          if (result.ok && (streamed || result.content)) assistantContent = streamed || result.content || '';
-          else {
-            failed = result.errorCode !== 'CANCELLED';
-            receiptResult = 'failed';
-            const partial = streamed.trim();
-            const errorMessage = result.errorCode === 'CANCELLED'
-              ? copy(language, 'Response stopped.', '响应已停止。')
-              : copy(language, `Request failed: ${result.errorMessage ?? 'Unknown provider error.'}`, `请求失败：${result.errorMessage ?? '未知模型错误。'}`);
-            assistantContent = partial ? `${partial}
+              abortController.signal,
+            );
+            if (result.ok && (streamed || result.content)) assistantContent = streamed || result.content || '';
+            else {
+              failed = result.errorCode !== 'CANCELLED';
+              receiptResult = 'failed';
+              const partial = streamed.trim();
+              const errorMessage = result.errorCode === 'CANCELLED'
+                ? copy(language, 'Response stopped.', '响应已停止。')
+                : copy(language, `Request failed: ${result.errorMessage ?? 'Unknown provider error.'}`, `请求失败：${result.errorMessage ?? '未知模型错误。'}`);
+              assistantContent = partial ? `${partial}
 
 ${errorMessage}` : errorMessage;
+            }
           }
+          streamAbort.current = null;
         } catch (error) {
           streamAbort.current = null;
           failed = true;
@@ -661,7 +764,7 @@ ${errorMessage}` : errorMessage;
       setRequestStage('finalizing');
       const assistantMessage: ChatMessage = {
         id: makeId('message'), role: 'assistant', content: assistantContent, createdAt: nowIso(),
-        provider: 'Chris Studio', model: effectiveModel, failed,
+        provider: assistantProvider, model: assistantModel, failed, agentRun: agentRunReceipt,
       };
       const completed: Conversation = { ...pending, updatedAt: nowIso(), messages: [...pending.messages, assistantMessage] };
       setConversation(completed);
@@ -673,8 +776,8 @@ ${errorMessage}` : errorMessage;
         estimatedTokens: requestScan.estimatedTokens, optimizedTokens: Math.max(0, requestScan.estimatedTokens - optimization.savedTokens), result: receiptResult,
       });
       recordTokenUsage({
-        id: makeId('usage'), createdAt: nowIso(), provider: effectiveProvider.displayName, model: effectiveModel,
-        inputTokens: projectedInputTokens, outputTokens: Math.ceil(assistantContent.length / 4), savedTokens: optimization.savedTokens,
+        id: makeId('usage'), createdAt: nowIso(), provider: assistantProvider, model: assistantModel,
+        inputTokens: projectedBudgetTokens, outputTokens: Math.ceil(assistantContent.length / 4), savedTokens: optimization.savedTokens,
       });
       setPrompt('');
       setAttachments([]);
@@ -704,6 +807,7 @@ ${errorMessage}` : errorMessage;
       streamAbort.current = null;
       setStreamingContent('');
       setStreamingReasoning('');
+      setLiveAgentRun(null);
     }
   };
 
@@ -780,10 +884,11 @@ ${errorMessage}` : errorMessage;
                 <article key={message.id} className={`message-bubble ${message.role} ${message.failed ? 'failed' : ''}`}>
                   <header><span>{message.role === 'user' ? copy(language, 'Protected request', '受保护请求') : message.provider}</span><small>{new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></header>
                   <div>{message.content}</div>
+                  {message.agentRun && <AgentRunPanel receipt={message.agentRun} language={language} compact />}
                   {message.model && <footer>{message.model}</footer>}
                 </article>
               ))}
-              {sending && <article className="message-bubble assistant pending-message streaming-message"><header><span>Chris Studio</span><small>{(elapsedMs / 1000).toFixed(1)}s</small></header>{streamingReasoning && <details className="stream-reasoning"><summary>{copy(language, 'Reasoning', '思考过程')}</summary><div>{streamingReasoning}</div></details>}<div>{streamingContent || <><span className="typing-dots"><i /><i /><i /></span>{requestStageLabel(language, requestStage)}</>}</div></article>}
+              {sending && <article className="message-bubble assistant pending-message streaming-message"><header><span>Chris Studio</span><small>{(elapsedMs / 1000).toFixed(1)}s</small></header>{liveAgentRun && <AgentRunPanel receipt={liveAgentRun} language={language} />}{streamingReasoning && <details className="stream-reasoning"><summary>{copy(language, 'Reasoning', '思考过程')}</summary><div>{streamingReasoning}</div></details>}<div>{streamingContent || <><span className="typing-dots"><i /><i /><i /></span>{liveAgentRun ? agentPhaseLabel(language, liveAgentRun.phase) : requestStageLabel(language, requestStage)}</>}</div></article>}
               <div ref={messageEnd} />
             </div>
           )}
@@ -797,7 +902,7 @@ ${errorMessage}` : errorMessage;
             <div className="composer-modern-footer">
               <input ref={fileInput} type="file" multiple hidden accept=".txt,.md,.json,.csv,.log,.xml,.yaml,.yml,.js,.jsx,.ts,.tsx,.py,.rs,.go,.java,.html,.css,.pdf,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.webp" onChange={(event) => { void addFiles(event.target.files); event.currentTarget.value = ''; }} />
               <button className="icon-button" onClick={() => fileInput.current?.click()} disabled={fileBusy}><Icon name="paperclip" /></button>
-              <div className="composer-metrics"><span><Icon name="sparkles" size={14} />{optimization.originalTokens} → {optimization.optimizedTokens}</span><span className="send-scan-note"><Icon name="shield" size={13} />{copy(language, 'Scans after send', '发送后检测')}</span><span>{attachments.length} {copy(language, 'files', '文件')}</span>{knowledgeHits.length > 0 && <span>{knowledgeHits.length} RAG</span>}</div>
+              <div className="composer-metrics"><span><Icon name="sparkles" size={14} />{optimization.originalTokens} → {optimization.optimizedTokens}</span>{collaborativeAgentEnabled && <span><Icon name="bot" size={13} />{projectedModelCalls} {copy(language, 'model calls', '次模型调用')}</span>}<span className="send-scan-note"><Icon name="shield" size={13} />{copy(language, 'Scans after send', '发送后检测')}</span><span>{attachments.length} {copy(language, 'files', '文件')}</span>{knowledgeHits.length > 0 && <span>{knowledgeHits.length} RAG</span>}</div>
               {optimization.savedTokens > 0 && <button className="compact-action" onClick={applyOptimization}><Icon name="wand" />-{optimization.savedTokens} tokens</button>}
               {visionImageCount > 0 && providerDef.capabilities.vision && <button className={`compact-action ${includeVisionImages ? 'active' : ''}`} onClick={() => setIncludeVisionImages((value) => !value)}><Icon name="image" />{includeVisionImages ? copy(language, 'Vision on', '视觉已启用') : copy(language, 'Use vision', '启用视觉')}</button>}
               <button className={`button primary ${sending ? 'stop-request' : ''}`} onClick={sending ? stopCurrentRequest : submit} disabled={!sending && (!hasInput || fileBusy || (isReviewed && mustApproveCritical && !criticalApproved))}><Icon name={sending ? 'x' : mode === 'agent' ? 'bot' : 'send'} />{sending ? copy(language, 'Stop', '停止') : isReviewed && scan.findings.length > 0 ? copy(language, 'Send redacted', '发送脱敏内容') : mode === 'agent' ? copy(language, 'Run in workspace', '在工作台运行') : copy(language, 'Send', '发送')}</button>
@@ -813,7 +918,7 @@ ${errorMessage}` : errorMessage;
           <div className={`risk-hero risk-panel-${scan.riskLevel}`}><div><strong>{scan.riskScore}</strong><span>/100</span></div><div><small>{copy(language, 'CURRENT RISK', '当前风险')}</small><h3>{riskLabel(language, scan.riskLevel)}</h3><p>{isReviewed ? copy(language, 'Locked to this exact payload', '已锁定到当前请求') : copy(language, 'Scan starts after Send', '点击发送后开始检测')}</p></div></div>
           <div className="inspector-card token-card"><div className="inspector-card-title"><span><Icon name="sparkles" />Token budget</span><strong>{scan.estimatedTokens}</strong></div><div className="token-bar"><span style={{ width: `${Math.min(100, scan.estimatedTokens / 80)}%` }} /></div><div className="token-stats"><span>{copy(language, 'Local saving', '本地节约')}<strong>{optimization.savedTokens}</strong></span><span>{copy(language, 'Context limit', '上下文轮次')}<strong>{settings.conversationContextLimit}</strong></span></div></div>
           <div className="inspector-card"><div className="inspector-card-title"><span><Icon name="route" />{copy(language, 'Routing', '模型路由')}</span><button onClick={onOpenRouting}>{copy(language, 'Edit', '编辑')}</button></div><div className="route-summary"><span className="provider-avatar tiny" style={{ '--provider-accent': providerDefinition(effectiveProvider.providerId).accent } as React.CSSProperties}>{providerDefinition(effectiveProvider.providerId).shortName}</span><div><strong>{effectiveProvider.displayName}</strong><small>{effectiveModel}</small></div></div><p className="route-reason">{routingDecision?.reason}</p></div>
-          {mode === 'agent' && activeAgent && <div className="inspector-card"><div className="inspector-card-title"><span><Icon name="bot" />Agent</span><button onClick={onOpenAgents}>{copy(language, 'Skills', 'Skills')}</button></div><strong className="agent-name-inspector">{activeAgent.name}</strong><div className="skill-dot-row">{activeAgent.skillIds.slice(0, 5).map((id) => <span key={id}>{id}</span>)}</div><p className="route-reason">{copy(language, `Permission mode: ${activeAgent.permissionMode}`, `权限模式：${activeAgent.permissionMode}`)}</p></div>}
+          {mode === 'agent' && activeAgent && <div className="inspector-card"><div className="inspector-card-title"><span><Icon name="bot" />Agent</span><button onClick={onOpenAgents}>{copy(language, 'Configure', '配置')}</button></div><strong className="agent-name-inspector">{activeAgent.name}</strong><div className="skill-dot-row">{activeAgent.skillIds.slice(0, 5).map((id) => <span key={id}>{id}</span>)}</div><p className="route-reason">{copy(language, `Permission mode: ${activeAgent.permissionMode}`, `权限模式：${activeAgent.permissionMode}`)}</p><p className="route-reason">{activeAgent.collaborationMode === 'plan-execute-review' ? copy(language, `Collaboration: Planner → Executor → Reviewer · ${projectedModelCalls} calls`, `协作：规划 → 执行 → 审查 · ${projectedModelCalls} 次调用`) : copy(language, 'Collaboration: Single model', '协作：单模型')}</p>{liveAgentRun && <AgentRunPanel receipt={liveAgentRun} language={language} compact />}</div>}
           <div className="inspector-card unified-tools-card"><div className="inspector-card-title"><span><Icon name="command" />{copy(language, 'Unified local tools', '同一对话内工具')}</span><em>CODEX STYLE</em></div><p className="route-reason">{copy(language, 'Run approved desktop actions without leaving the conversation.', '无需离开对话即可执行经批准的桌面操作。')}</p><div className="tool-command-grid"><button onClick={() => setPrompt('/project')}><Icon name="folder" />/project</button><button onClick={() => setPrompt('/git status')}><Icon name="git" />/git status</button><button onClick={() => setPrompt('/open TextEdit')}><Icon name="layout" />/open</button><button onClick={() => setPrompt('/permissions')}><Icon name="settings" />/permissions</button><button onClick={() => setPrompt('/screen')}><Icon name="monitor" />/screen</button><button onClick={() => setPrompt('/type Chris Studio test')}><Icon name="edit" />/type</button><button onClick={() => setPrompt('/click 400 300')}><Icon name="circle" />/click</button><button onClick={() => setPrompt('/key cmd+s')}><Icon name="command" />/key</button><button onClick={() => fileInput.current?.click()}><Icon name="paperclip" />{copy(language, 'File', '文件')}</button><button onClick={() => setPrompt('/check npm-test')}><Icon name="check" />/check</button><button onClick={() => setPrompt('/skills')}><Icon name="plug" />/skills</button><button onClick={() => setPrompt('/help')}><Icon name="info" />/help</button></div>{toolPreview && <img className="tool-preview-image" src={toolPreview} alt="Approved desktop capture" />}</div>
           <div className="inspector-card findings-card"><div className="inspector-card-title"><span><Icon name="shield" />{copy(language, 'Findings', '检测结果')}</span><strong>{scan.findings.length}</strong></div>{scan.findings.length ? <div className="finding-list-modern">{scan.findings.slice(0, 8).map((finding) => <div key={finding.id} className={`finding-modern finding-${finding.severity}`}><span /><div><strong>{finding.label}</strong><small>{finding.replacement}</small></div><em>{finding.severity}</em></div>)}</div> : <div className="safe-state"><Icon name="check" />{copy(language, 'No supported sensitive pattern detected.', '未检测到已支持的敏感模式。')}</div>}</div>
           {isReviewed && <div className="inspector-card safe-payload"><div className="inspector-card-title"><span>{copy(language, 'Reviewed payload', '已审查请求')}</span><em>{copy(language, 'LOCKED', '已锁定')}</em></div><pre>{formatSafePayload(scan) || copy(language, 'No text payload.', '没有文本请求。')}</pre></div>}

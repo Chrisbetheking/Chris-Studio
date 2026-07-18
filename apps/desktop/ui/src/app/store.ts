@@ -262,15 +262,31 @@ export function saveRoutingRules(rules: RoutingRule[]): void {
   window.dispatchEvent(new CustomEvent('tokenfence:routing-updated'));
 }
 
+function normalizeAgentProfile(agent: AgentProfile): AgentProfile {
+  const mode = agent.collaborationMode === 'plan-execute-review' ? 'plan-execute-review' : 'single';
+  const executorProfileId = agent.executorProviderProfileId || agent.providerProfileId;
+  return {
+    ...agent,
+    collaborationMode: mode,
+    plannerProviderProfileId: agent.plannerProviderProfileId || executorProfileId,
+    executorProviderProfileId: executorProfileId,
+    reviewerProviderProfileId: agent.reviewerProviderProfileId || executorProfileId,
+    maxRevisionRounds: agent.maxRevisionRounds === 1 ? 1 : 0,
+  };
+}
+
 export function loadAgents(): AgentProfile[] {
   const saved = safeRead<AgentProfile[]>(KEYS.agents, []);
-  if (saved.length) return saved;
-  saveAgents(DEFAULT_AGENTS);
-  return DEFAULT_AGENTS;
+  const source = saved.length ? saved : DEFAULT_AGENTS;
+  const normalized = source
+    .filter((agent) => agent && typeof agent.id === 'string')
+    .map(normalizeAgentProfile);
+  if (!saved.length || JSON.stringify(saved) !== JSON.stringify(normalized)) saveAgents(normalized);
+  return normalized;
 }
 
 export function saveAgents(agents: AgentProfile[]): void {
-  safeWrite(KEYS.agents, agents);
+  safeWrite(KEYS.agents, agents.map(normalizeAgentProfile));
   window.dispatchEvent(new CustomEvent('tokenfence:agents-updated'));
 }
 

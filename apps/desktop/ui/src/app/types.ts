@@ -36,6 +36,9 @@ export type ProviderStatusState = 'not-configured' | 'configured' | 'connected' 
 export type FileKind = 'text' | 'code' | 'pdf' | 'document' | 'spreadsheet' | 'image' | 'unknown';
 export type ProcessorId = 'text-reader' | 'pdf-extractor' | 'docx-reader' | 'sheet-reader' | 'local-ocr';
 export type WorkspaceMode = 'chat' | 'agent';
+export type AgentCollaborationMode = 'single' | 'plan-execute-review';
+export type AgentRole = 'planner' | 'executor' | 'reviewer';
+export type AgentRunPhase = 'idle' | 'planning' | 'executing' | 'reviewing' | 'revising' | 'completed' | 'partial' | 'failed' | 'cancelled';
 export type SkillPermission =
   | 'network'
   | 'files-read'
@@ -59,6 +62,37 @@ export interface AttachmentDraft {
   ocrLanguage?: string;
 }
 
+export interface AgentPlanStep {
+  id: string;
+  title: string;
+  detail?: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+}
+
+export interface AgentRoleReceipt {
+  role: AgentRole;
+  providerProfileId: string;
+  provider: string;
+  model: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  startedAt?: string;
+  finishedAt?: string;
+  message?: string;
+}
+
+export interface AgentRunReceipt {
+  id: string;
+  mode: AgentCollaborationMode;
+  phase: AgentRunPhase;
+  startedAt: string;
+  finishedAt?: string;
+  plan: AgentPlanStep[];
+  roles: AgentRoleReceipt[];
+  reviewSummary?: string;
+  reviewVerdict?: 'pass' | 'revise' | 'unavailable';
+  errorMessage?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'system' | 'user' | 'assistant';
@@ -68,6 +102,7 @@ export interface ChatMessage {
   model?: string;
   riskLevel?: RiskLevel;
   failed?: boolean;
+  agentRun?: AgentRunReceipt;
 }
 
 export interface Conversation {
@@ -185,6 +220,11 @@ export interface AgentProfile {
   name: string;
   description: string;
   providerProfileId?: string;
+  collaborationMode?: AgentCollaborationMode;
+  plannerProviderProfileId?: string;
+  executorProviderProfileId?: string;
+  reviewerProviderProfileId?: string;
+  maxRevisionRounds?: 0 | 1;
   skillIds: string[];
   permissionMode: 'ask' | 'read-only' | 'trusted';
   enabled: boolean;
