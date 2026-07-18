@@ -2305,6 +2305,25 @@ fn computer_type_text(text: String, confirmed: bool, app: Option<String>) -> Com
             Ok(value) => value,
             Err(message) => return computer_result(false, "keyboard-type", message, None),
         };
+        if focused == Some("TextEdit") {
+            let direct_script = r#"on run argv
+tell application "TextEdit"
+    activate
+    if (count documents) is 0 then make new document
+    set currentText to text of front document
+    set text of front document to currentText & (item 1 of argv)
+end tell
+end run"#;
+            match Command::new("/usr/bin/osascript").args(["-e", direct_script, "--", &text]).output() {
+                Ok(output) if output.status.success() => {
+                    return computer_result(true, "keyboard-type", format!("Inserted {} approved characters into the front TextEdit document.", text.chars().count()), None);
+                }
+                _ => {
+                    // Fall through to accessibility keystrokes for compatibility
+                    // with managed Macs that deny direct TextEdit automation.
+                }
+            }
+        }
         let output = Command::new("/usr/bin/osascript")
             .args(["-e", "on run argv", "-e", "tell application \"System Events\" to keystroke (item 1 of argv)", "-e", "end run", "--", &text])
             .output();
@@ -2372,18 +2391,18 @@ fn computer_open_application(app: String, confirmed: bool) -> ComputerActionResu
     #[cfg(target_os = "macos")]
     {
         if target == "TextEdit" {
-            let opened = Command::new("/usr/bin/open").args(["-a", "TextEdit"]).output();
-            match opened {
-                Ok(output) if output.status.success() => {}
-                Ok(output) => return computer_result(false, "open-application", format!("macOS could not open TextEdit: {}", truncate_output(&output.stderr)), None),
-                Err(error) => return computer_result(false, "open-application", format!("The macOS open command could not start TextEdit: {error}."), None),
-            }
-            let script = r#"tell application "System Events"
+            // Ask TextEdit itself to create an untitled document. Launching the app
+            // through `open -a` can restore its document picker on recent macOS
+            // versions, which looks like success to the agent but leaves no editor.
+            let script = r#"tell application "TextEdit"
+activate
+make new document
+end tell
+delay 0.35
+tell application "System Events"
 repeat 30 times
     if exists process "TextEdit" then
-        set frontmost of process "TextEdit" to true
-        delay 0.2
-        keystroke "n" using command down
+        tell process "TextEdit" to set frontmost to true
         return
     end if
     delay 0.1
@@ -2392,9 +2411,9 @@ error "TextEdit process did not appear"
 end tell"#;
             let output = Command::new("/usr/bin/osascript").args(["-e", script]).output();
             return match output {
-                Ok(output) if output.status.success() => computer_result(true, "open-application", "Opened TextEdit with a new blank document ready for approved typing.".to_string(), None),
-                Ok(output) => computer_result(false, "open-application", format!("TextEdit opened, but macOS could not create a blank document. Check Accessibility permission: {}", truncate_output(&output.stderr)), None),
-                Err(error) => computer_result(false, "open-application", format!("AppleScript could not prepare TextEdit: {error}."), None),
+                Ok(output) if output.status.success() => computer_result(true, "open-application", "Created and focused a new untitled TextEdit document ready for approved typing.".to_string(), None),
+                Ok(output) => computer_result(false, "open-application", format!("macOS could not create a new TextEdit document. Check Automation and Accessibility permission: {}", truncate_output(&output.stderr)), None),
+                Err(error) => computer_result(false, "open-application", format!("AppleScript could not create the TextEdit document: {error}."), None),
             };
         }
         match Command::new("/usr/bin/open").args(["-a", target]).output() {

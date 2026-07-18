@@ -28,6 +28,12 @@ import {
 } from '../features/computer-use/modelComputerAgent';
 import { Icon } from '../components/Icon';
 import { useToast } from '../components/Toast';
+import {
+  beginRuntimeRun,
+  finishRuntimeRun,
+  requestRuntimeStop,
+  updateRuntimeRun,
+} from '../features/agent-runtime/runtimeStore';
 
 const copy = (language: Language, en: string, zh: string) => language === 'zh-CN' ? zh : en;
 
@@ -38,6 +44,14 @@ interface AgentLogEntry {
   id: string;
   level: 'info' | 'success' | 'warning' | 'error';
   text: string;
+}
+
+interface AgentTimelineItem {
+  id: string;
+  action: ModelComputerAction['action'];
+  label: string;
+  status: 'pending' | 'running' | 'success' | 'failed';
+  detail?: string;
 }
 
 const APP_OPTIONS = [
@@ -55,6 +69,47 @@ function completionRequirements(goal: string): Array<{ action: ModelComputerActi
   if (/textedit|text edit|文本编辑|文本编辑器/.test(normalized)) requirements.push({ action: 'open', target: 'TextEdit', label: 'open TextEdit' });
   if (/输入|键入|type|write|填入/.test(normalized)) requirements.push({ action: 'type', label: 'type the requested text' });
   return requirements;
+}
+
+function requestedTextFromGoal(goal: string): string | undefined {
+  const match = goal.match(/(?:输入|键入|写入|打字|type|enter|write)\s*[:：]?\s*([\s\S]+)/i);
+  if (!match?.[1]) return undefined;
+  let value = match[1].trim();
+  value = value.split(/\n(?:完成后|然后停止|停止执行|不要保存|when done|then stop|do not save)/i)[0]?.trim() ?? value;
+  value = value.replace(/(?:完成后停止|完成后|然后停止|不要保存|when done|then stop|do not save)[\s\S]*$/i, '').trim();
+  value = value.replace(/^[“"']|[”"']$/g, '').trim();
+  return value || undefined;
+}
+
+function goalContractActions(goal: string): ModelComputerAction[] {
+  const normalized = goal.toLowerCase();
+  const actions: ModelComputerAction[] = [];
+  const usesTextEdit = /textedit|text edit|文本编辑|文本编辑器/.test(normalized);
+  if (usesTextEdit) {
+    actions.push({ action: 'open', app: 'TextEdit', reason: 'Create and focus a new untitled TextEdit document.' });
+  }
+  const requestedText = requestedTextFromGoal(goal);
+  if (requestedText) {
+    actions.push({ action: 'type', text: requestedText, reason: 'Insert the exact user-approved text into the focused document.' });
+  }
+  return actions;
+}
+
+function contractActionSatisfied(action: ModelComputerAction, observations: ModelComputerObservation[]): boolean {
+  return observations.some((observation) => {
+    if (!observation.ok || observation.action !== action.action) return false;
+    if (action.action === 'open') return !action.app || observation.target === action.app;
+    return true;
+  });
+}
+
+function requiredContractAction(goal: string, observations: ModelComputerObservation[]): ModelComputerAction | undefined {
+  return goalContractActions(goal).find((action) => !contractActionSatisfied(action, observations));
+}
+
+function actionProgressKey(action: ModelComputerAction): string {
+  if (action.action === 'open') return `open:${action.app ?? 'application'}`;
+  return action.action;
 }
 
 function missingCompletionRequirements(goal: string, observations: ModelComputerObservation[]): string[] {
@@ -101,8 +156,11 @@ export function ComputerScreen({ language }: { language: Language }) {
   const [agentStatus, setAgentStatus] = useState<AgentStatus>('idle');
   const [agentStep, setAgentStep] = useState<ModelComputerAction | undefined>(undefined);
   const [agentLogs, setAgentLogs] = useState<AgentLogEntry[]>([]);
+  const [agentTimeline, setAgentTimeline] = useState<AgentTimelineItem[]>([]);
+  const [agentStepNumber, setAgentStepNumber] = useState(0);
   const stopAgentRef = useRef(false);
   const agentAbortRef = useRef<AbortController | null>(null);
+  const agentSessionRunIdRef = useRef<string | null>(null);
   const toast = useToast();
 
   useEffect(() => { void getComputerCapabilities().then(setCapabilities); }, []);
@@ -115,6 +173,20 @@ export function ComputerScreen({ language }: { language: Language }) {
 
   const logAgent = (level: AgentLogEntry['level'], value: string) => {
     setAgentLogs((current) => [...current, { id: makeId('agent-log'), level, text: value }].slice(-80));
+  };
+
+  const markTimeline = (action: ModelComputerAction, status: AgentTimelineItem['status'], detail?: string) => {
+    const key = actionProgressKey(action);
+    setAgentTimeline((current) => {
+      let matched = false;
+      const next = current.map((item) => {
+        if (matched || item.id !== key) return item;
+        matched = true;
+        return { ...item, status, detail };
+      });
+      if (matched) return next;
+      return [...next, { id: key, action: action.action, label: actionLabel(language, action), status, detail }];
+    });
   };
 
   const performAction = async (action: DesktopAction, input?: { app?: string; x?: number; y?: number; text?: string; key?: string }) => {
@@ -169,6 +241,8 @@ export function ComputerScreen({ language }: { language: Language }) {
     stopAgentRef.current = true;
     agentAbortRef.current?.abort();
     agentAbortRef.current = null;
+    const runtimeId = agentSessionRunIdRef.current;
+    if (runtimeId) requestRuntimeStop(runtimeId, 'Computer Use session stopped by the user.');
     setAgentStatus('stopped');
     logAgent('warning', copy(language, 'Emergency stop requested by the user.', '用户已请求紧急停止。'));
   };
@@ -195,11 +269,32 @@ export function ComputerScreen({ language }: { language: Language }) {
     stopAgentRef.current = false;
     setAgentLogs([]);
     setAgentStep(undefined);
+    setAgentStepNumber(0);
+    const contractPlan = goalContractActions(goal);
+    setAgentTimeline([
+      ...contractPlan.map((action) => ({
+        id: actionProgressKey(action),
+        action: action.action,
+        label: actionLabel(language, action),
+        status: 'pending' as const,
+      })),
+      { id: 'done', action: 'done' as const, label: copy(language, 'Verify and finish', '验证结果并完成'), status: 'pending' as const },
+    ]);
     setAgentStatus('planning');
     const observations: ModelComputerObservation[] = [];
     let currentScreenshot = screenshot;
     let focusedApplication: string | undefined;
     const maxSteps = 8;
+    const sessionRun = beginRuntimeRun({
+      kind: 'computer',
+      task: `Computer Use goal: ${goal.slice(0, 240)}`,
+      provider: profile.displayName,
+      model: profile.model,
+      action: 'model-session',
+      maxAttempts: maxSteps,
+    });
+    agentSessionRunIdRef.current = sessionRun.id;
+    updateRuntimeRun(sessionRun.id, { status: 'running', attempt: 0, message: 'Preparing the bounded desktop plan.' });
     logAgent('info', copy(language, `Starting a bounded ${maxSteps}-step session with ${profile.displayName}.`, `正在使用 ${profile.displayName} 启动最多 ${maxSteps} 步的有限会话。`));
     if (!definition.capabilities.vision) {
       logAgent('warning', copy(language, 'This model has no vision capability. It can plan known app and keyboard actions, but coordinate clicking is disabled.', '当前模型不支持视觉，可规划已知应用和键盘操作，但不能进行坐标点击。'));
@@ -219,8 +314,12 @@ export function ComputerScreen({ language }: { language: Language }) {
         const controller = new AbortController();
         agentAbortRef.current = controller;
         setAgentStatus('planning');
+        setAgentStepNumber(index + 1);
+        const runtimeId = agentSessionRunIdRef.current;
+        if (runtimeId) updateRuntimeRun(runtimeId, { status: 'planning', attempt: index + 1, message: `Planning desktop step ${index + 1}/${maxSteps}.` });
         logAgent('info', copy(language, `Planning step ${index + 1}/${maxSteps}…`, `正在规划第 ${index + 1}/${maxSteps} 步…`));
-        const next = await planNextComputerAction({
+        const required = requiredContractAction(goal, observations);
+        const next = required ?? await planNextComputerAction({
           profile,
           goal,
           screenshotDataUrl: currentScreenshot,
@@ -228,9 +327,14 @@ export function ComputerScreen({ language }: { language: Language }) {
           timeoutMs: loadSettings().requestTimeoutMs,
           signal: controller.signal,
         });
+        if (required) {
+          logAgent('info', copy(language, 'Using the verified goal contract for the next safe action.', '正在按已验证的目标契约执行下一项安全操作。'));
+        }
         agentAbortRef.current = null;
         if (stopAgentRef.current) break;
         setAgentStep(next);
+        markTimeline(next, 'running');
+        if (runtimeId) updateRuntimeRun(runtimeId, { status: 'running', attempt: index + 1, message: actionLabel(language, next) });
         logAgent('info', `${actionLabel(language, next)} — ${next.reason}`);
 
         if (next.action === 'done') {
@@ -242,12 +346,17 @@ export function ComputerScreen({ language }: { language: Language }) {
             setAgentStatus('planning');
             continue;
           }
+          markTimeline(next, 'success', next.message);
           setAgentStatus('completed');
+          const runtimeId = agentSessionRunIdRef.current;
+          if (runtimeId) finishRuntimeRun(runtimeId, 'completed', next.message || 'Computer Use goal completed.');
+          agentSessionRunIdRef.current = null;
           logAgent('success', next.message || copy(language, 'The model marked the goal complete.', '模型已确认目标完成。'));
           toast.show(copy(language, 'Computer Use goal completed.', '电脑操作目标已完成。'), 'success');
           return;
         }
         if (next.action === 'ask') {
+          markTimeline(next, 'failed', next.message);
           setAgentStatus('waiting-approval');
           logAgent('warning', next.message || copy(language, 'The model needs clarification.', '模型需要进一步确认。'));
           toast.show(next.message || copy(language, 'The model needs clarification.', '模型需要进一步确认。'), 'warning');
@@ -266,7 +375,11 @@ export function ComputerScreen({ language }: { language: Language }) {
           if (!confirmed) {
             observations.push({ action: next.action, ok: false, detail: 'User denied this action.', target: next.app || next.key || next.action });
             logAgent('warning', copy(language, 'The user denied the proposed action.', '用户拒绝了模型提出的操作。'));
+            markTimeline(next, 'failed', 'User denied this action.');
             setAgentStatus('stopped');
+            const runtimeId = agentSessionRunIdRef.current;
+            if (runtimeId) finishRuntimeRun(runtimeId, 'cancelled', 'The user denied the proposed action.');
+            agentSessionRunIdRef.current = null;
             return;
           }
         }
@@ -284,6 +397,7 @@ export function ComputerScreen({ language }: { language: Language }) {
           detail: result.message,
           target: next.action === 'open' ? next.app : next.action === 'key' ? next.key : next.action === 'type' ? 'typed-text' : next.action,
         });
+        markTimeline(next, result.ok ? 'success' : 'failed', result.message);
         logAgent(result.ok ? 'success' : 'error', result.message);
         if (!result.ok) {
           setAgentStatus('planning');
@@ -292,17 +406,29 @@ export function ComputerScreen({ language }: { language: Language }) {
 
       if (stopAgentRef.current) {
         setAgentStatus('stopped');
+        const runtimeId = agentSessionRunIdRef.current;
+        if (runtimeId) finishRuntimeRun(runtimeId, 'cancelled', 'Computer Use session stopped by the user.');
+        agentSessionRunIdRef.current = null;
         return;
       }
       setAgentStatus('failed');
+      const runtimeId = agentSessionRunIdRef.current;
+      if (runtimeId) finishRuntimeRun(runtimeId, 'failed', 'The session reached its eight-step safety limit before completion.');
+      agentSessionRunIdRef.current = null;
       logAgent('error', copy(language, 'The session reached its eight-step safety limit before completion.', '会话在完成目标前达到 8 步安全上限。'));
     } catch (error) {
       if (stopAgentRef.current || (error instanceof Error && /stopped|cancelled/i.test(error.message))) {
         setAgentStatus('stopped');
+        const runtimeId = agentSessionRunIdRef.current;
+        if (runtimeId) finishRuntimeRun(runtimeId, 'cancelled', 'Computer Use session stopped by the user.');
+        agentSessionRunIdRef.current = null;
         return;
       }
       const message = error instanceof Error ? error.message : String(error);
       setAgentStatus('failed');
+      const runtimeId = agentSessionRunIdRef.current;
+      if (runtimeId) finishRuntimeRun(runtimeId, 'failed', message);
+      agentSessionRunIdRef.current = null;
       logAgent('error', message);
       toast.show(message, 'error');
     } finally {
@@ -315,6 +441,8 @@ export function ComputerScreen({ language }: { language: Language }) {
   const agentRunning = agentStatus === 'planning' || agentStatus === 'executing' || agentStatus === 'waiting-approval';
   const activeProvider = loadActiveProvider();
   const activeDefinition = providerDefinition(activeProvider.providerId);
+  const timelineWeight = agentTimeline.reduce((total, item) => total + (item.status === 'success' ? 1 : item.status === 'running' ? 0.45 : 0), 0);
+  const agentProgressPercent = agentTimeline.length ? Math.min(100, Math.round((timelineWeight / agentTimeline.length) * 100)) : 0;
 
   return <main className="modern-page computer-page">
     <header className="compact-page-header">
@@ -358,6 +486,13 @@ export function ComputerScreen({ language }: { language: Language }) {
       </div>
       <aside className={`computer-agent-status status-${agentStatus}`}>
         <div className="panel-title"><span>{copy(language, 'Current model step', '当前模型步骤')}</span><em>{agentStatus}</em></div>
+        <div className="computer-agent-progress">
+          <div><span>{copy(language, `Step ${agentStepNumber}/${Math.max(1, agentTimeline.length)}`, `步骤 ${agentStepNumber}/${Math.max(1, agentTimeline.length)}`)}</span><strong>{agentProgressPercent}%</strong></div>
+          <span className="computer-agent-progress-track"><i style={{ width: `${agentProgressPercent}%` }} /></span>
+          <ol>
+            {agentTimeline.map((item) => <li key={item.id} className={`timeline-${item.status}`}><span>{item.status === 'success' ? '✓' : item.status === 'failed' ? '!' : item.status === 'running' ? '●' : '○'}</span><div><strong>{item.label}</strong>{item.detail && <small>{item.detail}</small>}</div></li>)}
+          </ol>
+        </div>
         <strong>{actionLabel(language, agentStep)}</strong>
         {agentStep?.reason && <p>{agentStep.reason}</p>}
         <div className="computer-agent-log">

@@ -220,7 +220,7 @@ export function WorkspaceScreen({
   const todayUsage = tokenUsageSummary();
 
   useEffect(() => {
-    if (!openConversationId) return;
+    if (!openConversationId || conversation?.id === openConversationId) return;
     const found = loadConversations().find((item) => item.id === openConversationId) ?? null;
     setConversation(found);
     setPrompt('');
@@ -230,7 +230,7 @@ export function WorkspaceScreen({
     setCriticalApproved(false);
     if (found?.mode) setMode(found.mode);
     if (found?.agentId) setActiveAgentId(found.agentId);
-  }, [openConversationId]);
+  }, [openConversationId, conversation?.id]);
 
   useEffect(() => {
     const syncRenamedConversation = (event: Event) => {
@@ -572,6 +572,10 @@ ${typeResult.message}`, !typeResult.ok);
         messages: [...current.messages, userMessage],
       };
       setConversation(pending);
+      // Persist the pending conversation before the parent shell selects it.
+      // Without this, the openConversationId effect can reload an empty archive
+      // entry and hide all live stream deltas behind the workspace home state.
+      if (settings.localHistoryEnabled) saveConversation(pending);
 
       const requestMessages: Pick<ChatMessage, 'role' | 'content'>[] = pending.messages
         .slice(-settings.conversationContextLimit)
@@ -735,7 +739,7 @@ ${errorMessage}` : errorMessage;
     void send(true, nextScan);
   };
 
-  const empty = !conversation?.messages.length;
+  const empty = !conversation?.messages.length && !sending;
 
   return (
     <main className={`workspace-modern ${inspectorOpen ? 'inspector-visible' : ''}`}>

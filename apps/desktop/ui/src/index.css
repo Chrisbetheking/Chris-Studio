@@ -949,3 +949,20 @@ input:focus, textarea:focus, select:focus { border-color: color-mix(in srgb, var
   .computer-agent-provider { max-width: 100%; align-self: flex-start; }
   .computer-agent-controls .button { width: 100%; }
 }
+
+/* v2.2 Computer Use session progress */
+.computer-agent-progress { margin-top: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--panel-muted) 78%, transparent); }
+.computer-agent-progress > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 9px; }
+.computer-agent-progress > div strong { color: var(--text); font-size: 10px; }
+.computer-agent-progress-track { display: block; height: 5px; margin-top: 7px; overflow: hidden; border-radius: 999px; background: var(--panel); }
+.computer-agent-progress-track > i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand), var(--success)); transition: width .22s ease; }
+.computer-agent-progress ol { display: grid; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+.computer-agent-progress li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 7px; align-items: start; color: var(--muted); font-size: 9px; line-height: 1.35; }
+.computer-agent-progress li > span { display: grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; background: var(--panel); color: var(--faint); }
+.computer-agent-progress li div { min-width: 0; }
+.computer-agent-progress li strong { display: block; overflow: hidden; color: inherit; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.computer-agent-progress li small { display: -webkit-box; margin-top: 2px; overflow: hidden; color: var(--faint); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.computer-agent-progress li.timeline-running { color: var(--brand); }
+.computer-agent-progress li.timeline-success { color: var(--success); }
+.computer-agent-progress li.timeline-failed { color: var(--danger); }
+.computer-agent-progress li.timeline-running > span { animation: pulse 1.2s ease-in-out infinite; }

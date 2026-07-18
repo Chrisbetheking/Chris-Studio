@@ -1,7 +1,7 @@
 import type { AttachmentDraft, ChatMessage, ProviderProfile } from '../../app/types';
 import { providerDefinition } from '../../app/providerRegistry';
 import { makeId } from '../../app/store';
-import { sendProviderChatStream } from '../providers/providerClientReliable';
+import { sendProviderChatStream } from '../providers/providerClient';
 import {
   parseModelComputerAction,
   type ModelComputerAction,

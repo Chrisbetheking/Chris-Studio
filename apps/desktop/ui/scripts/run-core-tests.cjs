@@ -38,6 +38,7 @@ const remainingTests = [
   "scripts/core-privacy-test.cjs",
   "scripts/v2-2-product-metadata-test.cjs",
   "scripts/v2-2-workspace-integration-test.cjs",
+  "scripts/v2-2-live-stream-computer-contract-test.cjs",
 ];
 
 function fail(message) {

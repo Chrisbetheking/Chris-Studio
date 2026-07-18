@@ -3,6 +3,7 @@ export * from "./computerClient";
 import {
   captureScreen as captureScreenBase,
   clickPointer as clickPointerBase,
+  openApplication as openApplicationBase,
   pressKey as pressKeyBase,
   requestComputerPermissions as requestComputerPermissionsBase,
   typeText as typeTextBase,
@@ -150,6 +151,12 @@ export const requestComputerPermissions: typeof requestComputerPermissionsBase =
     return createComputerFailureResult<Awaited<ReturnType<typeof requestComputerPermissionsBase>>>("permissions", message);
   }
 }) as typeof requestComputerPermissionsBase;
+
+
+export const openApplication: typeof openApplicationBase = (async (...args: Parameters<typeof openApplicationBase>) => {
+  const app = String(args[0] ?? "application");
+  return runComputerAction("open", `Open reviewed application: ${app}`, () => openApplicationBase(...args));
+}) as typeof openApplicationBase;
 
 export const captureScreen: typeof captureScreenBase = (async (...args: Parameters<typeof captureScreenBase>) =>
   runComputerAction("screenshot", "Capture the current screen", () => captureScreenBase(...args))) as typeof captureScreenBase;

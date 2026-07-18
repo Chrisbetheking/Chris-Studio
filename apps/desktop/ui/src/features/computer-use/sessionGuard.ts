@@ -1,4 +1,4 @@
-export type ComputerActionKind = "screenshot" | "click" | "type" | "key" | "scroll" | "drag";
+export type ComputerActionKind = "screenshot" | "open" | "click" | "type" | "key" | "scroll" | "drag";
 export type ComputerSessionStatus = "idle" | "active" | "stopped" | "timed-out" | "completed";
 
 export interface ScreenBounds {
