@@ -966,3 +966,51 @@ input:focus, textarea:focus, select:focus { border-color: color-mix(in srgb, var
 .computer-agent-progress li.timeline-success { color: var(--success); }
 .computer-agent-progress li.timeline-failed { color: var(--danger); }
 .computer-agent-progress li.timeline-running > span { animation: pulse 1.2s ease-in-out infinite; }
+
+/* v2.2.0 Computer Use recovery: keep progress visible even when the runtime inspector is open. */
+.computer-agent-progress-inline {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+}
+
+.computer-agent-progress-inline-head,
+.computer-agent-progress-inline-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.computer-agent-progress-inline-head span,
+.computer-agent-progress-inline-current small {
+  color: var(--text-muted);
+}
+
+.computer-agent-progress-inline-current {
+  justify-content: flex-start;
+  margin-top: 10px;
+}
+
+.computer-agent-progress-inline-current > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.computer-agent-progress-inline-current strong,
+.computer-agent-progress-inline-current small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.computer-agent-progress-inline.status-failed {
+  border-color: color-mix(in srgb, var(--danger) 58%, var(--border-subtle));
+}
+
+.computer-agent-progress-inline.status-completed {
+  border-color: color-mix(in srgb, var(--success) 50%, var(--border-subtle));
+}

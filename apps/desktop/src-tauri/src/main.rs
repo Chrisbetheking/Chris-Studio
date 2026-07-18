@@ -34,6 +34,7 @@ fn request_macos_screen_capture_access() -> bool {
 struct AppState {
     project_root: Arc<Mutex<Option<PathBuf>>>,
     cancelled_provider_streams: Arc<Mutex<HashSet<String>>>,
+    screen_capture_verified: Arc<Mutex<bool>>,
 }
 const MAX_TIMEOUT_MS: u64 = 180_000;
 const MIN_TIMEOUT_MS: u64 = 5_000;
@@ -1239,10 +1240,11 @@ fn platform_info() -> PlatformInfo {
 }
 
 #[tauri::command]
-fn computer_capabilities() -> Vec<ComputerCapability> {
+fn computer_capabilities(state: State<AppState>) -> Vec<ComputerCapability> {
     let native_ready = cfg!(target_os = "macos");
     #[cfg(target_os = "macos")]
-    let screen_ok = macos_screen_capture_authorized();
+    let screen_ok = macos_screen_capture_authorized()
+        || state.screen_capture_verified.lock().map(|value| *value).unwrap_or(false);
     #[cfg(not(target_os = "macos"))]
     let screen_ok = false;
     #[cfg(target_os = "macos")]
@@ -2214,7 +2216,15 @@ fn activate_approved_application(app: Option<&str>) -> Result<Option<&'static st
         return Ok(None);
     };
     let target = approved_application_name(value).ok_or_else(|| "The requested focus application is outside the Chris Studio allowlist.".to_string())?;
-    let script = format!("tell application \"System Events\" to set frontmost of process \"{target}\" to true");
+    let script = if target == "TextEdit" {
+        r#"tell application id "com.apple.TextEdit" to activate
+delay 0.2
+tell application "System Events"
+    tell process "TextEdit" to set frontmost to true
+end tell"#.to_string()
+    } else {
+        format!("tell application \"System Events\" to set frontmost of process \"{target}\" to true")
+    };
     let output = Command::new("/usr/bin/osascript")
         .args(["-e", &script])
         .output()
@@ -2227,20 +2237,13 @@ fn activate_approved_application(app: Option<&str>) -> Result<Option<&'static st
 }
 
 #[tauri::command]
-fn computer_capture_screen(confirmed: bool) -> ComputerActionResult {
+fn computer_capture_screen(state: State<AppState>, confirmed: bool) -> ComputerActionResult {
     if !confirmed {
         return computer_result(false, "screen-capture", "Explicit screen-capture approval is required.".to_string(), None);
     }
     #[cfg(target_os = "macos")]
     {
-        if !macos_screen_capture_authorized() {
-            return computer_result(
-                false,
-                "screen-capture",
-                "Screen Recording permission is not active for this Chris Studio process. Enable it in Privacy & Security, then fully quit and reopen Chris Studio.".to_string(),
-                None,
-            );
-        }
+        let preflight_ok = macos_screen_capture_authorized();
         let path = std::env::temp_dir().join(format!("chris-studio-capture-{}.png", unix_timestamp()));
         let output = Command::new("/usr/sbin/screencapture")
             .args(["-x", "-t", "png"])
@@ -2250,6 +2253,9 @@ fn computer_capture_screen(confirmed: bool) -> ComputerActionResult {
             Ok(output) if output.status.success() => match fs::read(&path) {
                 Ok(bytes) if !bytes.is_empty() => {
                     let _ = fs::remove_file(&path);
+                    if let Ok(mut verified) = state.screen_capture_verified.lock() {
+                        *verified = true;
+                    }
                     let data = format!("data:image/png;base64,{}", BASE64_STANDARD.encode(bytes));
                     computer_result(true, "screen-capture", "Screen captured locally. Review the preview before any control action.".to_string(), Some(data))
                 }
@@ -2261,7 +2267,15 @@ fn computer_capture_screen(confirmed: bool) -> ComputerActionResult {
             },
             Ok(output) => {
                 let _ = fs::remove_file(&path);
-                computer_result(false, "screen-capture", format!("Screen capture helper failed even though macOS reports permission is enabled: {}", truncate_output(&output.stderr)), None)
+                if let Ok(mut verified) = state.screen_capture_verified.lock() {
+                    *verified = false;
+                }
+                let detail = truncate_output(&output.stderr);
+                if preflight_ok {
+                    computer_result(false, "screen-capture", format!("Screen capture helper failed even though macOS reports permission is enabled: {detail}"), None)
+                } else {
+                    computer_result(false, "screen-capture", format!("Screen Recording permission is not active for this Chris Studio build, or macOS still has the previous build cached. Toggle Chris Studio off and on under Privacy & Security > Screen & System Audio Recording, fully quit the app, then reopen it. Helper detail: {detail}"), None)
+                }
             }
             Err(error) => computer_result(false, "screen-capture", format!("The macOS screen capture helper could not start: {error}."), None),
         }
@@ -2307,7 +2321,7 @@ fn computer_type_text(text: String, confirmed: bool, app: Option<String>) -> Com
         };
         if focused == Some("TextEdit") {
             let direct_script = r#"on run argv
-tell application "TextEdit"
+tell application id "com.apple.TextEdit"
     activate
     if (count documents) is 0 then make new document
     set currentText to text of front document
@@ -2391,29 +2405,61 @@ fn computer_open_application(app: String, confirmed: bool) -> ComputerActionResu
     #[cfg(target_os = "macos")]
     {
         if target == "TextEdit" {
-            // Ask TextEdit itself to create an untitled document. Launching the app
-            // through `open -a` can restore its document picker on recent macOS
-            // versions, which looks like success to the agent but leaves no editor.
-            let script = r#"tell application "TextEdit"
+            // Launch by bundle identifier first. On localized macOS installations,
+            // addressing TextEdit only by its display name can produce error -600
+            // even when the app exists. After launch, create an untitled document
+            // through TextEdit's scripting interface and fall back to Cmd+N.
+            let launch = Command::new("/usr/bin/open")
+                .args(["-b", "com.apple.TextEdit"])
+                .output();
+            match launch {
+                Ok(output) if output.status.success() => {}
+                Ok(output) => {
+                    return computer_result(false, "open-application", format!("macOS could not launch TextEdit by bundle identifier: {}", truncate_output(&output.stderr)), None)
+                }
+                Err(error) => {
+                    return computer_result(false, "open-application", format!("The macOS open command could not launch TextEdit: {error}."), None)
+                }
+            }
+            std::thread::sleep(Duration::from_millis(450));
+
+            let direct_script = r#"tell application id "com.apple.TextEdit"
 activate
 make new document
-end tell
-delay 0.35
-tell application "System Events"
-repeat 30 times
-    if exists process "TextEdit" then
-        tell process "TextEdit" to set frontmost to true
-        return
-    end if
-    delay 0.1
-end repeat
-error "TextEdit process did not appear"
 end tell"#;
-            let output = Command::new("/usr/bin/osascript").args(["-e", script]).output();
-            return match output {
-                Ok(output) if output.status.success() => computer_result(true, "open-application", "Created and focused a new untitled TextEdit document ready for approved typing.".to_string(), None),
-                Ok(output) => computer_result(false, "open-application", format!("macOS could not create a new TextEdit document. Check Automation and Accessibility permission: {}", truncate_output(&output.stderr)), None),
-                Err(error) => computer_result(false, "open-application", format!("AppleScript could not create the TextEdit document: {error}."), None),
+            let direct = Command::new("/usr/bin/osascript").args(["-e", direct_script]).output();
+            if matches!(&direct, Ok(output) if output.status.success()) {
+                std::thread::sleep(Duration::from_millis(250));
+                return computer_result(true, "open-application", "Created and focused a new untitled TextEdit document ready for approved typing.".to_string(), None);
+            }
+
+            let fallback_script = r#"tell application id "com.apple.TextEdit" to activate
+delay 0.3
+tell application "System Events"
+    repeat 30 times
+        if exists process "TextEdit" then
+            tell process "TextEdit"
+                set frontmost to true
+                keystroke "n" using command down
+            end tell
+            delay 0.3
+            return
+        end if
+        delay 0.1
+    end repeat
+    error "TextEdit process did not appear"
+end tell"#;
+            let fallback = Command::new("/usr/bin/osascript").args(["-e", fallback_script]).output();
+            return match fallback {
+                Ok(output) if output.status.success() => computer_result(true, "open-application", "Opened TextEdit and created a new untitled document with the approved Cmd+N fallback.".to_string(), None),
+                Ok(output) => {
+                    let direct_detail = match direct {
+                        Ok(ref first) => truncate_output(&first.stderr),
+                        Err(ref error) => error.to_string(),
+                    };
+                    computer_result(false, "open-application", format!("TextEdit launched, but Chris Studio could not create an untitled document. Direct automation: {direct_detail}. Accessibility fallback: {}. Check Privacy & Security > Accessibility and Automation, then retry once.", truncate_output(&output.stderr)), None)
+                }
+                Err(error) => computer_result(false, "open-application", format!("TextEdit launched, but the approved Cmd+N fallback could not start: {error}."), None),
             };
         }
         match Command::new("/usr/bin/open").args(["-a", target]).output() {

@@ -163,7 +163,16 @@ export function ComputerScreen({ language }: { language: Language }) {
   const agentSessionRunIdRef = useRef<string | null>(null);
   const toast = useToast();
 
-  useEffect(() => { void getComputerCapabilities().then(setCapabilities); }, []);
+  useEffect(() => {
+    const refreshCapabilities = () => { void getComputerCapabilities().then(setCapabilities); };
+    refreshCapabilities();
+    window.addEventListener('focus', refreshCapabilities);
+    const interval = window.setInterval(refreshCapabilities, 5000);
+    return () => {
+      window.removeEventListener('focus', refreshCapabilities);
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const record = (action: string, detail: string, ok: boolean) => {
     const entry = { id: makeId('audit'), action, detail, ok, createdAt: nowIso() };
@@ -197,6 +206,7 @@ export function ComputerScreen({ language }: { language: Language }) {
       : await pressKey(input?.key ?? key, true, input?.app);
     if (result.screenshotDataUrl) setScreenshot(result.screenshotDataUrl);
     record(result.action, result.message, result.ok);
+    if (action === 'capture') setCapabilities(await getComputerCapabilities());
     return result;
   };
 
@@ -391,15 +401,31 @@ export function ComputerScreen({ language }: { language: Language }) {
           : next.action === 'type' ? await performAction('type', { text: next.text, app: focusedApplication })
           : await performAction('key', { key: next.key, app: focusedApplication });
         if (result.ok && next.action === 'open' && next.app) focusedApplication = next.app;
+        const observationTarget = next.action === 'open' ? next.app : next.action === 'key' ? next.key : next.action === 'type' ? 'typed-text' : next.action;
         observations.push({
           action: next.action,
           ok: result.ok,
           detail: result.message,
-          target: next.action === 'open' ? next.app : next.action === 'key' ? next.key : next.action === 'type' ? 'typed-text' : next.action,
+          target: observationTarget,
         });
         markTimeline(next, result.ok ? 'success' : 'failed', result.message);
         logAgent(result.ok ? 'success' : 'error', result.message);
         if (!result.ok) {
+          const sameFailureCount = observations.filter((observation) =>
+            !observation.ok && observation.action === next.action && observation.target === observationTarget,
+          ).length;
+          if (required || sameFailureCount >= 2) {
+            setAgentStatus('failed');
+            const failureMessage = required
+              ? copy(language, `Required desktop step failed: ${result.message}`, `必要桌面步骤失败：${result.message}`)
+              : copy(language, `The same desktop action failed twice, so the session stopped instead of looping: ${result.message}`, `同一桌面操作已连续失败两次，会话已停止以避免循环：${result.message}`);
+            const currentRuntimeId = agentSessionRunIdRef.current;
+            if (currentRuntimeId) finishRuntimeRun(currentRuntimeId, 'failed', failureMessage);
+            agentSessionRunIdRef.current = null;
+            logAgent('error', failureMessage);
+            toast.show(failureMessage, 'error');
+            return;
+          }
           setAgentStatus('planning');
         }
       }
@@ -483,6 +509,20 @@ export function ComputerScreen({ language }: { language: Language }) {
             ? <button className="button primary stop-request" onClick={stopModelAgent}><Icon name="x" />{copy(language, 'Emergency stop', '紧急停止')}</button>
             : <button className="button primary" onClick={() => void runModelAgent()} disabled={!agentGoal.trim()}><Icon name="bot" />{copy(language, 'Start model agent', '启动模型 Agent')}</button>}
         </div>
+        {agentTimeline.length > 0 && <div className={`computer-agent-progress-inline status-${agentStatus}`}>
+          <div className="computer-agent-progress-inline-head">
+            <span>{copy(language, `Desktop progress · step ${agentStepNumber}/${Math.max(1, agentTimeline.length)}`, `桌面执行进度 · 步骤 ${agentStepNumber}/${Math.max(1, agentTimeline.length)}`)}</span>
+            <strong>{agentProgressPercent}%</strong>
+          </div>
+          <span className="computer-agent-progress-track"><i style={{ width: `${agentProgressPercent}%` }} /></span>
+          <div className="computer-agent-progress-inline-current">
+            <Icon name={agentStatus === 'failed' ? 'x' : agentStatus === 'completed' ? 'check' : 'bot'} />
+            <div>
+              <strong>{actionLabel(language, agentStep)}</strong>
+              <small>{agentLogs[agentLogs.length - 1]?.text || copy(language, 'Waiting to start the next approved action.', '等待开始下一项已批准操作。')}</small>
+            </div>
+          </div>
+        </div>}
       </div>
       <aside className={`computer-agent-status status-${agentStatus}`}>
         <div className="panel-title"><span>{copy(language, 'Current model step', '当前模型步骤')}</span><em>{agentStatus}</em></div>
@@ -502,10 +542,14 @@ export function ComputerScreen({ language }: { language: Language }) {
     </section>
 
     <section className="capability-row-modern">
-      {capabilities.map((capability) => <article key={capability.id}>
-        <span className={`cap-dot cap-${capability.status}`} />
-        <div><strong>{capability.id}</strong><small>{capability.status}</small></div>
-      </article>)}
+      {capabilities.map((capability) => {
+        const optionalForModel = capability.id === 'screen-capture' && !activeDefinition.capabilities.vision;
+        const displayStatus = optionalForModel ? 'optional-current-model' : capability.status;
+        return <article key={capability.id} title={capability.message}>
+          <span className={`cap-dot cap-${optionalForModel ? 'ready' : capability.status}`} />
+          <div><strong>{capability.id}</strong><small>{displayStatus}</small></div>
+        </article>;
+      })}
     </section>
 
     <details className="manual-computer-section">

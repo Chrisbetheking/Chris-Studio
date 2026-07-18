@@ -123,7 +123,7 @@ assert.match(rust, /macos_accessibility_authorized/);
 assert.match(rust, /Created and focused a new untitled TextEdit document ready for approved typing/);
 assert.match(rust, /activate_approved_application\(app\.as_deref\(\)\)/);
 assert.match(rust, /fn computer_type_text\(text: String, confirmed: bool, app: Option<String>\)/);
-assert.match(rust, /tell application \"TextEdit\"[\s\S]*make new document/);
+assert.match(rust, /tell application id "com\.apple\.TextEdit"[\s\S]*make new document/);
 assert.match(rust, /"cmd\+w" =>/);
 assert.match(rust, /status: if screen_ok \{ "ready" \}/);
 assert.match(rust, /status: if accessibility_ok \{ "ready" \}/);
