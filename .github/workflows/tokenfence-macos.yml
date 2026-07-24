@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release tag, for example v2.1.0
+        description: Release tag, for example v2.3.0-alpha.4
         required: true
-        default: v2.1.0
+        default: v2.3.0-alpha.4
         type: string
       create_release:
         description: Create or update the GitHub Release
@@ -98,9 +98,11 @@ jobs:
           - runner: macos-15
             label: Apple Silicon
             slug: Apple-Silicon
+            arch: arm64
           - runner: macos-15-intel
             label: Intel
             slug: Intel
+            arch: x86_64
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out repository
@@ -161,7 +163,9 @@ jobs:
           PY
 
       - name: Check native Rust backend
-        run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+        run: cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+      - name: Test transactional project boundaries
+        run: cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml project_change_tests -- --nocapture
 
       - name: Import Apple Developer ID certificate when configured
         env:
@@ -223,85 +227,17 @@ jobs:
             echo "No Apple signing identity configured; building the community bundle without Tauri signing."
             unset APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID || true
           fi
-          tauri build
+          tauri build --bundles app --ci
 
       - name: Package DMG and APP ZIP
+        env:
+          APPLE_ID_SECRET: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD_SECRET: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID_SECRET: ${{ secrets.APPLE_TEAM_ID }}
         shell: bash
         run: |
           set -euo pipefail
-          BUNDLE_DIR="apps/desktop/src-tauri/target/release/bundle"
-          OUT_DIR="release/${{ matrix.slug }}"
-          mkdir -p "$OUT_DIR"
-
-          DMG_PATH="$(find "$BUNDLE_DIR/dmg" -maxdepth 1 -type f -name '*.dmg' -print -quit 2>/dev/null || true)"
-          APP_PATH="$(find "$BUNDLE_DIR/macos" -maxdepth 1 -type d -name '*.app' -print -quit 2>/dev/null || true)"
-
-          if [[ -z "$DMG_PATH" ]]; then
-            echo "No DMG was produced. Bundle contents:"
-            find "$BUNDLE_DIR" -maxdepth 3 -print || true
-            exit 1
-          fi
-
-          if [[ -z "$APP_PATH" ]]; then
-            echo "No .app bundle was produced. Bundle contents:"
-            find "$BUNDLE_DIR" -maxdepth 3 -print || true
-            exit 1
-          fi
-
-          DMG_NAME="Chris-Studio-macOS-${{ matrix.slug }}.dmg"
-          APP_ZIP_NAME="Chris-Studio-macOS-${{ matrix.slug }}.app.zip"
-          INSTALLER_NAME="Install-Chris-Studio-${{ matrix.slug }}.command"
-          SIGNING_NOTE="Developer ID signed; notarization credentials configured"
-          if [[ "${CHRIS_STUDIO_SIGNED_BUILD:-false}" == "true" && "${CHRIS_STUDIO_NOTARIZATION_CONFIGURED:-false}" != "true" ]]; then
-            SIGNING_NOTE="Developer ID signed; Apple notarization credentials were not fully configured"
-          fi
-
-          cat > "$OUT_DIR/$INSTALLER_NAME" <<'INSTALLER'
-          #!/bin/zsh
-          set -euo pipefail
-          APP_NAME="Chris Studio.app"
-          SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-          SOURCE_APP=""
-          for candidate in "$SCRIPT_DIR/$APP_NAME" "/Volumes/Chris Studio/$APP_NAME"; do
-            if [[ -d "$candidate" ]]; then SOURCE_APP="$candidate"; break; fi
-          done
-          if [[ -z "$SOURCE_APP" ]]; then
-            echo "Cannot find $APP_NAME. Open the DMG and run this installer from inside it."
-            read -k 1 "?Press any key to close..."
-            exit 1
-          fi
-          echo "Installing $APP_NAME into /Applications..."
-          rm -rf "/Applications/$APP_NAME"
-          ditto "$SOURCE_APP" "/Applications/$APP_NAME"
-          xattr -rd com.apple.quarantine "/Applications/$APP_NAME" 2>/dev/null || true
-          open "/Applications/$APP_NAME"
-          echo "Chris Studio has been installed and opened."
-          INSTALLER
-          chmod +x "$OUT_DIR/$INSTALLER_NAME"
-
-          if [[ "${CHRIS_STUDIO_SIGNED_BUILD:-false}" != "true" ]]; then
-            echo 'Apple Developer credentials are not configured; applying an ad-hoc signature and rebuilding the DMG.'
-            codesign --force --deep --sign - "$APP_PATH"
-            STAGE="$RUNNER_TEMP/chris-studio-dmg-stage-${{ matrix.slug }}"
-            rm -rf "$STAGE"
-            mkdir -p "$STAGE"
-            ditto "$APP_PATH" "$STAGE/Chris Studio.app"
-            cp "$OUT_DIR/$INSTALLER_NAME" "$STAGE/$INSTALLER_NAME"
-            ln -s /Applications "$STAGE/Applications"
-            hdiutil create -volname "Chris Studio" -srcfolder "$STAGE" -ov -format UDZO "$OUT_DIR/$DMG_NAME"
-            SIGNING_NOTE="Ad-hoc signed community build — Gatekeeper approval may still be required"
-          else
-            cp "$DMG_PATH" "$OUT_DIR/$DMG_NAME"
-          fi
-
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$OUT_DIR/$APP_ZIP_NAME"
-          printf '%s\n' "$SIGNING_NOTE" > "$OUT_DIR/SIGNING-${{ matrix.slug }}.txt"
-
-          (
-            cd "$OUT_DIR"
-            shasum -a 256 "$DMG_NAME" "$APP_ZIP_NAME" "$INSTALLER_NAME" > "SHA256SUMS-${{ matrix.slug }}.txt"
-          )
-          ls -lah "$OUT_DIR"
+          bash scripts/package-macos-release.sh "${{ matrix.slug }}" "${{ matrix.arch }}"
 
       - name: Upload ${{ matrix.label }} packages
         uses: actions/upload-artifact@v4
@@ -335,7 +271,7 @@ jobs:
           body: |
             ## Chris Studio ${{ inputs.version }}
 
-            Chris Studio v2.1 adds a scoped coding-agent workspace, GitHub connection, reviewed file writes with backups, safe build/test presets, local RAG, multilingual OCR, custom Skills, real vision attachments, and approval-gated macOS Computer Use. The workflow produces Developer ID signed/notarized packages when Apple secrets are configured; otherwise it publishes ad-hoc signed community packages.
+            This release contains the version committed in the repository. Alpha tags remain pre-releases and never replace the latest stable release. The workflow produces architecture-verified Developer ID signed/notarized packages when Apple secrets are configured; otherwise it publishes ad-hoc signed community packages with an APP ZIP fallback.
 
             ### Installation
             1. Download the package matching your Mac processor.
@@ -347,5 +283,5 @@ jobs:
           files: release/*
           fail_on_unmatched_files: true
           draft: false
-          prerelease: false
-          make_latest: ${{ inputs.make_latest }}
+          prerelease: ${{ contains(inputs.version, '-') }}
+          make_latest: ${{ !contains(inputs.version, '-') && inputs.make_latest }}
