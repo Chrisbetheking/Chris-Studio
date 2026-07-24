@@ -162,8 +162,12 @@ jobs:
           print('Native dialog configuration is valid.')
           PY
 
+      - name: Synchronize native Rust lockfile
+        run: cargo generate-lockfile --manifest-path apps/desktop/src-tauri/Cargo.toml
+
       - name: Check native Rust backend
         run: cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+
       - name: Test transactional project boundaries
         run: cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml project_change_tests -- --nocapture
 
