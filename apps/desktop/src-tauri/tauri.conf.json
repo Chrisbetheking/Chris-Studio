@@ -5,51 +5,31 @@
     "beforeBuildCommand": "npm run ui:build",
     "beforeDevCommand": "npm run ui:dev"
   },
-  "package": {
-    "productName": "Chris Studio",
-    "version": "2.3.0-alpha.4"
-  },
+  "package": { "productName": "Chris Studio", "version": "2.4.0-alpha.1" },
   "tauri": {
     "bundle": {
       "active": true,
       "targets": "all",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
+      "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
       "identifier": "com.tokenfence.studio",
-      "macOS": {
-        "entitlements": "Entitlements.plist"
-      }
+      "macOS": { "entitlements": "Entitlements.plist" }
     },
     "security": {
       "csp": "default-src 'self'; img-src 'self' asset: data: blob: https:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost https:; worker-src 'self' blob:; child-src 'self' blob:; font-src 'self' data:;"
     },
-    "windows": [
-      {
-        "title": "",
-        "width": 1440,
-        "height": 900,
-        "minWidth": 980,
-        "minHeight": 680,
-        "resizable": true,
-        "fullscreen": false,
-        "decorations": true,
-        "titleBarStyle": "Overlay"
-      }
-    ],
+    "windows": [{
+      "title": "",
+      "width": 1440,
+      "height": 900,
+      "minWidth": 980,
+      "minHeight": 680,
+      "resizable": true,
+      "fullscreen": false,
+      "decorations": true,
+      "titleBarStyle": "Overlay"
+    }],
     "allowlist": {
-      "dialog": {
-        "all": false,
-        "open": true,
-        "save": false,
-        "ask": false,
-        "confirm": false,
-        "message": false
-      }
+      "dialog": { "all": false, "open": true, "save": false, "ask": false, "confirm": false, "message": false }
     }
   }
 }

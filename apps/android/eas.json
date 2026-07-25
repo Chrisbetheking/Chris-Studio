@@ -1,9 +1,0 @@
-{
-  "cli": { "version": ">= 13.0.0" },
-  "build": {
-    "preview-apk": {
-      "android": { "buildType": "apk" },
-      "distribution": "internal"
-    }
-  }
-}
