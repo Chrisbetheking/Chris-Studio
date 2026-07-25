@@ -6,7 +6,7 @@ on:
       version:
         description: Release tag, for example v2.3.0-alpha.4
         required: true
-        default: v2.3.0-alpha.4
+        default: v2.4.0-alpha.1
         type: string
       create_release:
         description: Create or update the GitHub Release
@@ -162,14 +162,11 @@ jobs:
           print('Native dialog configuration is valid.')
           PY
 
-      - name: Synchronize native Rust lockfile
-        run: cargo generate-lockfile --manifest-path apps/desktop/src-tauri/Cargo.toml
-
       - name: Check native Rust backend
         run: cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 
-      - name: Test transactional project boundaries
-        run: cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml project_change_tests -- --nocapture
+      - name: Test native backend and transactional boundaries
+        run: cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml -- --nocapture
 
       - name: Import Apple Developer ID certificate when configured
         env:
@@ -275,7 +272,7 @@ jobs:
           body: |
             ## Chris Studio ${{ inputs.version }}
 
-            This release contains the version committed in the repository. Alpha tags remain pre-releases and never replace the latest stable release. The workflow produces architecture-verified Developer ID signed/notarized packages when Apple secrets are configured; otherwise it publishes ad-hoc signed community packages with an APP ZIP fallback.
+            Chris Studio v2.4 introduces the first Unified Agent Runtime vertical slice: reliable per-conversation queues, persistent interrupted-run recovery, real model-selected project tools, reviewed multi-file transactions, scoped Git commits, bounded check presets, and approval-gated macOS Accessibility-first Computer Use. Alpha tags remain pre-releases and never replace the latest stable release. The workflow produces architecture-verified Developer ID signed/notarized packages when Apple secrets are configured; otherwise it publishes ad-hoc signed community packages with an APP ZIP fallback.
 
             ### Installation
             1. Download the package matching your Mac processor.

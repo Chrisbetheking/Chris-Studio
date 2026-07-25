@@ -1,6 +1,6 @@
 {
   "name": "chris-studio",
-  "version": "2.4.0-alpha.1",
+  "version": "2.3.0-alpha.4",
   "private": true,
   "description": "Chris Studio local-first AI Agent workspace with prompt safety, document parsing, OCR, model routing, reviewed native actions, and release diagnostics.",
   "scripts": {
@@ -19,7 +19,16 @@
     "release:sanity": "node scripts/release_sanity.js",
     "verify:raw": "node scripts/verify_raw_commit.js"
   },
-  "workspaces": ["apps/*", "packages/*"],
-  "engines": { "node": ">=18 <=22", "npm": ">=9" },
-  "overrides": { "react": "18.3.1", "react-dom": "18.3.1" }
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=18 <=22",
+    "npm": ">=9"
+  },
+  "overrides": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
 }
