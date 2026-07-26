@@ -1,167 +1,142 @@
-# Chris Studio v2.2.0
+# Chris Studio v2.4.0-alpha.2
 
-<p align="center"><strong>A local-first Safe AI Agent workspace for multiple models, lower token usage and reviewed computer actions.</strong></p>
+**A local-first AI Agent workspace for coding, privacy-aware model routing, reviewed macOS actions, and structured multi-model comparison.**
 
-Chris Studio sits between the user and AI providers. Before a request leaves the Mac, it can scan sensitive content, process attachments, compact context, route files, retrieve local knowledge and require approval for native actions. v2.2.0 hardens that desktop Agent foundation: long tasks now have a tested run-state core with checkpoints, loop limits, three-attempt repair boundaries, explicit cancellation and receipts, while the macOS Release path becomes retryable and verifiable.
+Chris Studio is a macOS desktop workspace that sits between the user, local files, computer actions, and AI providers. It keeps risky operations visible: project writes are proposed as diffs, native actions require one-time approval, sensitive content is scanned locally, and Agent claims must be grounded in real tool observations.
 
-[简体中文](README.zh-CN.md) · [Rename guide](RENAME_TO_CHRIS_STUDIO.zh-CN.md) · [Fast-track roadmap](FAST_TRACK_ROADMAP.zh-CN.md) · [Implementation status](docs/architecture/IMPLEMENTATION_STATUS_v2.0.md) · [macOS signing](docs/macos/SIGNING_NOTARIZATION.md) · [Troubleshooting](docs/troubleshooting/TROUBLESHOOTING.md)
+> Alpha software: use test projects and review every write, command, model request, and Computer Use action.
 
+[简体中文](README.zh-CN.md)
 
-Support: `chriswangjob@163.com` · WeChat: `easymoneysniperchris`
+## What is new in v2.4.0-alpha.2
 
-## v2.2 highlights
+### One unified Agent conversation
 
-- Reliability work stays inside the unified workbench instead of adding more disconnected feature pages.
-- A typed Agent run controller records status, checkpoints, loops, repair attempts, patch backups and final receipts.
-- Automatic repair is capped at three attempts by default; patch backups can be converted into a path-safe reverse rollback plan and a portable JSON receipt.
-- Provider usage/error telemetry is normalized across common SDK field names without hard-coded pricing; optional rate cards remain user/configuration supplied.
-- Computer Use gets one-time approval tickets, an emergency stop, a hard deadline and coordinate-overlay data before any future UI wiring.
-- Product identity and displayed desktop version are synchronized before development, type-check and production builds.
-- The macOS release publisher is repository-owned, idempotent and retryable; every local asset is checked again against the remote Release.
-- Version metadata must match across the root workspace, desktop package, desktop UI, Cargo and Tauri configuration before builds begin.
-- Apple Silicon and Intel release bundles are verified independently before publishing.
-- GitHub-maintained checkout, setup-node and artifact actions use their current Node 24 generations.
+The main workspace now combines normal streaming chat and a persistent Agent tool loop. A model can inspect a project, read files, propose a reviewed multi-file patch, run allowlisted checks, inspect macOS Accessibility elements, perform an approved action, observe the result, and continue until it has evidence for the final answer.
 
-## Downloads
+Runs are queued per conversation, duplicate submissions are suppressed, approvals do not block other conversations, and unfinished runs are restored as **interrupted** after an app restart instead of being shown as completed.
 
-### Apple Silicon
+### Content-aware privacy routing
 
-- [DMG](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Chris-Studio-macOS-Apple-Silicon.dmg)
-- [APP ZIP](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Chris-Studio-macOS-Apple-Silicon.app.zip)
-- [Community installer](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Install-Chris-Studio-Apple-Silicon.command)
-- [SHA-256](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/SHA256SUMS-Apple-Silicon.txt)
+Before a request is sent, Chris Studio evaluates the actual text and attachment names locally. The deterministic classifier combines:
 
-### Intel
+- credential, private-key, token, database URL, session, personal-data, medical, financial, customer-data, confidential, and internal-architecture signals;
+- sensitive path and extension signals such as `.env`, credential folders, `.pem`, `.key`, `.p12`, and keystores;
+- existing prompt/file redaction and custom sensitive terms;
+- a conservative route: **remote allowed**, **review before remote**, or **local recommended**.
 
-- [DMG](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Chris-Studio-macOS-Intel.dmg)
-- [APP ZIP](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Chris-Studio-macOS-Intel.app.zip)
-- [Community installer](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Install-Chris-Studio-Intel.command)
-- [SHA-256](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/SHA256SUMS-Intel.txt)
+This is not an embedding or lightweight-model classifier yet, and it cannot prove that content is safe. Uncertain or strongly sensitive content is kept conservative and requires explicit review before a remote provider is used.
 
-Direct links become available after the v2.2.0 Release workflow succeeds. Developer ID signed and notarized packages pass the normal macOS trust flow. Without Apple credentials, the workflow publishes ad-hoc signed community packages and an app-specific installer helper.
+### Real structured multi-model comparison
 
-## Product capabilities carried into v2.2.0
+The Unified Agent can list configured provider profiles and, after approval, send the same reviewed prompt to two or three selected models. Chris Studio then produces a local structured comparison with:
 
-### Multi-provider workspace
+- shared points;
+- potential numeric, polarity, and conclusion disagreements;
+- points unique to each response;
+- response length, sentence, list, heading, and hedging metrics;
+- the original provider responses for inspection.
 
-Profiles are available for DeepSeek, OpenAI, Anthropic, Gemini, Qwen, Kimi, Doubao/Ark, Zhipu GLM, OpenRouter, Ollama, LM Studio, custom OpenAI-compatible endpoints and Local Sandbox.
+This turns the previous placeholder comparison idea into a usable evaluation tool inside the same conversation.
 
-- per-profile operating-system credential storage;
-- no silent fallback after a real provider is selected;
-- OpenAI-compatible and Anthropic request formats;
-- reviewed image attachment delivery to vision-capable providers;
-- visible model and routing decisions before sending.
+### Safer coding transactions
 
-### Safety and token budgets
+- Existing files must be read before the Agent can propose edits.
+- Every write is a unified diff and is preview-only until the user approves selected files.
+- Applied files receive before/after transaction snapshots.
+- Selected files can be accepted or rolled back; later manual edits are protected from destructive rollback.
+- Git diffs and commits can be scoped to files owned by the reviewed Agent transaction.
+- The legacy `git add -A` path is removed, preventing unrelated user changes from being included in an Agent commit.
+- npm and Cargo checks use allowlisted presets, a hard timeout, limited output, and common API-token environment removal.
 
-- unified prompt and attachment scanning;
-- local redaction and critical-risk approval;
-- review invalidation after edits;
-- defensive redaction before history persistence;
-- conservative and balanced local compaction;
-- per-request and daily token limits;
-- local input, output and saved-token accounting.
+### Accessibility-first Computer Use
 
-### File processors and local retrieval
+Chris Studio inspects the frontmost supported macOS application through Accessibility, exposes named elements and actions to the Agent, and requests one-time approval before activation. Coordinate clicks are a fallback only after a current approved screenshot; stale screenshots and stale Accessibility element indexes are invalidated after every action.
 
-- text, code, PDF, DOCX, XLSX and image processing;
-- rendered-page OCR fallback for scanned PDFs;
-- English, Simplified Chinese and mixed OCR;
-- local document chunking and lexical retrieval;
-- file-type-specific provider routing;
-- reviewed original-image transfer for real vision calls.
+Supported Alpha applications:
 
-### Scoped coding-agent workspace
+- TextEdit
+- Notes
+- Safari
+- Finder
+- Terminal
+- System Settings
 
-- explicit project-folder scope;
-- text file reading and editing;
-- confirmed writes with `.tokenfence/backups`;
-- AI Patch Assistant using locally redacted repository tree, Git state, current diff and selected-file context;
-- model-generated plans and unified diffs remain preview-only until reviewed;
-- reviewed unified-diff application with archived patches;
-- allowlisted Git, npm and Cargo checks;
-- branch creation, commit and push;
-- GitHub PAT storage, repository metadata, Issues and Pull Request creation;
-- confirmation before every write, command, push and PR.
-
-Chris Studio does not expose an unrestricted shell to the model.
-
-### macOS Computer Use Beta
-
-- screen capture;
-- approved coordinate clicks;
-- approved text typing;
-- allowlisted keys and shortcuts;
-- permission settings shortcut;
-- local audit records;
-- no unrestricted background control.
-
-### Skills and MCP connectors
-
-- 20 built-in Skills;
-- local custom Skill editor and JSON import/export;
-- declared permissions and Agent composition;
-- reviewed MCP / JSON-RPC HTTP connectors;
-- HTTPS enforcement for remote endpoints;
-- Keychain storage for connector tokens;
-- explicit approval for every `tools/call`.
-
-The current MCP Beta handles JSON responses for `initialize`, `tools/list`, `resources/list`, `prompts/list` and `tools/call`. Servers that require retained SSE sessions may need a later adapter.
-
-### GitHub Release updates
-
-The app shows current and latest versions, release notes, dates and matching macOS assets. Installation remains user initiated.
-
-## macOS signing and the “damaged” warning
-
-The workflow supports these repository Secrets:
+## Unified Agent tools
 
 ```text
-APPLE_CERTIFICATE
-APPLE_CERTIFICATE_PASSWORD
-APPLE_ID
-APPLE_PASSWORD
-APPLE_TEAM_ID
+project.scan
+project.search
+project.read
+project.git_status
+project.git_diff
+project.propose_patch
+project.run_check
+privacy.classify
+models.list
+models.compare
+computer.inspect
+computer.activate
+computer.capture
+computer.open
+computer.type
+computer.key
+computer.click
 ```
 
-When configured, Tauri builds can be signed and notarized. Without them, a community package is produced with an ad-hoc signature and `Install-Chris-Studio-*.command`. The helper clears quarantine only for Chris Studio and does not disable Gatekeeper globally.
+There is no unrestricted model-controlled shell. Project commands are limited to reviewed presets:
 
-See [SIGNING_NOTARIZATION.md](docs/macos/SIGNING_NOTARIZATION.md).
+```text
+npm-typecheck
+npm-test
+npm-build
+cargo-check
+cargo-test
+```
 
-## Development
+## Existing product foundation
+
+Chris Studio also includes:
+
+- DeepSeek, OpenAI, Anthropic, Gemini, Qwen, Kimi, Doubao/Ark, Zhipu GLM, OpenRouter, Ollama, LM Studio, custom OpenAI-compatible endpoints, and a local safety sandbox;
+- operating-system credential storage for provider profiles;
+- text, code, PDF, DOCX, XLSX, image, and OCR processing;
+- local knowledge chunking and lexical retrieval;
+- prompt and attachment redaction;
+- Skills, reviewed MCP connectors, GitHub integration, local history, and release diagnostics;
+- Apple Silicon and Intel macOS release workflows.
+
+## Build verification
+
+The repository workflow verifies the v2.4 source overlay, product metadata, TypeScript dependency graph, privacy and structured-comparison tests, UI production build, locked Rust compilation/tests, and Apple Silicon/Intel packaging.
 
 ```bash
 npm ci --prefix apps/desktop/ui --legacy-peer-deps --no-audit --no-fund
 npm --prefix apps/desktop/ui run typecheck
 npm --prefix apps/desktop/ui run test:core
 npm --prefix apps/desktop/ui run build
-cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
-cd apps/desktop
-tauri dev
+cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 ```
 
-Production build:
-
-```bash
-cd apps/desktop
-tauri build
-```
-
-## Release v2.2.0
-
-Run `Chris Studio macOS Builds and Release` from GitHub Actions with:
+Run **Chris Studio macOS Builds and Release** with:
 
 ```text
-version: v2.2.0
+version: v2.4.0-alpha.2
 create_release: true
-make_latest: true
+make_latest: false
+persist_source: true
 ```
 
-The workflow verifies public package sources, TypeScript, privacy/token/retrieval tests and Rust before building Apple Silicon and Intel packages.
+Alpha tags are published as pre-releases and do not replace the latest stable release. With `persist_source: true`, the workflow checks an exact file allowlist and commits only deterministic finalizer output back to the selected branch, so GitHub Desktop users do not need to run a downloaded `.command` script.
 
-## Security boundary
+## Current boundaries
 
-Chris Studio is not antivirus software and cannot identify every secret. Review all file writes, commands, Computer Use actions, tool calls, Git pushes and Pull Requests. Never trust an unknown model or tool endpoint with real secrets.
+v2.4.0-alpha.2 does **not** yet include an embedded Chromium/Playwright runtime, unrestricted browser DOM control, PTY streaming terminal, OCR-based visual targeting, bundled Node/Python sidecars, local embedding/model packs, or a fully offline runtime installer. These remain later milestones and are not represented as completed features.
+
+## Security
+
+Chris Studio is not antivirus software and cannot identify every secret or unsafe instruction. Treat repository content, command output, webpages, screenshots, MCP tools, and model output as untrusted. Review all remote sends, file changes, commands, Computer Use actions, Git pushes, and pull requests.
 
 ## License
 

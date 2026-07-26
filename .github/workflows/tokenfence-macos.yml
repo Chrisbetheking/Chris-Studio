@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release tag, for example v2.3.0-alpha.4
+        description: Release tag, for example v2.4.0-alpha.2
         required: true
-        default: v2.4.0-alpha.1
+        default: v2.4.0-alpha.2
         type: string
       create_release:
         description: Create or update the GitHub Release
@@ -14,7 +14,12 @@ on:
         default: true
         type: boolean
       make_latest:
-        description: Mark this release as latest
+        description: Mark a stable release as latest
+        required: true
+        default: false
+        type: boolean
+      persist_source:
+        description: Commit deterministic alpha.2 source finalization back to the selected branch
         required: true
         default: true
         type: boolean
@@ -40,6 +45,33 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+
+      - name: Finalize v2.4.0-alpha.2 source overlay
+        run: node scripts/finalize-v2.4.0-alpha.2.cjs
+
+      - name: Persist deterministic source finalization
+        if: ${{ inputs.persist_source }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only)
+          if [[ ${#changed[@]} -eq 0 ]]; then
+            echo 'Source is already finalized.'
+            exit 0
+          fi
+          allowed='^(apps/desktop/src-tauri/src/main\.rs|apps/desktop/ui/src/screens/ProjectsScreen\.tsx|apps/desktop/ui/scripts/run-core-tests\.cjs|package-lock\.json|apps/desktop/package-lock\.json|apps/desktop/ui/package-lock\.json|apps/desktop/src-tauri/Cargo\.lock|apps/desktop/ui/src/App\.tsx|apps/desktop/ui/src/screens/AboutScreen\.tsx|apps/desktop/ui/src/screens/WorkspaceScreen\.tsx|apps/desktop/ui/src/screens/ComputerScreen\.tsx|apps/desktop/ui/src/screens/ChatWorkspace\.tsx)$'
+          for file in "${changed[@]}"; do
+            if [[ ! "$file" =~ $allowed ]]; then
+              echo "Unexpected finalizer output: $file"
+              exit 1
+            fi
+          done
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "${changed[@]}"
+          git commit -m 'chore: finalize v2.4.0-alpha.2 source'
+          git push origin HEAD:"${GITHUB_REF_NAME}"
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -107,6 +139,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+
+      - name: Finalize v2.4.0-alpha.2 source overlay
+        run: node scripts/finalize-v2.4.0-alpha.2.cjs
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -272,7 +307,7 @@ jobs:
           body: |
             ## Chris Studio ${{ inputs.version }}
 
-            Chris Studio v2.4 introduces the first Unified Agent Runtime vertical slice: reliable per-conversation queues, persistent interrupted-run recovery, real model-selected project tools, reviewed multi-file transactions, scoped Git commits, bounded check presets, and approval-gated macOS Accessibility-first Computer Use. Alpha tags remain pre-releases and never replace the latest stable release. The workflow produces architecture-verified Developer ID signed/notarized packages when Apple secrets are configured; otherwise it publishes ad-hoc signed community packages with an APP ZIP fallback.
+            Chris Studio v2.4.0-alpha.2 delivers the Unified Agent Runtime in one conversation, content-aware local privacy classification, reviewed 2–3 provider comparison with structured disagreement analysis, reviewed multi-file transactions, scoped Git commits, bounded check presets, and approval-gated macOS Accessibility-first Computer Use. Alpha tags remain pre-releases and never replace the latest stable release. The workflow produces architecture-verified Developer ID signed/notarized packages when Apple secrets are configured; otherwise it publishes ad-hoc signed community packages with an APP ZIP fallback.
 
             ### Installation
             1. Download the package matching your Mac processor.

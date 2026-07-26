@@ -1,20 +1,21 @@
 {
   "name": "@chris-studio/desktop-ui",
   "private": true,
-  "version": "2.3.0-alpha.4",
+  "version": "2.4.0-alpha.2",
   "type": "module",
   "scripts": {
     "metadata:sync": "node scripts/sync-product-metadata.cjs",
     "metadata:test": "node scripts/v2-2-product-metadata-test.cjs",
-    "predev": "npm run metadata:sync",
+    "predev": "npm run overlay:finalize && npm run metadata:sync",
     "dev": "vite",
-    "pretypecheck": "npm run metadata:sync",
+    "pretypecheck": "npm run overlay:finalize && npm run metadata:sync",
     "typecheck": "tsc --noEmit",
-    "prebuild": "npm run metadata:sync",
+    "prebuild": "npm run overlay:finalize && npm run metadata:sync",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "pretest:core": "npm run metadata:sync",
-    "test:core": "node scripts/run-core-tests.cjs"
+    "pretest:core": "npm run overlay:finalize && npm run metadata:sync",
+    "test:core": "node scripts/run-core-tests.cjs",
+    "overlay:finalize": "node ../../../scripts/finalize-v2.4.0-alpha.2.cjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^1.6.0",

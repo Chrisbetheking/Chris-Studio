@@ -1,6 +1,6 @@
 {
   "name": "chris-studio",
-  "version": "2.3.0-alpha.4",
+  "version": "2.4.0-alpha.2",
   "private": true,
   "description": "Chris Studio local-first AI Agent workspace with prompt safety, document parsing, OCR, model routing, reviewed native actions, and release diagnostics.",
   "scripts": {
@@ -17,7 +17,8 @@
     "desktop:build": "npm --workspace apps/desktop run build",
     "guard:source": "node scripts/source_guard.js",
     "release:sanity": "node scripts/release_sanity.js",
-    "verify:raw": "node scripts/verify_raw_commit.js"
+    "verify:raw": "node scripts/verify_raw_commit.js",
+    "desktop:finalize": "node scripts/finalize-v2.4.0-alpha.2.cjs"
   },
   "workspaces": [
     "apps/*",

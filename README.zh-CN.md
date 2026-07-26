@@ -1,228 +1,168 @@
-# Chris Studio v2.2.0
+# Chris Studio v2.4.0-alpha.2
 
-<p align="center"><strong>安全、多模型、节省 Token 的本地优先 AI Agent 工作台</strong></p>
+**一个面向编程、隐私感知模型路由、受审查 macOS 操作和结构化多模型对比的本地优先 AI Agent 工作台。**
 
-Chris Studio 运行在用户与模型之间，在内容发送前完成敏感信息检查、附件处理、Token 压缩、模型路由和权限确认。v2.2.0 不再继续堆叠分散页面，而是优先补齐统一工作台的可靠性闭环：Agent 长任务状态、检查点、循环上限、最多三轮自动修复、取消与执行收据，以及可重试、可复核的 macOS Release 发布链路。
+Chris Studio 位于用户、本地文件、电脑操作和 AI 模型之间。高风险动作不会在后台静默发生：项目写入先展示 Diff，原生操作需要单次批准，敏感内容先在本地扫描，Agent 的完成结论必须由真实工具结果支撑。
 
-支持：`chriswangjob@163.com` · WeChat：`easymoneysniperchris`
+> 当前仍是 Alpha 测试版。请优先使用测试项目，并逐项检查写入、命令、模型请求和 Computer Use 操作。
 
-[English](README.md) · [改名说明](RENAME_TO_CHRIS_STUDIO.zh-CN.md) · [快节奏路线](FAST_TRACK_ROADMAP.zh-CN.md) · [功能实现状态](docs/architecture/IMPLEMENTATION_STATUS_v2.0.zh-CN.md) · [macOS 签名与公证](docs/macos/SIGNING_NOTARIZATION.zh-CN.md) · [故障排查](docs/troubleshooting/TROUBLESHOOTING.zh-CN.md)
+[English](README.md)
 
-## v2.2.0 核心升级
+## v2.4.0-alpha.2 新增内容
 
-- 不新增孤立的 Agent 控制页，可靠运行能力作为底层内核接回统一工作台；
-- Agent 任务记录状态、检查点、循环次数、修复次数、补丁备份和最终执行收据；
-- 自动修复默认最多三轮，超过上限明确停止，不无限消耗 Token；
-- 补丁备份可以生成路径安全、逆序执行的回滚计划，并导出可保存的 JSON 执行收据；
-- Provider 用量字段和错误码统一归一化，不在代码中硬编码价格，费用估算只接受用户或配置提供的费率；
-- Computer Use 增加一次性审批票据、紧急停止、硬超时和坐标标记数据基础；
-- 开发、类型检查和生产构建前自动同步 Chris Studio 身份与界面版本；
-- Release 发布改为仓库自带 GitHub CLI 脚本，支持已存在 Release 的更新、单资源重试和远端资源核验；
-- 根工作区、桌面包、UI、Cargo、Tauri 五处版本不一致时直接阻止构建；
-- Apple Silicon 与 Intel 的 DMG、APP ZIP、安装助手、SHA-256、签名说明缺一不可；
-- checkout、setup-node、artifact actions 同步到 GitHub 当前 Node 24 代际。
+### 一个对话框里的统一 Agent
 
-## 下载
+主工作区同时支持普通流式对话和持续工具循环。模型可以在同一条对话时间线中：
 
-### Apple Silicon（M1 / M2 / M3 / M4 / 后续 Apple 芯片）
+1. 扫描项目并搜索代码；
+2. 读取真实文件；
+3. 生成多文件统一 Diff；
+4. 等待用户选择并批准文件；
+5. 应用带快照的事务；
+6. 运行白名单 npm/Cargo 检查；
+7. 读取 macOS Accessibility 元素；
+8. 执行一次受批准操作；
+9. 再次观察结果并继续修复；
+10. 只有获得真实证据后才给出完成结论。
 
-- [下载 DMG](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Chris-Studio-macOS-Apple-Silicon.dmg)
-- [下载 APP ZIP](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Chris-Studio-macOS-Apple-Silicon.app.zip)
-- [下载社区安装助手](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Install-Chris-Studio-Apple-Silicon.command)
-- [SHA-256](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/SHA256SUMS-Apple-Silicon.txt)
+任务按照会话分别排队，快速重复发送不会产生重复任务；一个会话等待审批时不会卡死其他会话；应用重启后，未完成任务会明确标记为“已中断”，不会伪装成成功。
 
-### Intel Mac
+### 内容感知隐私路由
 
-- [下载 DMG](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Chris-Studio-macOS-Intel.dmg)
-- [下载 APP ZIP](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Chris-Studio-macOS-Intel.app.zip)
-- [下载社区安装助手](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/Install-Chris-Studio-Intel.command)
-- [SHA-256](https://github.com/Chrisbetheking/chris-studio/releases/latest/download/SHA256SUMS-Intel.txt)
+发送前，Chris Studio 会在本地分析实际文字和附件名称，而不只看文件后缀。当前确定性分类器综合判断：
 
-> 上述链接在 v2.2.0 Release 构建并发布成功后生效。使用 Apple Developer ID 签名和 Apple 公证的包可以正常通过 Gatekeeper；没有配置 Apple 凭证时，工作流会发布 ad-hoc 签名社区包，并附带安装助手。
+- API Key、Token、私钥、带凭据的数据库地址和 Session；
+- 身份信息、医疗、财务、工资、客户数据；
+- 保密、未公开、内部架构和安全事件等语义信号；
+- `.env`、凭据目录、`.pem`、`.key`、`.p12`、keystore 等路径和扩展名；
+- 已有的正文脱敏与自定义敏感词。
 
-## v2.1.0 已有能力（v2.2.0 继续保留）
-
-- “你是谁”由 Chris Studio 本地即时回答，不再显示底层模型品牌；
-- 固定身份：由 Chris 全程设计与构建；
-- 支持联系方式：`chriswangjob@163.com`、WeChat `easymoneysniperchris`；
-- 安全请求无风险时支持一次点击完成审查并发送，`⌘/Ctrl + Enter` 快速发送；
-- 模型等待期间显示实时耗时与状态，不再只显示无反馈转圈；
-- 对话内可直接使用 `/project`、`/git status`、`/git diff`、`/check`、`/skills`、`/permissions`、`/screen`、`/type`、`/click`、`/key`；
-- 新增 macOS 权限请求探针，使 Chris Studio 先触发系统授权，再打开辅助功能设置；
-- 新 Logo 与黑曜石/象牙白/紫罗兰配色，替换原来的青绿色品牌色；
-- CI、旧 Release 与 macOS Release 三套工作流已统一，避免旧工作流重复构建和缺依赖。
-
-## 已实现功能
-
-### 多模型与 Provider
-
-内置 DeepSeek、OpenAI、Anthropic、Gemini、Qwen、Kimi、豆包/Ark、智谱 GLM、OpenRouter、Ollama、LM Studio、自定义 OpenAI 兼容接口和 Local Sandbox。
-
-- 每个 Provider 可创建多个独立 Profile；
-- API Key 按 Profile 存入 macOS Keychain / Windows Credential Manager；
-- 保存并启用真实 Provider 后不会自动回退到本地模式；
-- 支持 OpenAI-compatible 与 Anthropic 请求格式；
-- 视觉模型可以接收用户明确授权的原始图片数据；
-- 最终发送目标、模型与路由原因在发送前可见。
-
-### 安全与 Token 控制
-
-- 提示词和附件统一扫描；
-- 检测 API Key、密码、邮箱、访问令牌等敏感内容；
-- 严重风险只允许发送确认后的脱敏版本；
-- 内容变化后旧审查立即失效；
-- 本地历史保存前再次脱敏；
-- Conservative / Balanced Token 压缩；
-- 单次 Token 上限与每日 Token 预算；
-- 今日输入、输出和节约 Token 用量记录；
-- 对话上下文条数限制。
-
-### 文件处理、OCR、PDF 与本地知识库
-
-- TXT、Markdown、JSON、CSV、日志和常见代码文件；
-- PDF 文本层提取和页码标记；
-- 扫描版 PDF 页面渲染 OCR；
-- DOCX 文本提取；
-- XLSX 工作表转结构化文本；
-- PNG、JPG、WEBP、BMP、TIFF 本地 OCR；
-- 英文、简体中文和中英混合 OCR；
-- 文件分块、本地索引和检索增强上下文；
-- 不同文件类型可路由到不同 Provider / 模型。
-
-### Coding Agent 工作区
-
-项目页面提供受限目录式 Coding Agent 基础链路：
-
-1. 用户选择明确项目目录，应用不能越界读取；
-2. 浏览和编辑文本文件；
-3. 每次写入都需确认，并在 `.tokenfence/backups` 创建备份；
-4. 支持审查后应用统一 Diff，补丁归档到 `.tokenfence/patches`；
-5. 只运行固定白名单检查：Git status / diff、npm typecheck / test / build、cargo check / test；
-6. 创建 Git 分支、提交、推送；
-7. 使用 Keychain 中的 GitHub PAT 读取仓库信息、Issues 并创建 Pull Request；
-8. 所有写入、命令、网络推送和 PR 创建均要求用户确认。
-
-该设计不是“任意 Shell”。模型不能自行执行任意命令，原生后端只暴露固定参数和受限目录能力。
-
-### Computer Use（macOS Beta）
-
-- 屏幕截图；
-- 用户批准坐标后的鼠标点击；
-- 用户批准文本后的键盘输入；
-- Enter、Escape、Tab、Space、Delete、Command+S、Command+L 白名单按键；
-- 跳转 macOS 辅助功能权限设置；
-- 本地 Computer Use 审计日志；
-- 每次动作单独确认，不提供无限制后台操控。
-
-需要在“系统设置 → 隐私与安全性”中为 Chris Studio 开启屏幕录制与辅助功能权限。
-
-### Skills 与工具连接
-
-- 20 个内置 Skills，覆盖安全编程、仓库接手、发布诊断、隐私审查、OCR 清洗、表格分析、GitHub 维护、Computer Use Guard、知识库管理和预算控制；
-- 自定义 Skill 创建、权限声明、JSON 导入/导出；
-- Agent 可组合内置和自定义 Skills；
-- MCP / JSON-RPC 工具连接器 Beta；
-- 远程连接器强制 HTTPS，本机连接器可使用 localhost HTTP；
-- `tools/call` 每次都需要用户明确确认；
-- Connector Bearer Token 存入系统凭证库。
-
-当前 MCP Beta 支持 JSON 响应的 `initialize`、`tools/list`、`resources/list`、`prompts/list` 和 `tools/call`。需要长期 SSE 会话的服务器可能仍需后续适配。
-
-### GitHub 更新
-
-应用可以读取指定公开仓库的 Latest Release，显示：
-
-- 当前版本；
-- 最新版本；
-- 发布时间；
-- Release Notes；
-- Apple Silicon / Intel 安装资源；
-- 是否有新版本。
-
-应用不会静默替换自身，下载和安装始终由用户确认。
-
-## macOS “已损坏”问题
-
-正式解决方式是给 GitHub Actions 配置 Apple Developer ID 签名和公证所需 Secrets。工作流已支持：
+最终给出三种路线：
 
 ```text
-APPLE_CERTIFICATE
-APPLE_CERTIFICATE_PASSWORD
-APPLE_ID
-APPLE_PASSWORD
-APPLE_TEAM_ID
+可远程处理
+远程前需确认
+建议仅本地
 ```
 
-未配置这些凭证时，Release 会包含 ad-hoc 签名社区包与 `Install-Chris-Studio-*.command`。安装助手会复制应用到 `/Applications`，只清除 Chris Studio 自身的 quarantine 属性，不会关闭全局 Gatekeeper。
+当前还没有使用 Embedding 或轻量分类模型，也不能证明某段内容绝对安全。判断不确定或风险较高时会采取保守路线，并在使用远程模型前再次要求明确确认。
 
-详见：[macOS 签名、公证与社区安装包](docs/macos/SIGNING_NOTARIZATION.zh-CN.md)。
+### 真实的结构化多模型对比
 
-## 本地开发
+统一 Agent 可以先读取已启用的模型配置，再经用户批准，把同一段已审查提示词发送给 2—3 个指定模型。返回结果会在本地整理为：
 
-要求：
+- 共同观点；
+- 数字、肯否定和结论上的潜在冲突；
+- 每个模型独有但其他模型没有覆盖的内容；
+- 字数、句子、列表、标题和模糊措辞统计；
+- 各模型原始回答。
 
-- Node.js 20–22；
-- Rust stable；
-- Xcode Command Line Tools；
-- macOS 原生构建需要 Tauri CLI 1.6.x。
+因此它不再只是把回答左右并排，而是可以真正用于模型调试和评估，并且仍然放在同一个对话框内。
 
-安装与前端检查：
+### 更安全的 Coding Agent 事务
+
+- Agent 修改已有文件前必须先真实读取该文件。
+- 搜索只能用于定位文件，不能冒充已经读取全文。
+- 所有写入都以统一 Diff 形式预览。
+- 用户可以逐个取消不想应用的文件。
+- 应用前后保存事务快照。
+- 可接受本次事务，也可回滚所选文件。
+- 文件被用户再次手工修改后，回滚会因冲突而停止，不会强行覆盖。
+- Git Diff 和提交可以只限制在本次 Agent 事务文件内。
+- 删除旧版危险的 `git add -A`，避免把用户原有修改一起提交。
+- npm 和 Cargo 仅运行允许的检查预设，并带超时、输出上限和常见 API Token 环境变量清理。
+
+### Accessibility 优先的 Computer Use
+
+Agent 会先通过 macOS Accessibility 读取受支持应用的窗口、按钮名称、角色、状态和可执行动作，再选择具体元素。只有结构化操作无法完成时，才允许在当前已批准截图上使用坐标点击。
+
+每次操作后都会让旧截图和旧元素索引失效，避免连续盲点或使用已经变化的界面状态。
+
+当前 Alpha 支持：
+
+- 文本编辑
+- 备忘录
+- Safari
+- Finder
+- 终端
+- 系统设置
+
+## 统一 Agent 工具
+
+```text
+project.scan
+project.search
+project.read
+project.git_status
+project.git_diff
+project.propose_patch
+project.run_check
+privacy.classify
+models.list
+models.compare
+computer.inspect
+computer.activate
+computer.capture
+computer.open
+computer.type
+computer.key
+computer.click
+```
+
+模型不能调用任意 Shell。项目命令仅限：
+
+```text
+npm-typecheck
+npm-test
+npm-build
+cargo-check
+cargo-test
+```
+
+## 现有产品底座
+
+Chris Studio 还保留并继续使用：
+
+- DeepSeek、OpenAI、Anthropic、Gemini、Qwen、Kimi、豆包/Ark、智谱 GLM、OpenRouter、Ollama、LM Studio、自定义 OpenAI 兼容接口和本地安全沙箱；
+- 系统凭据存储；
+- 文本、代码、PDF、DOCX、XLSX、图片与 OCR 处理；
+- 本地知识切片和关键词检索；
+- 提示词及附件脱敏；
+- Skills、受审查 MCP、GitHub 集成、本地历史和发布诊断；
+- Apple Silicon 与 Intel 双架构构建流程。
+
+## 构建与验证
+
+工作流会自动完成 v2.4 源码收口，然后检查产品版本、TypeScript 生产依赖图、隐私分类与结构化对比测试、前端构建、锁定版 Rust 编译与测试，以及 Apple Silicon/Intel 打包。
 
 ```bash
 npm ci --prefix apps/desktop/ui --legacy-peer-deps --no-audit --no-fund
 npm --prefix apps/desktop/ui run typecheck
 npm --prefix apps/desktop/ui run test:core
 npm --prefix apps/desktop/ui run build
+cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 ```
 
-原生检查与开发：
-
-```bash
-cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
-cd apps/desktop
-tauri dev
-```
-
-生产构建：
-
-```bash
-cd apps/desktop
-tauri build
-```
-
-## 发布 v2.2.0
-
-上传完整源码后进入：
+运行 GitHub Actions 中的 **Chris Studio macOS Builds and Release**：
 
 ```text
-GitHub → Actions → Chris Studio macOS Builds and Release → Run workflow
+version：v2.4.0-alpha.2
+create_release：true
+make_latest：false
+persist_source：true
 ```
 
-填写：
+Alpha 会自动作为 Pre-release 发布，不会覆盖最新正式版。`persist_source：true` 时，工作流会先核对严格文件白名单，再把确定性的源码收口结果提交回所选分支；GitHub Desktop 用户不需要运行下载来的 `.command` 脚本。
 
-```text
-version: v2.2.0
-create_release: true
-make_latest: true
-```
+## 当前尚未完成
 
-工作流会：
-
-1. 检查锁文件中是否含私有 Registry；
-2. 安装桌面 UI 依赖；
-3. 执行 TypeScript 检查；
-4. 执行隐私、Token 和知识库核心测试；
-5. 构建桌面 UI；
-6. `cargo check` 原生后端；
-7. 分别构建 Apple Silicon 和 Intel；
-8. 有 Apple 凭证时签名并公证；
-9. 无 Apple 凭证时生成 ad-hoc 社区包和安装助手；
-10. 创建或更新 GitHub Release。
+v2.4.0-alpha.2 目前还不包含：内置 Chromium/Playwright、任意网页 DOM 控制、PTY 实时终端、OCR 视觉定位、内置 Node/Python Sidecar、本地 Embedding/模型包和完整离线 Runtime 安装包。这些仍属于后续阶段，本版本不会把它们写成已经完成。
 
 ## 安全边界
 
-Chris Studio 不是防病毒软件，也不能保证识别所有隐私。任何涉及项目写入、命令运行、Computer Use、MCP 工具执行、Git 推送和 Pull Request 的操作都必须由用户审查。不要向未知 Provider 或工具服务发送真实机密。
+Chris Studio 不是杀毒软件，也无法识别所有秘密和恶意指令。仓库正文、命令输出、网页、截图、MCP 工具和模型回答都应视为不可信输入。远程发送、文件写入、命令、Computer Use、Git 推送和 PR 都应人工检查。
 
-## License
+## 开源协议
 
 MIT
