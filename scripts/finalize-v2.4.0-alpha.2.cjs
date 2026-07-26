@@ -335,12 +335,24 @@ function patchLocks() {
 }
 
 function synchronizeMetadataSources() {
-  const sync = require(path.join(ROOT, 'apps/desktop/ui/scripts/sync-product-metadata.cjs'));
+  const syncPath = path.join(ROOT, 'apps/desktop/ui/scripts/sync-product-metadata.cjs');
+  delete require.cache[require.resolve(syncPath)];
+  const sync = require(syncPath);
   const ui = path.join(ROOT, 'apps/desktop/ui');
+  const synchronizeUnifiedWorkspaceAdapters = (source) => {
+    const adapterMarkers = [
+      '../features/providers/providerClient',
+      '../features/providers/providerClientReliable',
+      '../features/computer/computerClient',
+      '../features/computer/computerClientReliable',
+    ];
+    if (!adapterMarkers.some((marker) => source.includes(marker))) return source;
+    return sync.synchronizeWorkspaceRuntimeAdapters(source);
+  };
   const items = [
     ['src/App.tsx', (source) => sync.synchronizeReliabilityAppText(sync.synchronizeAppText(source, VERSION))],
     ['src/screens/AboutScreen.tsx', (source) => sync.synchronizeAboutVersion(source, VERSION)],
-    ['src/screens/WorkspaceScreen.tsx', sync.synchronizeWorkspaceRuntimeAdapters],
+    ['src/screens/WorkspaceScreen.tsx', synchronizeUnifiedWorkspaceAdapters],
     ['src/screens/ComputerScreen.tsx', sync.synchronizeComputerScreenRuntimeAdapter],
     ['src/screens/ChatWorkspace.tsx', sync.synchronizeChatWorkspaceText],
   ];
