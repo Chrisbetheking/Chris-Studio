@@ -29,6 +29,34 @@ function assertRepo() {
   }
 }
 
+
+function replaceSectionByFunctionMarkers(source, startFunction, endFunction, replacement, label, includeCommandAttribute = false) {
+  const startFunctionMarker = `fn ${startFunction}(`;
+  const endFunctionMarker = `fn ${endFunction}(`;
+  const functionStart = source.indexOf(startFunctionMarker);
+  if (functionStart < 0) throw new Error(`Cannot patch ${label}; ${startFunction} was not found.`);
+  const nextFunctionStart = source.indexOf(endFunctionMarker, functionStart + startFunctionMarker.length);
+  if (nextFunctionStart < 0) throw new Error(`Cannot patch ${label}; ${endFunction} was not found after ${startFunction}.`);
+
+  let start = functionStart;
+  let end = nextFunctionStart;
+  if (includeCommandAttribute) {
+    const attributeStart = source.lastIndexOf('#[tauri::command]', functionStart);
+    if (attributeStart >= 0 && source.slice(attributeStart, functionStart).trim() === '#[tauri::command]') start = attributeStart;
+    const nextAttributeStart = source.lastIndexOf('#[tauri::command]', nextFunctionStart);
+    if (nextAttributeStart > start && source.slice(nextAttributeStart, nextFunctionStart).trim() === '#[tauri::command]') end = nextAttributeStart;
+  }
+  return `${source.slice(0, start)}${replacement}${source.slice(end)}`;
+}
+
+function replaceArrowFunctionBefore(source, startMarker, endMarker, replacement, label) {
+  const start = source.indexOf(startMarker);
+  if (start < 0) throw new Error(`Cannot patch ${label}; start marker was not found.`);
+  const end = source.indexOf(endMarker, start + startMarker.length);
+  if (end < 0) throw new Error(`Cannot patch ${label}; end marker was not found.`);
+  return `${source.slice(0, start)}${replacement}${source.slice(end)}`;
+}
+
 const RUN_PROJECT_COMMAND = `fn run_project_command(root: &Path, preset: &str, program: &str, args: &[&str]) -> ProjectCommandResult {
     let started = Instant::now();
     let command_display = std::iter::once(program).chain(args.iter().copied()).collect::<Vec<_>>().join(" ");
@@ -213,16 +241,22 @@ fn project_git_commit(message: String, paths: Vec<String>, confirmed: bool, stat
 function patchMain() {
   patchText('apps/desktop/src-tauri/src/main.rs', (source) => {
     let next = source;
-    next = replaceRequired(next, '#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]\n', '#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]\nmod unified_agent_native;\n', 'native Agent module');
+    if (!next.includes('mod unified_agent_native;')) {
+      const crateAttribute = /#!\[cfg_attr\(not\(debug_assertions\), windows_subsystem = "windows"\)\]\r?\n/;
+      if (!crateAttribute.test(next)) throw new Error('Cannot patch native Agent module; crate attribute was not found.');
+      next = next.replace(crateAttribute, (match) => `${match}mod unified_agent_native;\n`);
+    }
     if (!next.includes('unified_agent_native::computer_inspect_accessibility,')) {
-      next = replaceRequired(next, '            computer_capture_screen,', '            unified_agent_native::computer_inspect_accessibility,\n            unified_agent_native::computer_activate_accessibility,\n            computer_capture_screen,', 'Accessibility command registration');
+      const captureRegistration = /^(\s*)computer_capture_screen,/m;
+      if (!captureRegistration.test(next)) throw new Error('Cannot patch Accessibility command registration; computer_capture_screen was not found.');
+      next = next.replace(captureRegistration, (_, indentation) => `${indentation}unified_agent_native::computer_inspect_accessibility,\n${indentation}unified_agent_native::computer_activate_accessibility,\n${indentation}computer_capture_screen,`);
     }
     if (!next.includes('The approved command exceeded the')) {
-      next = next.replace(/fn run_project_command\(root: &Path, preset: &str, program: &str, args: &\[&str\]\) -> ProjectCommandResult \{[\s\S]*?\n\}\nfn execute_project_preset/, `${RUN_PROJECT_COMMAND}fn execute_project_preset`);
+      next = replaceSectionByFunctionMarkers(next, 'run_project_command', 'execute_project_preset', RUN_PROJECT_COMMAND, 'bounded project command execution');
     }
     if (!next.includes('The approved command exceeded the')) throw new Error('Could not install bounded project command execution.');
     if (!next.includes('fn latest_reviewed_commit_files(root: &Path)')) {
-      next = next.replace(/#\[tauri::command\]\nfn project_git_commit\([\s\S]*?\n\}\n#\[tauri::command\]\nfn project_git_push/, `${SCOPED_COMMIT}#[tauri::command]\nfn project_git_push`);
+      next = replaceSectionByFunctionMarkers(next, 'project_git_commit', 'project_git_push', SCOPED_COMMIT, 'reviewed-path Git commit', true);
     }
     if (next.includes('git", &["add", "-A"]') || next.includes('git add -A && git commit')) throw new Error('Unsafe git add -A remains in project commit code.');
     return next;
@@ -235,12 +269,6 @@ function patchProjectsScreen() {
     if (!next.includes('scopedReadPaths.push(path);')) {
       next = replaceRequired(next, '        contextParts.push(`FILE: ${path}\\n${text}`);', '        contextParts.push(`FILE: ${path}\\n${text}`);\n        scopedReadPaths.push(path);', 'scoped read registration');
     }
-    const old = `  const commitChanges = async () => {
-    if (!window.confirm(copy(language, 'Stage all reviewed project changes and create this commit?', '暂存全部已审查修改并创建该提交？'))) return;
-    const result = await commitProjectChanges(commitMessage, true);
-    setCommand(result);
-    toast.show(result.ok ? copy(language, 'Commit created.', '提交已创建。') : (result.errorMessage ?? result.stderr), result.ok ? 'success' : 'error');
-  };`;
     const replacement = `  const commitChanges = async () => {
     const reviewedPaths = changeSession?.files
       .filter((file) => file.status === 'applied' || file.status === 'accepted')
@@ -250,8 +278,10 @@ function patchProjectsScreen() {
     const result = await commitProjectChanges(commitMessage, reviewedPaths, true);
     setCommand(result);
     toast.show(result.ok ? copy(language, 'Scoped commit created.', '已创建仅包含本次审查文件的提交。') : (result.errorMessage ?? result.stderr), result.ok ? 'success' : 'error');
-  };`;
-    if (!next.includes('commitProjectChanges(commitMessage, reviewedPaths, true)')) next = replaceRequired(next, old, replacement, 'scoped commit UI');
+  };\n`;
+    if (!next.includes('commitProjectChanges(commitMessage, reviewedPaths, true)')) {
+      next = replaceArrowFunctionBefore(next, '  const commitChanges = async () => {', '  const pushBranch = async () => {', replacement, 'scoped commit UI');
+    }
     return next;
   });
 }
@@ -344,11 +374,20 @@ function verify() {
   cp.execFileSync(process.execPath, [path.join(ROOT, 'apps/desktop/ui/scripts/v2-2-product-metadata-test.cjs')], { cwd: path.join(ROOT, 'apps/desktop/ui'), stdio: 'inherit' });
 }
 
-assertRepo();
-patchMain();
-patchProjectsScreen();
-patchCoreTests();
-patchLocks();
-synchronizeMetadataSources();
-verify();
-console.log('CHRIS_STUDIO_V2_4_ALPHA2_OVERLAY_READY');
+function main() {
+  assertRepo();
+  patchMain();
+  patchProjectsScreen();
+  patchCoreTests();
+  patchLocks();
+  synchronizeMetadataSources();
+  verify();
+  console.log('CHRIS_STUDIO_V2_4_ALPHA2_OVERLAY_READY');
+}
+
+if (require.main === module) main();
+
+module.exports = {
+  replaceSectionByFunctionMarkers,
+  replaceArrowFunctionBefore,
+};
