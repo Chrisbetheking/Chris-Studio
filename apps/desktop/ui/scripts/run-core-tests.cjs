@@ -70,6 +70,7 @@ const remainingTests = [
   // temporary CommonJS build and can run in any order.
   "scripts/v2-4-storage-path-safety-test.cjs",
   "scripts/v2-4-file-type-detection-test.cjs",
+  "scripts/v2-4-archive-sanitization-test.cjs",
   "scripts/v2-4-unified-agent-test.cjs",
 ];
 
