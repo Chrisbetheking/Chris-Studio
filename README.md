@@ -111,13 +111,44 @@ Chris Studio also includes:
 The repository workflow verifies the v2.4 source overlay, product metadata, TypeScript dependency graph, privacy and structured-comparison tests, UI production build, locked Rust compilation/tests, and Apple Silicon/Intel packaging.
 
 ```bash
+# dependencies
+npm ci --legacy-peer-deps --no-audit --no-fund
 npm ci --prefix apps/desktop/ui --legacy-peer-deps --no-audit --no-fund
-npm --prefix apps/desktop/ui run typecheck
-npm --prefix apps/desktop/ui run test:core
+
+# types and tests
+npm run typecheck                                   # web + shared + android
+npm --prefix apps/desktop/ui run typecheck          # desktop UI (finalizes the overlay first)
+npm --prefix apps/desktop/ui run test:core          # core suite, including the context-window and privacy tests
+
+# build
 npm --prefix apps/desktop/ui run build
+
+# native
 cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 ```
+
+### Source completeness guard
+
+The desktop UI, native backend, and release workflow all read from the same overlay tree
+(`apps/desktop/ui`, `apps/desktop/src-tauri`, `scripts/`, `.github/workflows`). A partial
+checkout that drops those paths makes every job fail at its first step, so verify the tree
+before blaming a job:
+
+```bash
+node scripts/finalize-v2.4.0-alpha.2.cjs        # must print CHRIS_STUDIO_V2_4_ALPHA2_OVERLAY_READY
+test -f apps/desktop/src-tauri/src/main.rs      # native backend present
+test -f apps/desktop/ui/scripts/run-core-tests.cjs
+node scripts/verify-public-npm-locks.cjs        # no private registries in the npm lockfiles
+```
+
+### Bounded provider context
+
+`settings.conversationContextLimit` (2–100) is enforced by
+`apps/desktop/ui/src/features/unified-agent/contextWindow.ts`, which normalizes stored
+values, drops system/blank messages before windowing, and strips message identity from the
+history that reaches a provider. Corrupted settings can neither collapse the window to zero
+nor grow it past 100 messages. Covered by `scripts/v2-4-context-window-test.cjs`.
 
 Run **Chris Studio macOS Builds and Release** with:
 

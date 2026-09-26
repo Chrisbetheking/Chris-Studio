@@ -1,0 +1,163 @@
+﻿/* ============================================================
+   TokenFence Studio — Design Tokens & Theme System
+   ============================================================ */
+
+/* ---- Light Theme (default) ---- */
+:root,
+[data-theme="light"] {
+  /* Core */
+  --tf-bg: #f8fafc;
+  --tf-surface: #ffffff;
+  --tf-surface-alt: #f1f5f9;
+  --tf-surface-hover: #e9eef3;
+  --tf-border: #e2e8f0;
+  --tf-border-light: #eef2f6;
+
+  /* Text */
+  --tf-text: #0f172a;
+  --tf-text-secondary: #475569;
+  --tf-text-muted: #94a3b8;
+  --tf-text-inverse: #ffffff;
+
+  /* Brand */
+  --tf-primary: #3b82f6;
+  --tf-primary-hover: #2563eb;
+  --tf-primary-soft: #dbeafe;
+  --tf-primary-text: #1e40af;
+
+  /* Semantic */
+  --tf-success: #22c55e;
+  --tf-success-soft: #dcfce7;
+  --tf-success-text: #166534;
+  --tf-warning: #eab308;
+  --tf-warning-soft: #fef3c7;
+  --tf-warning-text: #92400e;
+  --tf-danger: #ef4444;
+  --tf-danger-soft: #fee2e2;
+  --tf-danger-text: #991b1b;
+  --tf-info: #6366f1;
+  --tf-info-soft: #e0e7ff;
+  --tf-info-text: #3730a3;
+
+  /* Surfaces */
+  --tf-sidebar-bg: #ffffff;
+  --tf-sidebar-hover: #f1f5f9;
+  --tf-sidebar-active: #0f172a;
+  --tf-sidebar-active-text: #ffffff;
+  --tf-toolbar-bg: #ffffff;
+  --tf-input-bg: #ffffff;
+  --tf-input-border: #cbd5e1;
+  --tf-input-focus-ring: #3b82f6;
+
+  /* Scrollbar */
+  --tf-scrollbar-thumb: #cbd5e1;
+  --tf-scrollbar-track: transparent;
+
+  /* Shadows */
+  --tf-shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --tf-shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --tf-shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+
+  /* Radii */
+  --tf-radius-sm: 6px;
+  --tf-radius: 10px;
+  --tf-radius-lg: 14px;
+  --tf-radius-xl: 20px;
+
+  /* Spacing */
+  --tf-space-xs: 4px;
+  --tf-space-sm: 8px;
+  --tf-space-md: 16px;
+  --tf-space-lg: 24px;
+  --tf-space-xl: 32px;
+
+  /* Typography */
+  --tf-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --tf-font-mono: "Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace;
+  --tf-font-size-xs: 0.7rem;
+  --tf-font-size-sm: 0.8rem;
+  --tf-font-size-body: 0.875rem;
+  --tf-font-size-lg: 1rem;
+  --tf-font-size-xl: 1.25rem;
+  --tf-font-size-2xl: 1.5rem;
+
+  /* Transitions */
+  --tf-transition: 150ms ease;
+  --tf-transition-slow: 250ms ease;
+}
+
+/* ---- Dark Theme ---- */
+[data-theme="dark"] {
+  --tf-bg: #0f172a;
+  --tf-surface: #1e293b;
+  --tf-surface-alt: #273548;
+  --tf-surface-hover: #334155;
+  --tf-border: #334155;
+  --tf-border-light: #2d3a4e;
+
+  --tf-text: #f1f5f9;
+  --tf-text-secondary: #94a3b8;
+  --tf-text-muted: #64748b;
+  --tf-text-inverse: #0f172a;
+
+  --tf-primary: #60a5fa;
+  --tf-primary-hover: #3b82f6;
+  --tf-primary-soft: #1e3a5f;
+  --tf-primary-text: #93c5fd;
+
+  --tf-success: #4ade80;
+  --tf-success-soft: #14532d;
+  --tf-success-text: #86efac;
+  --tf-warning: #facc15;
+  --tf-warning-soft: #422006;
+  --tf-warning-text: #fde68a;
+  --tf-danger: #f87171;
+  --tf-danger-soft: #450a0a;
+  --tf-danger-text: #fca5a5;
+  --tf-info: #818cf8;
+  --tf-info-soft: #1e1b4b;
+  --tf-info-text: #a5b4fc;
+
+  --tf-sidebar-bg: #1e293b;
+  --tf-sidebar-hover: #334155;
+  --tf-sidebar-active: #3b82f6;
+  --tf-sidebar-active-text: #ffffff;
+  --tf-toolbar-bg: #1e293b;
+  --tf-input-bg: #273548;
+  --tf-input-border: #475569;
+  --tf-input-focus-ring: #60a5fa;
+
+  --tf-scrollbar-thumb: #475569;
+  --tf-scrollbar-track: transparent;
+
+  --tf-shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --tf-shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --tf-shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+/* ---- Legacy variable aliases (backward compat) ---- */
+:root {
+  --bg: var(--tf-bg);
+  --surface: var(--tf-surface);
+  --surface-alt: var(--tf-surface-alt);
+  --border: var(--tf-border);
+  --text: var(--tf-text);
+  --text-secondary: var(--tf-text-secondary);
+  --text-muted: var(--tf-text-muted);
+  --primary: var(--tf-primary);
+  --primary-hover: var(--tf-primary-hover);
+  --green: var(--tf-success);
+  --amber: var(--tf-warning);
+  --red: var(--tf-danger);
+  --sidebar-bg: var(--tf-sidebar-bg);
+  --sidebar-active: var(--tf-sidebar-active);
+  --radius: var(--tf-radius);
+  --radius-lg: var(--tf-radius-lg);
+}
+
+/* ---- Theme transition ---- */
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease, box-shadow 250ms ease !important;
+}

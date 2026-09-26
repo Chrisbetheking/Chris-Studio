@@ -28,3 +28,8 @@ ios/
 *.zip
 *.exe
 *.msi
+
+# Goal-loop scratch artifacts
+out/
+.v2c/
+.tokenfence-test-build/

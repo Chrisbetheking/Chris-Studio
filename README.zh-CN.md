@@ -136,13 +136,37 @@ Chris Studio 还保留并继续使用：
 工作流会自动完成 v2.4 源码收口，然后检查产品版本、TypeScript 生产依赖图、隐私分类与结构化对比测试、前端构建、锁定版 Rust 编译与测试，以及 Apple Silicon/Intel 打包。
 
 ```bash
+# 依赖
+npm ci --legacy-peer-deps --no-audit --no-fund
 npm ci --prefix apps/desktop/ui --legacy-peer-deps --no-audit --no-fund
-npm --prefix apps/desktop/ui run typecheck
-npm --prefix apps/desktop/ui run test:core
+
+# 类型与测试
+npm run typecheck                                   # web + shared + android
+npm --prefix apps/desktop/ui run typecheck          # 桌面 UI（会先执行源码收口）
+npm --prefix apps/desktop/ui run test:core          # 核心测试套件
+
+# 构建
 npm --prefix apps/desktop/ui run build
+
+# 原生
 cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
 ```
+
+### 源码完整性自检
+
+桌面 UI、原生后端和发布工作流读取的是同一棵 overlay 目录树（`apps/desktop/ui`、`apps/desktop/src-tauri`、`scripts/`、`.github/workflows`）。如果检出内容缺少这些路径，所有 job 都会在第一步失败，所以先确认目录树，再判断是哪个 job 的问题：
+
+```bash
+node scripts/finalize-v2.4.0-alpha.2.cjs        # 必须输出 CHRIS_STUDIO_V2_4_ALPHA2_OVERLAY_READY
+test -f apps/desktop/src-tauri/src/main.rs      # 原生后端存在
+test -f apps/desktop/ui/scripts/run-core-tests.cjs
+node scripts/verify-public-npm-locks.cjs        # npm lockfile 未引用私有源
+```
+
+### 有界上下文窗口
+
+`settings.conversationContextLimit`（2–100）由 `apps/desktop/ui/src/features/unified-agent/contextWindow.ts` 强制执行：它会归一化存储值、在截断前先剔除 system 与空内容消息，并从送往模型的历史中剥离消息身份字段。即使设置值损坏，窗口既不会塌缩为 0，也不会超过 100 条。测试见 `scripts/v2-4-context-window-test.cjs`。
 
 运行 GitHub Actions 中的 **Chris Studio macOS Builds and Release**：
 

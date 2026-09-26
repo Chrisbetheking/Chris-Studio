@@ -1,0 +1,49 @@
+﻿=== TokenFence Studio v1.5.5 Scanner Self-Test ===
+Test path: E:\Dev\tokenfence-studio-clean
+
+Test-Path: True
+Is-Directory: True
+PowerShell top-level entries count: 57
+README.md exists: True
+package.json exists: True
+apps exists: True
+scripts exists: True
+.git exists: True
+node_modules exists: True
+
+Top-level entries:
+  [DIR]  .git
+  [DIR]  .github
+  [DIR]  apps
+  [DIR]  cli
+  [DIR]  docs
+  [DIR]  examples
+  [DIR]  mcp
+  [DIR]  node_modules
+  [DIR]  packages
+  [DIR]  scripts
+  [DIR]  _backup_webview_cache_v154_rc4
+  [FILE] .gitattributes
+  [FILE] .gitignore
+  [FILE] .nvmrc
+  [FILE] CHANGELOG.md
+  [FILE] fix_readmes.py
+  [FILE] fix_v103_readme.py
+  [FILE] fix_v21.py
+  [FILE] LICENSE
+  [FILE] package-lock.json
+  [FILE] package.json
+  [FILE] README.md
+  [FILE] README.zh-CN.md
+  [FILE] TokenFence-Studio-Windows-v1.2.4-portable.zip
+  [FILE] TokenFence-Studio-Windows-v1.2.5-portable.zip
+  [FILE] TokenFence-Studio-Windows-v1.2.8-portable.zip
+  [FILE] TokenFence-Studio-Windows-v1.2.9-portable.zip
+  [FILE] TokenFence-Studio-Windows-v1.3.0-portable.zip
+  [FILE] TokenFence-Studio-Windows-v1.3.1-portable.zip
+  [FILE] TokenFence-Studio-Windows-v1.3.2-portable.zip
+
+Directories: 11
+Files: 46
+
+=== Self-test complete ===
