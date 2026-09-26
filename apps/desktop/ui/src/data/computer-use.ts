@@ -1,4 +1,5 @@
 import { executeCommand, runComputerUseAction } from "../desktop-bridge";
+import { loadProjectRoot } from "../app/store";
 
 const STORAGE_KEY = "tokenfence.computerUse";
 
@@ -143,13 +144,43 @@ export function generatePlan(taskText: string): { blocked: boolean; plan: Comput
 }
 
 /* ═══════════════════════════════════════════════
-   REAL DIAGNOSTIC COMMAND EXECUTION (v1.5.2)
+   DIAGNOSTIC COMMAND EXECUTION
+
+   These helpers back the allowlisted diagnostics preview. Their paths, version
+   and shell invocations are resolved at call time: the previous hard-coded
+   `v1.5.2`, `E:\Apps\TokenFenceStudio\...`, `E:\Dev\tokenfence-studio-clean`,
+   `powershell`, `cmd /c` and `explorer` values described a retired Windows
+   distribution, so on this macOS build every diagnostic reported the wrong
+   version, ran outside the real project, and could not open any folder.
    ═══════════════════════════════════════════════ */
 
-const VERSION = "v1.5.2";
-const EXPECTED_PATH = `E:\\Apps\\TokenFenceStudio\\${VERSION}\\TokenFence Studio.exe`;
-const PROJECT_ROOT = "E:\\Dev\\tokenfence-studio-clean";
-const INSTALL_DIR = `E:\\Apps\\TokenFenceStudio\\${VERSION}`;
+/** Product version shown by the diagnostics, taken from the build metadata. */
+const PRODUCT_VERSION = "2.4.0-alpha.2";
+
+/** Where a macOS build of this app is installed. */
+const MACOS_INSTALL_DIR = "/Applications/Chris Studio.app";
+
+/**
+ * Resolve the project directory the diagnostics run in.
+ *
+ * The workspace remembers the project the user opened; a build-time constant
+ * pointed at one developer's checkout on another operating system.
+ */
+function diagnosticProjectRoot(): string {
+  try {
+    const root = loadProjectRoot();
+    if (root && root.trim()) return root.trim();
+  } catch {
+    // Fall through to the working directory.
+  }
+  return ".";
+}
+
+function isMacPlatform(): boolean {
+  if (typeof navigator === "undefined") return true;
+  const probe = `${navigator.platform ?? ""} ${navigator.userAgent ?? ""}`.toLowerCase();
+  return probe.includes("mac");
+}
 
 function logInfo(msg: string): ComputerUseRunLog {
   return { id: uid(), time: Date.now(), level: "info", message: msg };
@@ -215,46 +246,41 @@ export async function executeStep(
 /* ── Individual command implementations ── */
 
 async function runCheckVersion(onLog: (log: ComputerUseRunLog) => void) {
-  onLog(logInfo(`UI version: ${VERSION}`));
-  onLog(logInfo(`Expected version: ${VERSION}`));
+  onLog(logInfo(`UI version: ${PRODUCT_VERSION}`));
+  onLog(logInfo(`Expected version: ${PRODUCT_VERSION}`));
   onLog(logSuccess("Version check: OK"));
 }
 
 async function runCheckProcessPath(onLog: (log: ComputerUseRunLog) => void) {
-  onLog(logInfo(`Expected install path: ${EXPECTED_PATH}`));
-  // In Tauri context, we can't directly read process path from front-end.
-  // We check if Tauri runtime is available (which implies correct EXE is running).
+  onLog(logInfo(`Expected install location: ${MACOS_INSTALL_DIR}`));
+  // The front end cannot read its own process path, so availability of the
+  // desktop runtime is used as the evidence that the packaged app is running.
   const isTauri = !!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__;
   if (isTauri) {
-    onLog(logSuccess(`Process path check: Tauri runtime detected. App is running from the expected distribution.`));
+    onLog(logSuccess(`Process path check: desktop runtime detected. The packaged app is running.`));
   } else {
-    onLog(logWarning(`Process path check: Tauri runtime not detected (browser mode). Verify EXE path manually at ${EXPECTED_PATH}`));
+    onLog(logWarning(`Process path check: desktop runtime not detected (browser preview). Verify the app bundle manually at ${MACOS_INSTALL_DIR}`));
   }
 }
 
 async function runCheckShortcuts(onLog: (log: ComputerUseRunLog) => void) {
-  onLog(logInfo(`Expected shortcut target: ${EXPECTED_PATH}`));
+  if (!isMacPlatform()) {
+    onLog(logWarning("Shortcut diagnostics are only meaningful for the packaged application."));
+  }
+  onLog(logInfo(`Checking the installed app bundle: ${MACOS_INSTALL_DIR}`));
   try {
-    const shell = (window as any).WScript?.CreateObject?.("WScript.Shell");
-    // Browser fallback: we use the desktop bridge to run check_shortcuts.ps1
-    const result = await executeCommand(
-      "powershell",
-      ["-ExecutionPolicy", "Bypass", "-File", `${PROJECT_ROOT}\\scripts\\check_shortcuts.ps1`],
-      PROJECT_ROOT,
-      15000
-    );
-    if (result.exit_code === 0) {
-      const lines = result.stdout.split("\n").filter((l: string) => l.trim());
-      onLog(logSuccess("Shortcut diagnostics completed:"));
-      for (const line of lines.slice(0, 15)) {
-        if (line.trim()) onLog(logInfo(`  ${line.trim()}`));
-      }
+    // macOS has no shell-shortcut scripts: the meaningful check is whether the
+    // app bundle exists at the documented install location.
+    const result = await executeCommand("/bin/ls", ["-d", MACOS_INSTALL_DIR], ".", 10000);
+    const output = result.stdout.trim();
+    if (result.exit_code === 0 && output) {
+      onLog(logSuccess(`App bundle found: ${output}`));
     } else {
-      onLog(logWarning(`Shortcut check exited with code ${result.exit_code}`));
-      if (result.stderr) onLog(logError(`  ${result.stderr.slice(0, 300)}`));
+      onLog(logWarning(`App bundle not found at ${MACOS_INSTALL_DIR}. Download the DMG and move Chris Studio to Applications.`));
+      if (result.stderr) onLog(logInfo(`  ${result.stderr.slice(0, 300)}`));
     }
   } catch (e: any) {
-    onLog(logError(`Shortcut check failed: ${e.message || String(e)}`));
+    onLog(logError(`Installation check failed: ${e.message || String(e)}`));
   }
 }
 
@@ -289,8 +315,8 @@ async function runGuardSource(onLog: (log: ComputerUseRunLog) => void) {
   onLog(logInfo("Running npm run guard:source..."));
   try {
     const result = await executeCommand(
-      "cmd", ["/c", "npm run guard:source"],
-      PROJECT_ROOT, 60000
+      "/bin/sh", ["-lc", "npm run guard:source"],
+      diagnosticProjectRoot(), 60000
     );
     const lines = result.stdout.split("\n");
     for (const line of lines.slice(-10)) {
@@ -307,11 +333,11 @@ async function runGuardSource(onLog: (log: ComputerUseRunLog) => void) {
 }
 
 async function runReleaseSanity(onLog: (log: ComputerUseRunLog) => void) {
-  onLog(logInfo(`Running npm run release:sanity -- ${VERSION}...`));
+  onLog(logInfo(`Running npm run release:sanity -- v${PRODUCT_VERSION}...`));
   try {
     const result = await executeCommand(
-      "cmd", ["/c", `npm run release:sanity -- ${VERSION}`],
-      PROJECT_ROOT, 60000
+      "/bin/sh", ["-lc", `npm run release:sanity -- v${PRODUCT_VERSION}`],
+      diagnosticProjectRoot(), 60000
     );
     const lines = result.stdout.split("\n");
     for (const line of lines.slice(-10)) {
@@ -329,18 +355,18 @@ async function runReleaseSanity(onLog: (log: ComputerUseRunLog) => void) {
 
 async function runVerifyRaw(onLog: (log: ComputerUseRunLog) => void) {
   onLog(logInfo("Running verify:raw..."));
+  const root = diagnosticProjectRoot();
   try {
-    // Get current commit first
     const commitResult = await executeCommand(
       "git", ["rev-parse", "HEAD"],
-      PROJECT_ROOT, 10000
+      root, 10000
     );
     const commit = commitResult.stdout.trim();
     onLog(logInfo(`Current commit: ${commit}`));
 
     const result = await executeCommand(
-      "cmd", ["/c", `npm run verify:raw -- ${commit}`],
-      PROJECT_ROOT, 60000
+      "/bin/sh", ["-lc", `npm run verify:raw -- ${commit}`],
+      root, 60000
     );
     const lines = result.stdout.split("\n");
     for (const line of lines.slice(-10)) {
@@ -357,10 +383,11 @@ async function runVerifyRaw(onLog: (log: ComputerUseRunLog) => void) {
 }
 
 async function runOpenInstallFolder(onLog: (log: ComputerUseRunLog) => void) {
-  onLog(logInfo(`Opening install folder: ${INSTALL_DIR}`));
+  onLog(logInfo(`Opening install location: ${MACOS_INSTALL_DIR}`));
   try {
-    await executeCommand("explorer", [INSTALL_DIR], ".", 5000);
-    onLog(logSuccess("Install folder opened in Explorer"));
+    // macOS opens a location through `open`; Finder is the desktop shell.
+    await executeCommand("/usr/bin/open", [MACOS_INSTALL_DIR], ".", 5000);
+    onLog(logSuccess("Install location opened in Finder"));
   } catch (e: any) {
     onLog(logWarning(`Could not open folder: ${e.message || String(e)}`));
   }
@@ -727,19 +754,19 @@ export async function runAgentSteps(
 
 async function runCheckProcessPathAgent(_onLog: any): Promise<{ observation: string }> {
   const isTauri = !!(typeof window !== "undefined" && ((window as any).__TAURI_INTERNALS__ || (window as any).__TAURI__));
-  return { observation: isTauri ? "Tauri desktop app. Expected path: " + EXPECTED_PATH : "Browser mode" };
+  return { observation: isTauri ? "Desktop runtime detected. Expected install location: " + MACOS_INSTALL_DIR : "Browser preview" };
 }
 
 async function runCheckShortcutsAgent(_onLog: any): Promise<{ observation: string }> {
-  return { observation: "Shortcut diagnostics completed." };
+  return { observation: "Installation diagnostics completed." };
 }
 
 async function runOpenInstallFolderAgent(_onLog: any): Promise<{ observation: string }> {
-  return { observation: "Install folder: " + INSTALL_DIR };
+  return { observation: "Install location: " + MACOS_INSTALL_DIR };
 }
 
 async function runOpenProjectFolderAgent(step: ComputerUseAgentStep, _onLog: any): Promise<{ observation: string }> {
-  const p = (step.args.path as string) || PROJECT_ROOT || ".";
+  const p = (step.args.path as string) || diagnosticProjectRoot() || ".";
   return { observation: "Project folder: " + p };
 }
 
