@@ -44,50 +44,91 @@ export const MAX_SCAN_DEPTH = 6;
 export const MAX_CONTEXT_FILES = 50;
 
 /**
+ * Pick the separator the project path itself uses.
+ *
+ * Chris Studio is a macOS app that can also open a project path handed in from
+ * elsewhere, and the mock tree previously hard-coded a backslash. On macOS every
+ * synthetic path then contained `\`, which is an ordinary filename character
+ * there rather than a separator, so none of the paths resolved. The separator is
+ * now derived from the input instead of assumed.
+ */
+function separatorFor(projectPath: string): string {
+  return projectPath.includes("\\") && !projectPath.includes("/") ? "\\" : "/";
+}
+
+/**
  * Build a mock file tree (fallback when Tauri is not available).
- * This provides a meaningful example tree for the UI preview.
+ *
+ * This provides a meaningful example tree for the UI preview. Every node keeps
+ * its full path and relative path: nested entries used to be created with only
+ * their own name, so `src/index.ts` was reported as `index.ts` and a caller
+ * could not tell it apart from a root-level file.
  */
 export function buildMockFileTree(projectPath: string): ProjectFileNode[] {
-  const rootName = projectPath.split("\\").pop() || projectPath.split("/").pop() || "project";
+  const separator = separatorFor(projectPath);
+  const normalizedRoot = projectPath.replace(/[\\/]+$/, "");
+  const rootName = normalizedRoot.split(/[\\/]/).filter(Boolean).pop() || "project";
 
-  const createNode = (name: string, type: "file" | "directory", children?: ProjectFileNode[], size?: number): ProjectFileNode => ({
-    id: uid(),
-    name,
-    path: projectPath + "\\" + name,
-    relativePath: name,
-    type,
-    sizeBytes: size,
-    fileType: type === "file" ? getFileType(name) : undefined,
-    children,
-  });
+  const createNode = (
+    name: string,
+    type: "file" | "directory",
+    parentPath: string,
+    parentRelative: string,
+    children?: ProjectFileNode[],
+    size?: number,
+  ): ProjectFileNode => {
+    const relativePath = parentRelative ? `${parentRelative}/${name}` : name;
+    return {
+      id: uid(),
+      name,
+      path: `${parentPath}${separator}${name}`,
+      relativePath,
+      type,
+      sizeBytes: size,
+      fileType: type === "file" ? getFileType(name) : undefined,
+      children,
+    };
+  };
+
+  const rootRelative = "";
+  const srcDir = createNode("src", "directory", normalizedRoot, rootRelative);
+  srcDir.children = [
+    createNode("index.ts", "file", srcDir.path, srcDir.relativePath, undefined, 1234),
+    createNode("App.tsx", "file", srcDir.path, srcDir.relativePath, undefined, 3456),
+    createNode("utils.ts", "file", srcDir.path, srcDir.relativePath, undefined, 890),
+  ];
+  const componentsDir = createNode("components", "directory", srcDir.path, srcDir.relativePath);
+  componentsDir.children = [
+    createNode("Header.tsx", "file", componentsDir.path, componentsDir.relativePath, undefined, 2100),
+    createNode("Sidebar.tsx", "file", componentsDir.path, componentsDir.relativePath, undefined, 3200),
+    createNode("Footer.tsx", "file", componentsDir.path, componentsDir.relativePath, undefined, 1500),
+  ];
+  srcDir.children.push(componentsDir);
+
+  const docsDir = createNode("docs", "directory", normalizedRoot, rootRelative);
+  docsDir.children = [
+    createNode("README.md", "file", docsDir.path, docsDir.relativePath, undefined, 5000),
+    createNode("CHANGELOG.md", "file", docsDir.path, docsDir.relativePath, undefined, 2400),
+  ];
+
+  const configDir = createNode("config", "directory", normalizedRoot, rootRelative);
+  configDir.children = [
+    createNode("settings.json", "file", configDir.path, configDir.relativePath, undefined, 800),
+    createNode("env.yaml", "file", configDir.path, configDir.relativePath, undefined, 600),
+  ];
 
   return [{
     id: uid(),
     name: rootName,
-    path: projectPath,
-    relativePath: "",
+    path: normalizedRoot,
+    relativePath: rootRelative,
     type: "directory",
     children: [
-      createNode("src", "directory", [
-        createNode("index.ts", "file", undefined, 1234),
-        createNode("App.tsx", "file", undefined, 3456),
-        createNode("utils.ts", "file", undefined, 890),
-        createNode("components", "directory", [
-          createNode("Header.tsx", "file", undefined, 2100),
-          createNode("Sidebar.tsx", "file", undefined, 3200),
-          createNode("Footer.tsx", "file", undefined, 1500),
-        ]),
-      ]),
-      createNode("docs", "directory", [
-        createNode("README.md", "file", undefined, 5000),
-        createNode("CHANGELOG.md", "file", undefined, 2400),
-      ]),
-      createNode("config", "directory", [
-        createNode("settings.json", "file", undefined, 800),
-        createNode("env.yaml", "file", undefined, 600),
-      ]),
-      createNode("package.json", "file", undefined, 1200),
-      createNode("tsconfig.json", "file", undefined, 900),
+      srcDir,
+      docsDir,
+      configDir,
+      createNode("package.json", "file", normalizedRoot, rootRelative, undefined, 1200),
+      createNode("tsconfig.json", "file", normalizedRoot, rootRelative, undefined, 900),
     ],
   }];
 }
