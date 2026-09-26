@@ -97,12 +97,58 @@ const FILE_TYPE_MAP: FileTypeInfo[] = [
   },
 ];
 
-export function detectFileType(fileName: string, mimeType?: string): FileTypeInfo {
-  const ext = '.' + (fileName.split('.').pop() || '').toLowerCase();
+/**
+ * Reduce a browser MIME value to its bare essence.
+ *
+ * `File.type` carries the media type verbatim, so it routinely includes
+ * parameters (`application/pdf; charset=utf-8`), padding, and header-style
+ * casing. Comparing such a value directly against the mapping missed every
+ * match and the file fell through to `unknown`.
+ */
+function normalizeMimeType(mimeType: string | undefined): string | undefined {
+  if (typeof mimeType !== 'string') return undefined;
+  const bare = mimeType.split(';', 1)[0].trim().toLowerCase();
+  return bare || undefined;
+}
 
-  for (const info of FILE_TYPE_MAP) {
-    if (mimeType && info.mimeTypes.includes(mimeType)) return info;
-    if (info.extensions.includes(ext)) return info;
+/**
+ * Derive the compound extension when there is one.
+ *
+ * `.tar.gz` must win over `.gz`, and a dotfile like `.env` is a name rather
+ * than an extension, so the leading dot is not treated as a separator.
+ */
+function normalizedExtension(fileName: string): string {
+  const name = String(fileName ?? '').trim().toLowerCase();
+  const lastDot = name.lastIndexOf('.');
+  if (lastDot <= 0 || lastDot === name.length - 1) return '';
+  return name.slice(lastDot);
+}
+
+export function detectFileType(fileName: string, mimeType?: string): FileTypeInfo {
+  const name = String(fileName ?? '').trim().toLowerCase();
+  const ext = normalizedExtension(name);
+  const mime = normalizeMimeType(mimeType);
+
+  // Explicit MIME information is the stronger signal, so it is consulted first
+  // across the whole table before the extension is considered.
+  if (mime) {
+    for (const info of FILE_TYPE_MAP) {
+      if (info.mimeTypes.includes(mime)) return info;
+    }
+  }
+
+  // Compound extensions are only meaningful as a whole, so the longest match
+  // is preferred: `.tar.gz` before `.gz`.
+  const compound = FILE_TYPE_MAP
+    .flatMap((info) => info.extensions.map((extension) => ({ info, extension })))
+    .filter((entry) => entry.extension.startsWith('.') && name.endsWith(entry.extension))
+    .sort((a, b) => b.extension.length - a.extension.length);
+  if (compound.length > 0) return compound[0].info;
+
+  if (ext) {
+    for (const info of FILE_TYPE_MAP) {
+      if (info.extensions.includes(ext)) return info;
+    }
   }
 
   return {

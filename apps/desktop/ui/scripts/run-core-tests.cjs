@@ -66,9 +66,10 @@ const remainingTests = [
   "scripts/v2-4-alpha2-privacy-comparison-test.cjs",
   "scripts/v2-4-guard-contract-test.cjs",
   "scripts/v2-4-guard-redaction-test.cjs",
-  // Compiles the shared package on its own, so it does not depend on the
+  // Compile the shared package on their own, so they do not depend on the
   // temporary CommonJS build and can run in any order.
   "scripts/v2-4-storage-path-safety-test.cjs",
+  "scripts/v2-4-file-type-detection-test.cjs",
   "scripts/v2-4-unified-agent-test.cjs",
 ];
 
