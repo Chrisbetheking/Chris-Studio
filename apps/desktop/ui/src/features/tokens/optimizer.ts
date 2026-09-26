@@ -22,6 +22,33 @@ function dedupeConsecutiveLines(lines: string[]): { lines: string[]; removed: nu
   return { lines: output, removed };
 }
 
+/**
+ * Split text into prose and fenced code segments.
+ *
+ * Whitespace carries meaning inside a fence: collapsing it rewrites Python,
+ * YAML or Makefile indentation, so only the prose segments may be compacted.
+ */
+function splitFencedSegments(text: string): { text: string; fenced: boolean }[] {
+  const segments: { text: string; fenced: boolean }[] = [];
+  const pattern = /(^|\n)([ \t]*)```[^\n]*\n[\s\S]*?\n[ \t]*```/g;
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > cursor) segments.push({ text: text.slice(cursor, match.index), fenced: false });
+    segments.push({ text: match[0], fenced: true });
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < text.length) segments.push({ text: text.slice(cursor), fenced: false });
+  return segments;
+}
+
+/** Apply a transform to the prose around fenced code blocks only. */
+function mapProse(text: string, transform: (prose: string) => string): string {
+  return splitFencedSegments(text)
+    .map((segment) => (segment.fenced ? segment.text : transform(segment.text)))
+    .join('');
+}
+
 export function optimizeText(text: string, mode: 'off' | 'conservative' | 'balanced'): TokenOptimizationResult {
   const originalTokens = estimateTokens(text);
   if (mode === 'off' || !text.trim()) {
@@ -29,9 +56,12 @@ export function optimizeText(text: string, mode: 'off' | 'conservative' | 'balan
   }
 
   const changes: string[] = [];
+  // Line-ending and trailing-space normalization is layout only and safe to
+  // apply everywhere, including inside a fence.
   let optimized = text.replace(/\r\n/g, '\n').replace(/[ \t]+$/gm, '');
   if (optimized !== text) changes.push('Normalized line endings and trailing spaces');
 
+  // Blank-line collapsing is also layout only.
   optimized = optimized.replace(/\n{4,}/g, '\n\n\n');
   if (mode === 'balanced') optimized = optimized.replace(/\n{3,}/g, '\n\n');
 
@@ -40,11 +70,16 @@ export function optimizeText(text: string, mode: 'off' | 'conservative' | 'balan
   if (deduped.removed) changes.push(`Removed ${deduped.removed} repeated line${deduped.removed === 1 ? '' : 's'}`);
 
   if (mode === 'balanced') {
-    optimized = optimized
+    // Prose-only compaction: request filler and redundant spacing never appear
+    // in a fenced block, and collapsing indentation there would corrupt it.
+    optimized = mapProse(optimized, (prose) => prose
       .replace(/(?:^|\n)(?:Please|请)(?:\s+)?(?:please|请)?\s*/gi, (match) => match.includes('\n') ? '\n' : '')
-      .replace(/[ \t]{2,}/g, ' ')
-      .trim();
-    changes.push('Compacted redundant spacing and request filler');
+      .replace(/[ \t]{2,}/g, ' '));
+    const trimmed = mapProse(optimized, (prose) => prose.trim());
+    if (trimmed !== optimized || /[ \t]{2,}/.test(text)) {
+      changes.push('Compacted redundant spacing and request filler');
+    }
+    optimized = trimmed;
   }
 
   const optimizedTokens = estimateTokens(optimized);

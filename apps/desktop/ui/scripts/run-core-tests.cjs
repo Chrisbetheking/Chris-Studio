@@ -52,6 +52,7 @@ const compiledModuleTests = [
   "scripts/v2-4-attachment-bounds-test.cjs",
   "scripts/v2-4-storage-quota-test.cjs",
   "scripts/v2-4-provider-usage-shapes-test.cjs",
+  "scripts/v2-4-token-compaction-safety-test.cjs",
 ];
 
 // core-privacy-test.cjs is intentionally last among tests that consume the
