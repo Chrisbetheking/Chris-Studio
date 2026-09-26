@@ -57,6 +57,7 @@ const remainingTests = [
   "scripts/v2-2-final-closeout-test.cjs",
   "scripts/v2-4-alpha2-privacy-comparison-test.cjs",
   "scripts/v2-4-guard-contract-test.cjs",
+  "scripts/v2-4-guard-redaction-test.cjs",
   "scripts/v2-4-unified-agent-test.cjs",
 ];
 

@@ -6,15 +6,27 @@ interface Pattern {
   regex: RegExp;
 }
 
+// Every pattern must consume the credential BODY, never just its prefix.
+// Matching only "ghp_" or "Bearer " previously left the secret itself in the
+// "redacted" output, so the guard reported high risk while shipping the token.
 const PATTERNS: Pattern[] = [
-  { type: 'api_key', label: 'API Key', regex: /(?:sk(-proj)?|api[_-]?key|apikey)[=:]\s*['"]?\s*[\w-]{20,}['"]?/gi },
-  { type: 'token', label: 'Token', regex: /(?:bearer\s+|ghp_|gho_|ghu_|ghs_|github_pat_|xox[bpras]-\S+)/gi },
-  { type: 'database_url', label: 'Database URL', regex: /(?:postgres|mysql|mongodb|redis):\/\/[^\s]+/gi },
+  // Provider keys with an explicit assignment prefix keep their label context.
+  { type: 'api_key', label: 'API Key', regex: /(?:api[_-]?key|apikey)\s*[=:]\s*['"]?\s*[\w-]{16,}['"]?/gi },
+  // Bare provider keys (sk-, sk-proj-, ds-, ak-) must also be caught.
+  { type: 'api_key', label: 'API Key', regex: /\b(?:sk(?:-proj)?|ds|ak)-[A-Za-z0-9_-]{16,}\b/g },
+  // Bearer tokens: consume the whole credential that follows the scheme.
+  { type: 'token', label: 'Token', regex: /\bbearer\s+[A-Za-z0-9._~+/=-]{12,}/gi },
+  // GitHub token families, including the underscore inside github_pat_ bodies.
+  { type: 'token', label: 'Token', regex: /\b(?:ghp_|gho_|ghu_|ghs_|github_pat_)[A-Za-z0-9_]{16,}\b/g },
+  // Slack token families.
+  { type: 'token', label: 'Token', regex: /\bxox[bpras]-[A-Za-z0-9-]{10,}\b/g },
+  { type: 'database_url', label: 'Database URL', regex: /(?:postgres|postgresql|mysql|mongodb(?:\+srv)?|redis):\/\/[^\s"']+/gi },
   { type: 'email', label: 'Email', regex: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g },
   { type: 'phone', label: 'Phone', regex: /(?:\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g },
-  { type: 'secret_assignment', label: 'Secret Assignment', regex: /(?:secret|password|passwd|pwd)\s*[=:]\s*['"][^'"]{2,}['"]/gi },
+  // Both quoted and bare `.env` style assignments must be redacted.
+  { type: 'secret_assignment', label: 'Secret Assignment', regex: /(?:secret|password|passwd|pwd)\s*[=:]\s*(?:['"][^'"\s]{2,}['"]|[^\s'"]{4,})/gi },
   { type: 'chinese_id', label: 'Chinese ID', regex: /[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]/g },
-  { type: 'credential_like', label: 'Credential-like Text', regex: /(?:access[_-]?key|secret[_-]?key|private[_-]?key)[=:]\s*\S+/gi },
+  { type: 'credential_like', label: 'Credential-like Text', regex: /(?:access[_-]?key|secret[_-]?key|private[_-]?key)\s*[=:]\s*(?:['"][^'"\s]{2,}['"]|[^\s'"]{4,})/gi },
 ];
 
 function redactMatch(match: string, type: SensitiveType): string {
