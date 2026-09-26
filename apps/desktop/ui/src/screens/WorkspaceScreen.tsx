@@ -277,7 +277,15 @@ export function WorkspaceScreen({
         riskSummary: maxRisk(current.riskSummary, requestScan.riskLevel),
         messages: [...current.messages, userMessage],
       };
-      saveConversation(pending);
+      // The reviewed request may only be queued once its redacted history is
+      // durably stored: otherwise a full localStorage quota would silently drop
+      // the conversation the user just approved, and the draft would be lost too.
+      if (!saveConversation(pending)) {
+        setError(copy(language,
+          'Local history is full, so this request was not sent. Free space in Settings and try again.',
+          '本地历史已写满，本次请求未发送。请在设置中清理空间后重试。'));
+        return;
+      }
       setConversation(pending);
       const result = unifiedAgentManager.enqueue({
         conversationId: pending.id,

@@ -17,12 +17,15 @@ expect(workspace, /if \(!openConversationId \|\| conversation\?\.id === openConv
   'Workspace must not reload and erase the current in-memory streaming conversation.');
 // v2.4 persists the reviewed pending conversation before the unified agent queue
 // takes ownership, so the shell can never select a conversation whose user
-// message was not written yet.
-const pendingPersistIndex = workspace.indexOf('saveConversation(pending);');
+// message was not written yet. A failed write must refuse the request instead of
+// queueing a task whose history was never stored.
+const pendingPersistIndex = workspace.indexOf('saveConversation(pending)');
 const queueHandoffIndex = workspace.indexOf('unifiedAgentManager.enqueue({');
 if (pendingPersistIndex < 0 || queueHandoffIndex < 0 || pendingPersistIndex > queueHandoffIndex) {
   throw new Error('Pending user messages must be persisted before the request is queued and the shell selects the new conversation.');
 }
+expect(workspace, /if \(!saveConversation\(pending\)\) \{[\s\S]*?return;[\s\S]*?\}/,
+  'A failed conversation write must refuse the request instead of queueing it.');
 // The empty state is gated on the timeline, and the timeline folds in the live
 // runtime runs, so a running request can never be covered by the home screen.
 expect(workspace, /const currentRuns = useMemo\(\(\) => conversation[\s\S]*runtime\.runs\.filter\(\(run\) => run\.conversationId === conversation\.id\)/,

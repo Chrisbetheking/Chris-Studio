@@ -96,9 +96,25 @@ function safeRead<T>(key: string, fallback: T, backupCorrupt = true): T {
   }
 }
 
-function safeWrite<T>(key: string, value: T): void {
-  if (!canUseStorage()) return;
-  window.localStorage.setItem(key, JSON.stringify(value));
+/**
+ * Persist one local-storage entry.
+ *
+ * Returns whether the value was actually stored. localStorage throws when the
+ * origin quota is exhausted (or when the browser blocks storage), and a bare
+ * `setItem` therefore surfaced as an unhandled exception in the middle of the
+ * send flow — the composer looked frozen and nothing was reported. Callers that
+ * depend on a durable receipt can now branch on the result instead.
+ */
+function safeWrite<T>(key: string, value: T): boolean {
+  if (!canUseStorage()) return false;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    // Storage failures must never crash Chris Studio. The caller decides how to
+    // react so a full quota cannot silently discard a reviewed request.
+    return false;
+  }
 }
 
 export function makeId(prefix: string): string {
@@ -311,7 +327,14 @@ export function loadConversations(): Conversation[] {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-export function saveConversation(conversation: Conversation): void {
+/**
+ * Persist a conversation (locally redacted) and report whether it landed.
+ *
+ * The redaction pass always runs, but the write can fail when the origin quota
+ * is exhausted. Returning the result lets a caller refuse to continue with a
+ * reviewed request whose history was never durably recorded.
+ */
+export function saveConversation(conversation: Conversation): boolean {
   const terms = loadSettings().customSensitiveTerms;
   const sanitized: Conversation = {
     ...conversation,
@@ -325,8 +348,18 @@ export function saveConversation(conversation: Conversation): void {
   const next = [sanitized, ...all.filter((item) => item.id !== sanitized.id)]
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, 300);
-  safeWrite(KEYS.conversations, next);
+  // Keep only as much history as the origin can actually hold: a quota failure
+  // would otherwise drop the newest message, which is the one the user just sent.
+  let written = safeWrite(KEYS.conversations, next);
+  if (!written) {
+    const trimmed = next.slice(0, Math.max(1, Math.floor(next.length / 2)));
+    written = safeWrite(KEYS.conversations, trimmed);
+  }
+  if (!written) {
+    written = safeWrite(KEYS.conversations, next.slice(0, 1));
+  }
   window.dispatchEvent(new CustomEvent('tokenfence:history-updated'));
+  return written;
 }
 
 export function renameConversation(id: string, nextTitle: string): Conversation | undefined {

@@ -110,7 +110,7 @@ assert.match(
   'The send action must stay disabled while the provider is not ready, so the draft is never consumed.',
 );
 const scanMarker = workspace.indexOf('scanPayload(prompt, attachments');
-const persistMarker = workspace.indexOf('saveConversation(pending);');
+const persistMarker = workspace.indexOf('saveConversation(pending)');
 const enqueueMarker = workspace.indexOf('const result = unifiedAgentManager.enqueue({');
 const acceptedMarker = workspace.indexOf('if (!result.accepted)');
 const clearMarker = workspace.indexOf("setPrompt('');", acceptedMarker);
