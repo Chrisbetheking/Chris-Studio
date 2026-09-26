@@ -5,6 +5,14 @@ const CODE_EXTENSIONS = new Set(['js', 'jsx', 'ts', 'tsx', 'py', 'rs', 'go', 'ja
 const TEXT_EXTENSIONS = new Set(['txt', 'md', 'markdown', 'json', 'jsonl', 'csv', 'log', 'xml', 'yaml', 'yml', 'rtf']);
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tif', 'tiff']);
 
+/**
+ * Maximum characters of extracted text kept on one attachment.
+ *
+ * Keeping the cap here (rather than inline at the return site) lets the
+ * truncation warning below report the same number the content is cut at.
+ */
+export const MAX_CONTENT_CHARS = 1_500_000;
+
 export interface FileProcessingOptions {
   ocrLanguage?: 'eng' | 'chi_sim' | 'eng+chi_sim';
   ocrScannedPdf?: boolean;
@@ -165,11 +173,19 @@ export async function processFile(
     throw new Error('This file type is not supported by the local processor yet.');
   }
 
+  // Truncation must be reported: a silently shortened attachment makes the model
+  // reason over an incomplete document while the UI shows the file as fully read.
+  if (content.length > MAX_CONTENT_CHARS) {
+    warnings.push(
+      `Only the first ${Math.round(MAX_CONTENT_CHARS / 1000).toLocaleString()}k characters of ${file.name} were extracted (${content.length.toLocaleString()} available). Split the file to process the remainder.`,
+    );
+  }
+
   return {
     id: makeId('attachment'),
     name: file.name,
     size: file.size,
-    content: content.slice(0, 1_500_000),
+    content: content.slice(0, MAX_CONTENT_CHARS),
     kind,
     processor: processorFor(kind, usedPdfOcr),
     mimeType: file.type,

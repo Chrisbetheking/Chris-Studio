@@ -7,6 +7,9 @@ const repoRoot = path.resolve(uiRoot, "../../..");
 const buildRoot = path.join(repoRoot, ".tokenfence-test-build");
 
 const sourceFiles = [
+  // Ambient declarations first: the Vite `*?url` module (used by the PDF worker
+  // import) must resolve before any module that imports it is type-checked.
+  "src/vite-env.d.ts",
   "src/app/types.ts",
   "src/app/identity.ts",
   "src/app/store.ts",
@@ -29,6 +32,7 @@ const sourceFiles = [
   "src/features/unified-agent/runtimeStore.ts",
   "src/features/privacy/contentClassifier.ts",
   "src/features/comparison/structuredDiff.ts",
+  "src/features/files/fileProcessor.ts",
 ];
 
 const compiledModuleTests = [
@@ -44,6 +48,7 @@ const compiledModuleTests = [
   "scripts/v2-4-context-window-test.cjs",
   "scripts/v2-4-unified-runtime-store-test.cjs",
   "scripts/v2-4-locale-independence-test.cjs",
+  "scripts/v2-4-attachment-bounds-test.cjs",
 ];
 
 // core-privacy-test.cjs is intentionally last among tests that consume the
