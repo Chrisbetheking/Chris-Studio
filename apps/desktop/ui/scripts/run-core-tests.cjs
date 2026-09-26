@@ -84,6 +84,7 @@ const remainingTests = [
   "scripts/v2-4-provider-state-validation-test.cjs",
   "scripts/v2-4-computer-use-persistence-test.cjs",
   "scripts/v2-4-execution-log-test.cjs",
+  "scripts/v2-4-runtime-record-validation-test.cjs",
   "scripts/v2-4-unified-agent-test.cjs",
 ];
 

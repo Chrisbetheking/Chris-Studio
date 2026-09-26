@@ -75,6 +75,78 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+const RUN_KINDS: ReadonlySet<string> = new Set(["provider", "computer", "project", "agent"]);
+const RUN_STATUSES: ReadonlySet<string> = new Set<RuntimeRunStatus>([
+  "idle", "planning", "running", "checking", "repairing", "waiting-approval",
+  "stopping", "completed", "failed", "cancelled", "timed-out",
+]);
+
+function runText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function optionalRunText(value: unknown): string | undefined {
+  return typeof value === "string" && value ? value : undefined;
+}
+
+function runTimestamp(value: unknown): number | undefined {
+  const numeric = typeof value === "number" ? value : Number.NaN;
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : undefined;
+}
+
+/**
+ * Validate one persisted runtime record.
+ *
+ * The records are read back from storage, so they must be treated as untrusted.
+ * Entries used to be accepted as soon as they had a string id, so a record with
+ * a missing or wrong-typed `updatedAt`/`createdAt` reached the reliability dock:
+ * `relativeTime` rendered `NaN`, the dock's own sort produced `NaN` comparisons,
+ * and a non-string `status` built a broken CSS class. A record that cannot
+ * describe a real run is dropped here instead.
+ */
+function normalizeRunRecord(entry: unknown, hydratedAt: number): RuntimeRunRecord | undefined {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return undefined;
+  const row = entry as Record<string, unknown>;
+  const id = runText(row.id);
+  if (!id) return undefined;
+  const kind = runText(row.kind);
+  const status = runText(row.status);
+  if (!RUN_KINDS.has(kind) || !RUN_STATUSES.has(status)) return undefined;
+  const createdAt = runTimestamp(row.createdAt);
+  const updatedAt = runTimestamp(row.updatedAt);
+  if (createdAt === undefined || updatedAt === undefined) return undefined;
+  const attempt = row.attempt;
+  const maxAttempts = row.maxAttempts;
+  // v2.2.0 previously counted every historical failure forever. Preserve those
+  // receipts, but acknowledge pre-closeout failures during migration. The stored
+  // version decides which path applies before the record is stamped as current.
+  const isCurrentSchema = Number(row.schemaVersion) === 2;
+  const acknowledgedAt = isCurrentSchema
+    ? runTimestamp(row.acknowledgedAt)
+    : (status === "failed" || status === "timed-out" ? hydratedAt : undefined);
+  return {
+    ...(row as unknown as RuntimeRunRecord),
+    schemaVersion: 2,
+    id,
+    parentId: optionalRunText(row.parentId),
+    kind: kind as RuntimeRunKind,
+    task: runText(row.task),
+    status: status as RuntimeRunStatus,
+    createdAt,
+    updatedAt,
+    finishedAt: runTimestamp(row.finishedAt),
+    provider: optionalRunText(row.provider),
+    model: optionalRunText(row.model),
+    action: optionalRunText(row.action),
+    attempt: typeof attempt === "number" && Number.isFinite(attempt) ? attempt : undefined,
+    maxAttempts: typeof maxAttempts === "number" && Number.isFinite(maxAttempts) ? maxAttempts : undefined,
+    message: optionalRunText(row.message),
+    error: optionalRunText(row.error),
+    acknowledgedAt,
+    archivedAt: runTimestamp(row.archivedAt),
+  };
+}
+
 function hydrate(): void {
   if (hydrated) return;
   hydrated = true;
@@ -85,26 +157,18 @@ function hydrate(): void {
     if (Array.isArray(parsed)) {
       const hydratedAt = now();
       memoryRuns = parsed
-        .filter((entry): entry is RuntimeRunRecord => Boolean(entry && typeof entry.id === "string"))
+        .map((entry) => normalizeRunRecord(entry, hydratedAt))
+        .filter((entry): entry is RuntimeRunRecord => Boolean(entry))
         .map((entry) => {
-          const migrated = {
-            ...entry,
-            schemaVersion: 2 as const,
-            // v2.2.0 previously counted every historical failure forever. Preserve
-            // those receipts, but acknowledge pre-closeout failures during migration.
-            acknowledgedAt: entry.schemaVersion === 2
-              ? entry.acknowledgedAt
-              : (entry.status === "failed" || entry.status === "timed-out" ? hydratedAt : undefined),
-          };
-          return ACTIVE_STATUSES.has(migrated.status)
+          return ACTIVE_STATUSES.has(entry.status)
             ? {
-                ...migrated,
+                ...entry,
                 status: "cancelled" as const,
                 updatedAt: hydratedAt,
                 finishedAt: hydratedAt,
                 message: "Interrupted by app restart; the last checkpoint receipt was preserved.",
               }
-            : migrated;
+            : entry;
         })
         .slice(0, MAX_PERSISTED_RUNS);
       persist();
