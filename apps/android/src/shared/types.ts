@@ -57,6 +57,7 @@ export interface FileTypeInfo {
 }
 
 export interface ProviderModel {
+  contextWindow?: number;
   provider: string;
   model: string;
   deployment: 'local' | 'cloud';
