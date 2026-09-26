@@ -27,6 +27,7 @@ import {
   typeText,
   withComputerRuntimeParent,
 } from '../computer/computerClientReliable';
+import { pngPixelSize, resolveScreenshotScale, toLogicalPoint, type PixelSize } from '../computer-use/screenScale';
 import type {
   ApprovalResolution,
   UnifiedApprovalRequest,
@@ -531,7 +532,24 @@ export async function executeUnifiedTool(
       const y = valueNumber(call.args.y);
       if (!context.latestScreenshotDataUrl) throw new Error('A current approved screenshot is required before coordinate clicking.');
       if (x === undefined || y === undefined || x < 0 || y < 0 || x > 16_384 || y > 16_384) throw new Error('Invalid click coordinates.');
-      const result = await approvedSimpleAction(call, context, `Click (${x}, ${y})`, call.reason, async () => withComputerRuntimeParent(context.runId, () => clickPointer(x, y, true)));
+      // The model reads its coordinate off the screenshot, which on a Retina
+      // display is captured at physical resolution while macOS clicks address
+      // logical points. Without this conversion an approved click lands at twice
+      // the intended position.
+      const screenshotPixels = pngPixelSize(context.latestScreenshotDataUrl);
+      const logicalSize = typeof window === 'undefined'
+        ? undefined
+        : {
+            width: window.screen?.width || window.innerWidth || screenshotPixels?.width || 0,
+            height: window.screen?.height || window.innerHeight || screenshotPixels?.height || 0,
+          } as PixelSize;
+      const scale = resolveScreenshotScale(screenshotPixels, logicalSize);
+      const pointX = toLogicalPoint(x, scale, logicalSize?.width ?? x);
+      const pointY = toLogicalPoint(y, scale, logicalSize?.height ?? y);
+      const coordinateNote = scale === 1
+        ? `Click (${pointX}, ${pointY})`
+        : `Click (${pointX}, ${pointY}) from screenshot pixel (${x}, ${y}) at ${scale}×`;
+      const result = await approvedSimpleAction(call, context, coordinateNote, call.reason, async () => withComputerRuntimeParent(context.runId, () => clickPointer(pointX, pointY, true)));
       context.latestScreenshotDataUrl = undefined;
       context.latestAccessibility = undefined;
       return result;
