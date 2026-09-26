@@ -43,6 +43,7 @@ const compiledModuleTests = [
   "scripts/v2-2-provider-stream-session-test.cjs",
   "scripts/v2-3-collaboration-test.cjs",
   "scripts/v2-3-project-change-session-test.cjs",
+  "scripts/v2-4-diff-path-decoding-test.cjs",
   // Consume the temporary CommonJS build, so they must run before
   // core-privacy-test.cjs removes that directory.
   "scripts/v2-4-context-window-test.cjs",

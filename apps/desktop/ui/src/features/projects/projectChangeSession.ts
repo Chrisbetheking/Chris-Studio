@@ -85,10 +85,116 @@ export function extractUnifiedDiff(value: string): string {
   return patch ? `${patch}\n` : '';
 }
 
+/**
+ * Decode one path token exactly as git writes it in a patch.
+ *
+ * Git quotes a path with C-style escapes when it contains a quote, a backslash,
+ * a control character or a non-ASCII byte. Non-ASCII characters are emitted as
+ * octal escapes of their UTF-8 bytes (`"\344\270\255"`), so decoding must
+ * reassemble bytes and then interpret them as UTF-8; decoding escape by escape
+ * would produce mojibake like "ä¸­" instead of "中".
+ */
+function unquoteGitPath(raw: string): string {
+  const value = raw.trim();
+  if (value.length < 2 || !value.startsWith('"') || !value.endsWith('"')) return value;
+  const body = value.slice(1, -1);
+  const bytes: number[] = [];
+  for (let index = 0; index < body.length; index += 1) {
+    const character = body[index];
+    if (character !== '\\') {
+      bytes.push(character.charCodeAt(0));
+      continue;
+    }
+    const next = body[index + 1];
+    if (next === undefined) break;
+    const octal = body.slice(index + 1).match(/^[0-7]{1,3}/);
+    if (octal) {
+      bytes.push(parseInt(octal[0], 8));
+      index += octal[0].length;
+      continue;
+    }
+    index += 1;
+    switch (next) {
+      case 't': bytes.push(9); break;
+      case 'n': bytes.push(10); break;
+      case 'v': bytes.push(11); break;
+      case 'f': bytes.push(12); break;
+      case 'r': bytes.push(13); break;
+      default: bytes.push(next.charCodeAt(0)); break;
+    }
+  }
+  try {
+    return new TextDecoder('utf-8', { fatal: false }).decode(Uint8Array.from(bytes));
+  } catch {
+    return String.fromCharCode(...bytes);
+  }
+}
+
 function normalizeDiffPath(raw: string): string {
-  const value = raw.trim().replace(/^"|"$/g, '');
+  // A path that contains a space is terminated by a tab in `---`/`+++` lines,
+  // so everything after the first tab is patch metadata rather than a path.
+  const trimmed = raw.split('\t', 1)[0].trim();
+  const value = unquoteGitPath(trimmed);
   if (value === '/dev/null') return '';
   return value.replace(/^[ab]\//, '');
+}
+
+/**
+ * Read the `---` / `+++` header path.
+ *
+ * These lines carry the real path even when it contains spaces, and a tab
+ * terminates it. Returns `undefined` when the line is absent, and an empty
+ * string when the patch explicitly targets `/dev/null`.
+ */
+function headerPath(section: string, prefix: '--- ' | '+++ '): string | undefined {
+  for (const line of section.split(/\r?\n/)) {
+    if (line.startsWith('@@')) break;
+    if (line.startsWith(prefix)) return normalizeDiffPath(line.slice(prefix.length));
+  }
+  return undefined;
+}
+
+/**
+ * Fall back to the `diff --git` header.
+ *
+ * Needed for content-free renames where git emits no `---`/`+++` lines. An
+ * unquoted path may itself contain spaces, so the old/new boundary is located
+ * at the last ` b/` occurrence rather than by splitting on whitespace.
+ */
+function pathsFromHeader(header: string): { oldPath: string; newPath: string } {
+  const rest = header.slice('diff --git '.length);
+  const quoted = rest.match(/^("(?:[^"\\]|\\.)*")\s+("(?:[^"\\]|\\.)*")$/);
+  if (quoted) return { oldPath: normalizeDiffPath(quoted[1]), newPath: normalizeDiffPath(quoted[2]) };
+  const separator = rest.lastIndexOf(' b/');
+  if (separator > 0) {
+    return { oldPath: normalizeDiffPath(rest.slice(0, separator)), newPath: normalizeDiffPath(rest.slice(separator + 1)) };
+  }
+  const parts = rest.split(/\s+/);
+  return { oldPath: normalizeDiffPath(parts[0] ?? ''), newPath: normalizeDiffPath(parts[1] ?? '') };
+}
+
+/**
+ * Count changed lines inside hunks only.
+ *
+ * A content line can itself begin with `++` or `--` (for example `++i;` becomes
+ * `+++i;` and a SQL comment becomes `--- sql comment`). Skipping every line that
+ * looks like a file header therefore undercounted the reviewed diff, so the
+ * header check stops at the first `@@` instead.
+ */
+function countHunkChanges(section: string): { additions: number; deletions: number } {
+  let additions = 0;
+  let deletions = 0;
+  let inHunk = false;
+  for (const line of section.split(/\r?\n/)) {
+    if (line.startsWith('@@')) {
+      inHunk = true;
+      continue;
+    }
+    if (!inHunk) continue;
+    if (line.startsWith('+')) additions += 1;
+    else if (line.startsWith('-')) deletions += 1;
+  }
+  return { additions, deletions };
 }
 
 function actionForSection(section: string): ProjectPatchFileSummary['action'] {
@@ -109,18 +215,13 @@ export function parseUnifiedDiff(value: string): ProjectPatchFileSummary[] {
     const end = starts[index + 1] ?? patch.length;
     const section = patch.slice(start, end).trimEnd();
     const header = section.split(/\r?\n/, 1)[0];
-    const parts = header.slice('diff --git '.length).split(/\s+/);
-    const oldPath = normalizeDiffPath(parts[0] ?? '');
-    const newPath = normalizeDiffPath(parts[1] ?? '');
+    const fromHeader = pathsFromHeader(header);
+    // `---`/`+++` win because they stay unambiguous when the path has spaces.
+    const oldPath = headerPath(section, '--- ') ?? fromHeader.oldPath;
+    const newPath = headerPath(section, '+++ ') ?? fromHeader.newPath;
     const action = actionForSection(section);
     const path = action === 'delete' ? oldPath : (newPath || oldPath);
-    let additions = 0;
-    let deletions = 0;
-    for (const line of section.split(/\r?\n/)) {
-      if (line.startsWith('+++') || line.startsWith('---')) continue;
-      if (line.startsWith('+')) additions += 1;
-      if (line.startsWith('-')) deletions += 1;
-    }
+    const { additions, deletions } = countHunkChanges(section);
     return {
       path,
       oldPath: oldPath || undefined,
