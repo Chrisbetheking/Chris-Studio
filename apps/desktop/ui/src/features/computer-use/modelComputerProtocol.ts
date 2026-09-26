@@ -20,8 +20,20 @@ export interface ModelComputerObservation {
 
 const ALLOWED_APPS = new Set(['TextEdit', 'Notes', 'Safari', 'Finder', 'Terminal', 'System Settings']);
 const ALLOWED_KEYS = new Set(['enter', 'escape', 'tab', 'space', 'delete', 'cmd+n', 'cmd+s', 'cmd+l', 'cmd+w']);
+const ACTION_IDS: ReadonlySet<string> = new Set(['capture', 'open', 'click', 'type', 'key', 'done', 'ask']);
+const MAX_COORDINATE = 16_384;
 
-function extractJsonObject(value: string): unknown {
+/**
+ * Parse the JSON object out of one model reply.
+ *
+ * The reply is untrusted text, so a non-string payload must fail with the same
+ * actionable message as a malformed one instead of a `TypeError` from
+ * `value.match is not a function`.
+ */
+function extractJsonObject(value: unknown): unknown {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error('The model did not return a valid Computer Use action.');
+  }
   const fenced = value.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
   const candidate = fenced || value.trim();
   try {
@@ -38,19 +50,37 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
+/**
+ * Read one click coordinate.
+ *
+ * Only a genuine number, or a string that parses as one, may become a
+ * coordinate. `Number(value)` used to accept `null`, `''`, `[]` and `true` as
+ * `0`/`1`, so a reply that omitted its coordinates became a click at the
+ * top-left corner of the screen — the approval prompt then showed a plausible
+ * coordinate instead of reporting the malformed action.
+ */
 function numberValue(value: unknown): number | undefined {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
 }
 
 export function parseModelComputerAction(content: string, visionAvailable: boolean): ModelComputerAction {
   const raw = extractJsonObject(content) as Record<string, unknown>;
-  const action = stringValue(raw.action) as ModelComputerActionId | undefined;
-  if (!action || !['capture', 'open', 'click', 'type', 'key', 'done', 'ask'].includes(action)) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error('The model did not return a valid Computer Use action.');
+  }
+  const action = stringValue(raw.action);
+  if (!action || !ACTION_IDS.has(action)) {
     throw new Error('The model selected an unsupported Computer Use action.');
   }
   const result: ModelComputerAction = {
-    action,
+    action: action as ModelComputerActionId,
     reason: stringValue(raw.reason) || 'Model-selected next step.',
     app: stringValue(raw.app),
     x: numberValue(raw.x),
@@ -60,7 +90,13 @@ export function parseModelComputerAction(content: string, visionAvailable: boole
     message: stringValue(raw.message),
   };
 
-  if (action === 'open' && (!result.app || !ALLOWED_APPS.has(result.app))) {
+  // An application may only be named from the allowlist, for every action that
+  // can carry one. Checking `open` alone let a `type` or `key` action target an
+  // arbitrary application.
+  if (result.app !== undefined && !ALLOWED_APPS.has(result.app)) {
+    throw new Error('The model requested an application outside the allowlist.');
+  }
+  if (action === 'open' && !result.app) {
     throw new Error('The model requested an application outside the allowlist.');
   }
   if (action === 'capture' && !visionAvailable) {
@@ -68,7 +104,11 @@ export function parseModelComputerAction(content: string, visionAvailable: boole
   }
   if (action === 'click') {
     if (!visionAvailable) throw new Error('Coordinate clicking requires a vision-capable model.');
-    if (result.x === undefined || result.y === undefined || result.x < 0 || result.y < 0 || result.x > 16384 || result.y > 16384) {
+    if (
+      result.x === undefined || result.y === undefined
+      || result.x < 0 || result.y < 0
+      || result.x > MAX_COORDINATE || result.y > MAX_COORDINATE
+    ) {
       throw new Error('The model returned invalid click coordinates.');
     }
   }
