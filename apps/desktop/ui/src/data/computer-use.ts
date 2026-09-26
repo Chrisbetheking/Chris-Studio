@@ -544,11 +544,56 @@ export interface ComputerUseAuditEntry {
 }
 
 const AUDIT_LOG_KEY = "tokenfence.computerUse.auditLog";
+const AGENT_STATE_KEY = STORAGE_KEY + ".agent";
+
+/** The only values `ComputerUseAgentStatus` may carry. */
+const AGENT_STATUSES: ReadonlySet<string> = new Set([
+  "idle", "planning", "waiting_approval", "running",
+  "observing", "completed", "failed", "blocked", "stopped",
+]);
+
+function auditText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * Validate one persisted audit entry.
+ *
+ * The log is read back from storage, so it must be treated as untrusted. An
+ * entry without an id or a numeric timestamp used to reach the Computer Use
+ * panel and its filters, where a `null` element crashed the render.
+ */
+function normalizeAuditEntry(entry: unknown): ComputerUseAuditEntry | undefined {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return undefined;
+  const row = entry as Record<string, unknown>;
+  const id = auditText(row.id);
+  const timestamp = typeof row.timestamp === "number" ? row.timestamp : Number.NaN;
+  if (!id || !Number.isFinite(timestamp)) return undefined;
+  return {
+    id,
+    timestamp,
+    taskText: auditText(row.taskText),
+    actionId: auditText(row.actionId),
+    decision: auditText(row.decision),
+    decisionReason: auditText(row.decisionReason),
+    permissionMode: auditText(row.permissionMode),
+    approvedByUser: row.approvedByUser === true,
+    observation: auditText(row.observation),
+    error: auditText(row.error) || undefined,
+  };
+}
 
 export function loadAuditLog(): ComputerUseAuditEntry[] {
   try {
     const raw = localStorage.getItem(AUDIT_LOG_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    // A non-array payload used to be returned verbatim, and writing the next
+    // entry then threw on `log.push` — the audit trail silently stopped.
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(normalizeAuditEntry)
+      .filter((entry): entry is ComputerUseAuditEntry => Boolean(entry));
   } catch { return []; }
 }
 
@@ -562,11 +607,32 @@ export function saveAuditEntry(entry: ComputerUseAuditEntry): void {
   saveAuditLog(log);
 }
 
-export function loadAgentState(): ComputerUseAgentState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY + ".agent");
-    if (raw) return JSON.parse(raw);
-  } catch {}
+/**
+ * Validate one persisted agent step.
+ *
+ * A step is replayed into the run view, so it needs an identity, a numeric
+ * index and the argument object the executor reads.
+ */
+function normalizeAgentStep(entry: unknown): ComputerUseAgentStep | undefined {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return undefined;
+  const row = entry as Record<string, unknown>;
+  const id = auditText(row.id);
+  if (!id) return undefined;
+  const index = Number(row.index);
+  const args = row.args;
+  return {
+    ...(row as unknown as ComputerUseAgentStep),
+    id,
+    index: Number.isFinite(index) ? index : 0,
+    title: auditText(row.title),
+    description: auditText(row.description),
+    actionId: auditText(row.actionId) as ComputerUseAgentStep["actionId"],
+    args: args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>) : {},
+    status: typeof row.status === "string" ? (row.status as ComputerUseAgentStep["status"]) : "pending",
+  };
+}
+
+function defaultAgentState(): ComputerUseAgentState {
   return {
     status: "idle", taskText: "", plan: [],
     currentStepIndex: 0, logs: [],
@@ -574,8 +640,53 @@ export function loadAgentState(): ComputerUseAgentState {
   };
 }
 
+/**
+ * Load the persisted agent state.
+ *
+ * Every field is checked before it is handed to the run view: a stored object
+ * missing `plan`/`logs` (or holding a non-array there) reached code that maps
+ * over them, and a string `currentStepIndex` selected the wrong step.
+ */
+export function loadAgentState(): ComputerUseAgentState {
+  try {
+    const raw = localStorage.getItem(AGENT_STATE_KEY);
+    if (!raw) return defaultAgentState();
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaultAgentState();
+    const row = parsed as Record<string, unknown>;
+    const status = typeof row.status === "string" && AGENT_STATUSES.has(row.status)
+      ? (row.status as ComputerUseAgentState["status"])
+      : "idle";
+    const mode = typeof row.permissionMode === "string"
+      && ["request_approval", "auto_review", "full_access", "custom_config"].includes(row.permissionMode)
+      ? (row.permissionMode as ComputerUseAgentState["permissionMode"])
+      : getPermissionMode();
+    const stepIndex = Number(row.currentStepIndex);
+    const updatedAt = Number(row.updatedAt);
+    const plan = Array.isArray(row.plan)
+      ? row.plan
+          .map(normalizeAgentStep)
+          .filter((step): step is ComputerUseAgentStep => Boolean(step))
+      : [];
+    const logs = Array.isArray(row.logs)
+      ? row.logs.filter((entry): entry is ComputerUseRunLog => Boolean(entry) && typeof entry === "object" && !Array.isArray(entry))
+      : [];
+    return {
+      status,
+      taskText: auditText(row.taskText),
+      plan,
+      currentStepIndex: Number.isFinite(stepIndex) && stepIndex >= 0 ? Math.floor(stepIndex) : 0,
+      logs,
+      permissionMode: mode,
+      updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : Date.now(),
+    };
+  } catch {
+    return defaultAgentState();
+  }
+}
+
 export function saveAgentState(state: ComputerUseAgentState): void {
-  try { localStorage.setItem(STORAGE_KEY + ".agent", JSON.stringify(state)); } catch {}
+  try { localStorage.setItem(AGENT_STATE_KEY, JSON.stringify(state)); } catch {}
 }
 
 export function planComputerUseTask(taskText: string, projectRoot?: string): {

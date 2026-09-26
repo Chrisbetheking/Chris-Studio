@@ -82,6 +82,7 @@ const remainingTests = [
   "scripts/v2-4-active-model-validation-test.cjs",
   "scripts/v2-4-token-usage-ledger-test.cjs",
   "scripts/v2-4-provider-state-validation-test.cjs",
+  "scripts/v2-4-computer-use-persistence-test.cjs",
   "scripts/v2-4-unified-agent-test.cjs",
 ];
 
