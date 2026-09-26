@@ -72,6 +72,7 @@ const remainingTests = [
   "scripts/v2-4-file-type-detection-test.cjs",
   "scripts/v2-4-archive-sanitization-test.cjs",
   "scripts/v2-4-shared-mirror-test.cjs",
+  "scripts/v2-4-citation-budget-bounds-test.cjs",
   "scripts/v2-4-unified-agent-test.cjs",
 ];
 
