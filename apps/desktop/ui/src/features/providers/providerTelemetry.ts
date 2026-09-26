@@ -90,13 +90,26 @@ export function normalizeProviderUsage(
   options: { model?: string; rateCard?: ProviderUsageRateCard } = {},
 ): NormalizedProviderUsage {
   const root = asRecord(rawUsage);
+  const usageRecord = asRecord(root.usage);
+  // Providers disagree on where the detail objects live. OpenAI's
+  // chat-completions API nests them under `usage.prompt_tokens_details` and
+  // `usage.completion_tokens_details`, the Responses API uses
+  // `input_tokens_details` / `output_tokens_details`, and some SDKs flatten
+  // everything onto the root. All of them must be inspected, otherwise cache and
+  // reasoning tokens silently read as zero and the cost estimate is wrong.
   const details = [
     root,
-    asRecord(root.usage),
+    usageRecord,
     asRecord(root.token_usage),
     asRecord(root.usage_metadata),
     asRecord(root.input_tokens_details),
     asRecord(root.output_tokens_details),
+    asRecord(root.prompt_tokens_details),
+    asRecord(root.completion_tokens_details),
+    asRecord(usageRecord.input_tokens_details),
+    asRecord(usageRecord.output_tokens_details),
+    asRecord(usageRecord.prompt_tokens_details),
+    asRecord(usageRecord.completion_tokens_details),
   ];
 
   const inputTokens = firstNumber(details, [
@@ -134,12 +147,17 @@ export function normalizeProviderUsage(
   const rateCard = options.rateCard;
   let estimatedCostUsd: number | undefined;
   if (rateCard && hasAny) {
+    // OpenAI reports reasoning tokens *inside* the output total, while other APIs
+    // report them separately. Billing both unconditionally charges the same
+    // tokens twice, so only the part not already contained in the output count is
+    // billed at the reasoning rate.
+    const reasoningBeyondOutput = Math.max(0, reasoningTokens - outputTokens);
     const uncachedInput = Math.max(0, inputTokens - cachedInputTokens);
     estimatedCostUsd =
       (uncachedInput * (rateCard.inputUsdPerMillion ?? 0) +
         outputTokens * (rateCard.outputUsdPerMillion ?? 0) +
         cachedInputTokens * (rateCard.cachedInputUsdPerMillion ?? rateCard.inputUsdPerMillion ?? 0) +
-        reasoningTokens * (rateCard.reasoningUsdPerMillion ?? rateCard.outputUsdPerMillion ?? 0)) /
+        reasoningBeyondOutput * (rateCard.reasoningUsdPerMillion ?? rateCard.outputUsdPerMillion ?? 0)) /
       1_000_000;
     estimatedCostUsd = Number(estimatedCostUsd.toFixed(8));
   }
