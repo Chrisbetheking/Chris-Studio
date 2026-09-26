@@ -95,10 +95,38 @@ export interface ModelAlias {
   alias: string;
 }
 
+function storedText(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * Validate one stored model alias.
+ *
+ * The slot is read back from storage, so it must be treated as untrusted: a
+ * `null` entry or an entry without a provider reached the picker and broke the
+ * lookup that matches an alias to its provider.
+ */
+function normalizeAlias(entry: unknown): ModelAlias | undefined {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return undefined;
+  const row = entry as Record<string, unknown>;
+  const provider = storedText(row.provider);
+  const modelId = storedText(row.modelId);
+  const alias = storedText(row.alias);
+  if (!provider || !modelId || !alias) return undefined;
+  return { provider, modelId, alias };
+}
+
 export function loadModelAliases(): ModelAlias[] {
   try {
     const raw = storeGet(ALIAS_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    // A non-array payload used to be returned verbatim, so callers that treated
+    // the result as a list (`.find`, `.map`, `.filter`) threw on the first use.
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(normalizeAlias)
+      .filter((entry): entry is ModelAlias => Boolean(entry));
   } catch { return []; }
 }
 
@@ -106,12 +134,42 @@ export function saveModelAliases(aliases: ModelAlias[]): void {
   storeSet(ALIAS_STORAGE_KEY, JSON.stringify(aliases));
 }
 
+/**
+ * Validate one stored provider configuration.
+ *
+ * `enabled` must stay a real boolean and the identity fields real strings:
+ * a string `enabled` or a missing provider silently disabled routing decisions
+ * that depend on the config being well formed.
+ */
+function normalizeProviderConfig(entry: unknown): ProviderConfig | undefined {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return undefined;
+  const row = entry as Record<string, unknown>;
+  const provider = storedText(row.provider);
+  if (!provider) return undefined;
+  const model = storedText(row.model);
+  const customModelId = storedText(row.customModelId);
+  const status = storedText(row.lastHealthStatus);
+  const validStatus = ["ok", "degraded", "failed", "unknown"].includes(status)
+    ? (status as ProviderConfig["lastHealthStatus"])
+    : "unknown";
+  const lastHealthCheck = Number(row.lastHealthCheck);
+  return {
+    provider,
+    model,
+    customModelId: customModelId || undefined,
+    apiKey: typeof row.apiKey === "string" ? row.apiKey : "",
+    baseUrl: storedText(row.baseUrl),
+    endpoint: storedText(row.endpoint),
+    deployment: row.deployment === "local" ? "local" : "cloud",
+    enabled: row.enabled === true,
+    lastHealthCheck: Number.isFinite(lastHealthCheck) ? lastHealthCheck : undefined,
+    lastHealthStatus: validStatus,
+    lastHealthError: storedText(row.lastHealthError) || undefined,
+  };
+}
+
 export function loadProviderConfigs(): ProviderConfig[] {
-  try {
-    const raw = storeGet(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
-  return PROVIDERS.map((p) => ({
+  const fallback = (): ProviderConfig[] => PROVIDERS.map((p) => ({
     provider: p.provider,
     model: p.model,
     customModelId: undefined,
@@ -122,6 +180,20 @@ export function loadProviderConfigs(): ProviderConfig[] {
     enabled: false,
     lastHealthStatus: "unknown" as const,
   }));
+  try {
+    const raw = storeGet(STORAGE_KEY);
+    if (!raw) return fallback();
+    const parsed: unknown = JSON.parse(raw);
+    // A non-array payload means the slot is unusable, so the documented
+    // defaults are returned instead of handing callers an object or a number.
+    if (!Array.isArray(parsed)) return fallback();
+    const configs = parsed
+      .map(normalizeProviderConfig)
+      .filter((entry): entry is ProviderConfig => Boolean(entry));
+    return configs.length > 0 ? configs : fallback();
+  } catch {
+    return fallback();
+  }
 }
 
 export function saveProviderConfigs(configs: ProviderConfig[]): void {
