@@ -248,27 +248,92 @@ if (exists("apps/desktop/src-tauri/src/main.rs")) {
   const registeredTail = new Set(registered.map((entry) => entry.split("::").pop()));
   ok("native handler registers " + registeredTail.size + " commands");
 
-  const invokeSources = [
-    "apps/desktop/ui/src/desktop-bridge.ts",
-    "apps/desktop/ui/src/features/platform/desktopClient.ts",
-    "apps/desktop/ui/src/features/projects/projectClient.ts",
-    "apps/desktop/ui/src/features/providers/providerClient.ts",
-    "apps/desktop/ui/src/features/computer/computerClient.ts",
-    "apps/desktop/ui/src/features/computer/computerClientReliable.ts",
-    "apps/desktop/ui/src/features/github/githubClient.ts",
-    "apps/desktop/ui/src/features/connectors/mcpClient.ts",
-    "apps/desktop/ui/src/features/updates/updateClient.ts",
-    "apps/desktop/ui/src/features/unified-agent/nativeClient.ts",
-  ];
-  const invoked = new Set();
-  for (const relative of invokeSources) {
-    if (!exists(relative)) continue;
-    const source = read(relative);
-    for (const match of source.matchAll(/invoke<[^>]*>\(\s*'([a-z_0-9]+)'/g)) invoked.add(match[1]);
+  // Only modules the shell can actually load may demand a registered command.
+  // The v2.3 legacy cluster (desktop bridge, toolbox, agent lab) is intentionally
+  // unreachable from App.tsx; its retired command names must not fail the gate,
+  // but the debt stays visible through the INFO line below.
+  const resolveRelativeImport = (fromRelative, specifier) => {
+    if (!specifier.startsWith(".")) return undefined;
+    const base = path.resolve(path.dirname(path.join(ROOT, fromRelative)), specifier);
+    const candidates = [
+      base,
+      base + ".ts",
+      base + ".tsx",
+      base + ".d.ts",
+      path.join(base, "index.ts"),
+      path.join(base, "index.tsx"),
+    ];
+    for (const candidate of candidates) {
+      try {
+        if (fs.statSync(candidate).isFile()) return path.relative(ROOT, candidate);
+      } catch {
+        // Try the next candidate.
+      }
+    }
+    return undefined;
+  };
+  const importPattern = /(?:^|\n)\s*import\s+(?:type\s+)?[\s\S]*?\s*from\s+['"]([^'"]+)['"]/g;
+  const sideEffectImportPattern = /(?:^|\n)\s*import\s+['"]([^'"]+)['"]/g;
+  const reachable = new Set();
+  const pending = ["apps/desktop/ui/src/main.tsx", "apps/desktop/ui/src/App.tsx"].filter((entry) => exists(entry));
+  while (pending.length > 0) {
+    const current = pending.shift();
+    if (reachable.has(current)) continue;
+    reachable.add(current);
+    if (!/\.(ts|tsx)$/.test(current)) continue;
+    const source = read(current);
+    for (const pattern of [importPattern, sideEffectImportPattern]) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(source)) !== null) {
+        const resolved = resolveRelativeImport(current, match[1]);
+        if (resolved && !reachable.has(resolved)) pending.push(resolved);
+      }
+    }
   }
-  const unregistered = [...invoked].filter((name) => !registeredTail.has(name)).sort();
-  if (unregistered.length === 0) ok("all " + invoked.size + " frontend invoke targets are registered");
-  else fail("frontend invokes unregistered native commands: " + unregistered.join(", "));
+  ok("module graph reaches " + reachable.size + " renderer modules from the shell entry");
+
+  // Quote-agnostic on purpose: the previous version only matched single quotes,
+  // which hid every double-quoted invoke in the renderer.
+  const invokePattern = /invoke(?:<[^>]*>)?\(\s*['"]([a-z_0-9]+)['"]/g;
+  const invoked = new Map();
+  for (const relative of [...reachable].sort()) {
+    if (!/\.(ts|tsx)$/.test(relative)) continue;
+    const source = read(relative);
+    invokePattern.lastIndex = 0;
+    let match;
+    while ((match = invokePattern.exec(source)) !== null) {
+      if (!invoked.has(match[1])) invoked.set(match[1], relative);
+    }
+  }
+
+  const rendererRoot = "apps/desktop/ui/src";
+  const rendererFiles = [];
+  const collectRendererFiles = (directory) => {
+    for (const entry of fs.readdirSync(path.join(ROOT, directory), { withFileTypes: true })) {
+      const next = directory + "/" + entry.name;
+      if (entry.isDirectory()) collectRendererFiles(next);
+      else if (/\.(ts|tsx)$/.test(entry.name)) rendererFiles.push(next);
+    }
+  };
+  if (fs.existsSync(path.join(ROOT, rendererRoot))) collectRendererFiles(rendererRoot);
+  const legacySources = [];
+  for (const relative of rendererFiles.sort()) {
+    if (reachable.has(relative)) continue;
+    const source = read(relative);
+    invokePattern.lastIndex = 0;
+    const names = new Set();
+    let match;
+    while ((match = invokePattern.exec(source)) !== null) names.add(match[1]);
+    if (names.size > 0) legacySources.push(relative + " (" + names.size + ")");
+  }
+  if (legacySources.length > 0) {
+    console.log("  INFO: unrouted renderer modules that still call native commands: " + legacySources.join(", "));
+  }
+
+  const unregistered = [...invoked.keys()].filter((name) => !registeredTail.has(name)).sort();
+  if (unregistered.length === 0) ok("all " + invoked.size + " reachable renderer invoke targets are registered");
+  else fail("reachable renderer invokes unregistered native commands: " + unregistered.join(", "));
 } else {
   fail("apps/desktop/src-tauri/src/main.rs: NOT FOUND");
 }

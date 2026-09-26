@@ -150,11 +150,19 @@ export function getScanBridgeStatus(error?: string | null): string {
   return "Desktop/Tauri";
 }
 
+/**
+ * Reveal the local diagnostic log directory.
+ *
+ * The v2.3 legacy screens that called this function are no longer routed by the
+ * shell, and the native command they relied on (`execute_command`) is not part
+ * of the v2.4 command surface. The previous implementation shelled out to
+ * `explorer` with a hard-coded `E:\Dev\tokenfence-studio-final\...` path, which
+ * cannot exist on a macOS build and silently failed. This is now an explicit
+ * no-op so no future caller is misled into believing a folder was revealed.
+ */
 export async function openLogsFolder(): Promise<void> {
-  try {
-    const logsDir = "E:\\Dev\\tokenfence-studio-final\\.tokenfence\\logs";
-    await invoke("execute_command", { command: "explorer", args: [logsDir], cwd: ".", timeoutMs: 5000 });
-  } catch {}
+  // Intentionally empty: the v2.4 command surface exposes no folder-reveal
+  // command, and `open_external_url` deliberately accepts only http/https.
 }
 /* === v1.5.6 RC5 Computer Use Agent === */
 
