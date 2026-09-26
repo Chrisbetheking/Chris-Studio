@@ -3,6 +3,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { AttachmentDraft, ChatMessage, ProviderProfile } from '../../app/types';
 import { providerDefinition } from '../../app/providerRegistry';
 import { loadSettings } from '../../app/store';
+import { compactProviderMessages } from '../tokens/compactionPolicy';
 
 /** Largest completion the native runtime accepts; it clamps to the same bound. */
 const MAX_REQUEST_TOKENS = 32_768;
@@ -126,8 +127,13 @@ function providerMessages(
   includeVisionImages: boolean,
 ) {
   const definition = providerDefinition(profile.providerId);
-  return messages.map(({ role, content }, index) => {
-    const isLastUser = role === 'user' && index === messages.length - 1;
+  // The "Optimization mode" setting is applied here: prose turns in the re-sent
+  // history are compacted before the provider bills for them, while the current
+  // turn, the system prompt, attachment context and agent-protocol messages pass
+  // through verbatim (see compactProviderMessages).
+  const compacted = compactProviderMessages(messages);
+  return compacted.map(({ role, content }, index) => {
+    const isLastUser = role === 'user' && index === compacted.length - 1;
     const images = isLastUser && includeVisionImages && definition.capabilities.vision
       ? attachments.filter((attachment) => attachment.kind === 'image' && attachment.dataUrl)
       : [];
