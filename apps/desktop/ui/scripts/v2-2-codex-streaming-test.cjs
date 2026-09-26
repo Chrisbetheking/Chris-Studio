@@ -55,8 +55,11 @@ assert.match(providerClient, /invoke<boolean>\('provider_chat_stream'/);
 assert.match(providerClient, /provider_stream_cancel/);
 assert.match(providerClient, /payload.kind === 'done'/);
 assert.match(providerClient, /return await completion/);
-assert.match(providerClient, /streamedContent \+= payload.text/);
-assert.match(providerClient, /maxTokens: 8192/);
+assert.match(providerClient, /streamedContent \+= payload\.text/);
+// The completion budget comes from the user's settings; a hard-coded value made
+// the "Per-request token limit" control a no-op.
+assert.match(providerClient, /maxTokens: requestMaxTokens\(\)/);
+assert.doesNotMatch(providerClient, /maxTokens: 8192/);
 
 const reliableProvider = fs.readFileSync(path.join(uiRoot, 'src/features/providers/providerClientReliable.ts'), 'utf8');
 assert.match(reliableProvider, /Never reconnect after visible output/);

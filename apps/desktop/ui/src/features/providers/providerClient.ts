@@ -2,6 +2,34 @@ import { invoke } from '@tauri-apps/api/tauri';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { AttachmentDraft, ChatMessage, ProviderProfile } from '../../app/types';
 import { providerDefinition } from '../../app/providerRegistry';
+import { loadSettings } from '../../app/store';
+
+/** Largest completion the native runtime accepts; it clamps to the same bound. */
+const MAX_REQUEST_TOKENS = 32_768;
+const MIN_REQUEST_TOKENS = 1;
+const FALLBACK_REQUEST_TOKENS = 8_192;
+
+/**
+ * Resolve the completion budget for one request.
+ *
+ * The settings screen exposes "Per-request token limit" (`maxRequestTokens`,
+ * 1,000–1,000,000), but the value was never read: every request left with a
+ * hard-coded 8,192 budget, so raising the setting changed nothing and lowering
+ * it did not protect the quota. The configured value is clamped to the range the
+ * native commands enforce, and an unusable value falls back to the previous
+ * default instead of collapsing the budget to zero.
+ */
+export function requestMaxTokens(): number {
+  try {
+    const configured = Number(loadSettings().maxRequestTokens);
+    if (Number.isFinite(configured) && configured > 0) {
+      return Math.min(MAX_REQUEST_TOKENS, Math.max(MIN_REQUEST_TOKENS, Math.floor(configured)));
+    }
+  } catch {
+    // Settings must never block a send.
+  }
+  return FALLBACK_REQUEST_TOKENS;
+}
 
 export interface ProviderReply {
   ok: boolean;
@@ -118,7 +146,8 @@ function providerRequest(config: ProviderRuntimeConfig, messages: ReturnType<typ
   return {
     config,
     messages,
-    maxTokens: 8192,
+    // Resolved per request so a settings change applies to the next send.
+    maxTokens: requestMaxTokens(),
     temperature: 0.25,
   };
 }

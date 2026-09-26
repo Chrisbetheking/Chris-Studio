@@ -88,6 +88,7 @@ const remainingTests = [
   "scripts/v2-4-store-load-resilience-test.cjs",
   "scripts/v2-4-knowledge-resilience-test.cjs",
   "scripts/v2-4-computer-action-parser-test.cjs",
+  "scripts/v2-4-request-token-budget-test.cjs",
   "scripts/v2-4-unified-agent-test.cjs",
 ];
 
