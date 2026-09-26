@@ -65,7 +65,7 @@ jobs:
             echo 'Source is already finalized.'
             exit 0
           fi
-          allowed='^(apps/desktop/src-tauri/src/main\.rs|apps/desktop/ui/src/screens/ProjectsScreen\.tsx|apps/desktop/ui/scripts/run-core-tests\.cjs|package-lock\.json|apps/desktop/package-lock\.json|apps/desktop/ui/package-lock\.json|apps/desktop/src-tauri/Cargo\.lock|apps/desktop/ui/src/App\.tsx|apps/desktop/ui/src/screens/AboutScreen\.tsx|apps/desktop/ui/src/screens/WorkspaceScreen\.tsx|apps/desktop/ui/src/screens/ComputerScreen\.tsx|apps/desktop/ui/src/screens/ChatWorkspace\.tsx)$'
+          allowed='^(apps/desktop/src-tauri/src/main\.rs|apps/desktop/ui/src/screens/ProjectsScreen\.tsx|apps/desktop/ui/scripts/run-core-tests\.cjs|package-lock\.json|apps/desktop/package-lock\.json|apps/desktop/ui/package-lock\.json|apps/desktop/src-tauri/Cargo\.lock|apps/desktop/ui/src/App\.tsx|apps/desktop/ui/src/screens/AboutScreen\.tsx|apps/desktop/ui/src/app/productVersion\.ts|apps/desktop/ui/src/screens/WorkspaceScreen\.tsx|apps/desktop/ui/src/screens/ComputerScreen\.tsx|apps/desktop/ui/src/screens/ChatWorkspace\.tsx)$'
           for file in "${changed[@]}"; do
             if [[ ! "$file" =~ $allowed ]]; then
               echo "Unexpected finalizer output: $file"

@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/tauri';
 import type { ComputerCapability } from '../../app/types';
+import { PRODUCT_VERSION, previewVersion } from '../../app/productVersion';
 
 export interface PlatformInfo {
   appVersion: string;
@@ -23,7 +24,7 @@ export function isDesktopRuntime(): boolean {
 export async function getPlatformInfo(): Promise<PlatformInfo> {
   if (!isDesktopRuntime()) {
     return {
-      appVersion: '2.1.0-web-preview',
+      appVersion: previewVersion(),
       os: navigator.platform || 'browser',
       arch: 'browser',
       secureStore: 'Desktop runtime required',
@@ -35,7 +36,7 @@ export async function getPlatformInfo(): Promise<PlatformInfo> {
     return await invoke<PlatformInfo>('platform_info');
   } catch {
     return {
-      appVersion: '2.1.0',
+      appVersion: PRODUCT_VERSION,
       os: 'unknown',
       arch: 'unknown',
       secureStore: 'Unavailable',

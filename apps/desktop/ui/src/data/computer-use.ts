@@ -1,5 +1,6 @@
 import { executeCommand, runComputerUseAction } from "../desktop-bridge";
 import { loadProjectRoot } from "../app/store";
+import { PRODUCT_VERSION } from "../app/productVersion";
 
 const STORAGE_KEY = "tokenfence.computerUse";
 
@@ -153,9 +154,6 @@ export function generatePlan(taskText: string): { blocked: boolean; plan: Comput
    distribution, so on this macOS build every diagnostic reported the wrong
    version, ran outside the real project, and could not open any folder.
    ═══════════════════════════════════════════════ */
-
-/** Product version shown by the diagnostics, taken from the build metadata. */
-const PRODUCT_VERSION = "2.4.0-alpha.2";
 
 /** Where a macOS build of this app is installed. */
 const MACOS_INSTALL_DIR = "/Applications/Chris Studio.app";

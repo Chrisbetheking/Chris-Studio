@@ -352,6 +352,7 @@ function synchronizeMetadataSources() {
   const items = [
     ['src/App.tsx', (source) => sync.synchronizeReliabilityAppText(sync.synchronizeAppText(source, VERSION))],
     ['src/screens/AboutScreen.tsx', (source) => sync.synchronizeAboutVersion(source, VERSION)],
+    ['src/app/productVersion.ts', (source) => sync.synchronizeProductVersion(source, VERSION)],
     ['src/screens/WorkspaceScreen.tsx', synchronizeUnifiedWorkspaceAdapters],
     ['src/screens/ComputerScreen.tsx', sync.synchronizeComputerScreenRuntimeAdapter],
     ['src/screens/ChatWorkspace.tsx', sync.synchronizeChatWorkspaceText],

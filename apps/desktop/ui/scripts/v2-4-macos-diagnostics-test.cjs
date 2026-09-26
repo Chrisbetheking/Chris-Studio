@@ -118,20 +118,32 @@ assert.doesNotMatch(code, /WScript/, 'the Windows scripting host must not be ref
 assert.doesNotMatch(code, /TokenFence Studio\.exe/, 'the retired executable name must not return');
 
 // --- 3. the replacement must describe macOS ----------------------------
-assert.match(code, /const PRODUCT_VERSION = "[0-9]+\.[0-9]+\.[0-9]+/, 'a real product version must be declared');
+// The version now comes from one shared module instead of a local literal, so a
+// release bump cannot leave a stale copy behind in the diagnostics.
+assert.match(
+  code,
+  /import \{ PRODUCT_VERSION \} from "\.\.\/app\/productVersion";/,
+  'the diagnostics must import the shared product version',
+);
+assert.doesNotMatch(
+  code,
+  /^const PRODUCT_VERSION = /m,
+  'the diagnostics must not declare a second version constant',
+);
 assert.match(code, /const MACOS_INSTALL_DIR = "\/Applications\/Chris Studio\.app"/, 'the macOS install location must be declared');
 assert.match(code, /function diagnosticProjectRoot\(\)/, 'the project root must be resolved at runtime');
 assert.match(code, /function isMacPlatform\(\)/, 'the platform probe must stay present');
 
-// The declared version must match the shipped manifest, so a release bump
-// cannot leave the diagnostics reporting the previous version.
+// The shared constant must match the shipped manifest, so a release bump cannot
+// leave the diagnostics reporting the previous version.
 const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'apps/desktop/ui/package.json'), 'utf8'));
-const versionMatch = code.match(/const PRODUCT_VERSION = "([^"]+)"/);
-assert.ok(versionMatch, 'the product version must be declared');
+const versionSource = fs.readFileSync(path.join(repoRoot, 'apps/desktop/ui/src/app/productVersion.ts'), 'utf8');
+const versionMatch = versionSource.match(/export const PRODUCT_VERSION = '([^']+)'/);
+assert.ok(versionMatch, 'the shared product version must be declared');
 assert.equal(
   versionMatch[1],
   manifest.version,
-  `the diagnostics version (${versionMatch[1]}) must match the desktop manifest (${manifest.version})`,
+  `the shared version (${versionMatch[1]}) must match the desktop manifest (${manifest.version})`,
 );
 assert.doesNotMatch(versionMatch[1], /^v/, 'the version constant must not carry a leading v');
 

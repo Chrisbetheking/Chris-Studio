@@ -92,6 +92,7 @@ const remainingTests = [
   "scripts/v2-4-compaction-policy-test.cjs",
   "scripts/v2-4-connector-resilience-test.cjs",
   "scripts/v2-4-github-client-resilience-test.cjs",
+  "scripts/v2-4-product-version-source-test.cjs",
   "scripts/v2-4-unified-agent-test.cjs",
 ];
 

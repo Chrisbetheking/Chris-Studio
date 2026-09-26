@@ -19,6 +19,19 @@ function synchronizeAboutVersion(source, version) {
   if (next === source && !source.includes(replacement)) throw new Error('Cannot synchronize About fallback version.');
   return next;
 }
+/**
+ * Keep the renderer's version constant aligned with the build manifest.
+ *
+ * The update screen used to print a stale literal, so a future bump must not be
+ * able to leave `PRODUCT_VERSION` behind: this transform is applied by the
+ * overlay finalizer and verified by the metadata check on every build.
+ */
+function synchronizeProductVersion(source, version) {
+  const replacement = `export const PRODUCT_VERSION = '${version}';`;
+  const next = source.replace(/export const PRODUCT_VERSION = '[^']+';/, replacement);
+  if (next === source && !source.includes(replacement)) throw new Error('Cannot synchronize the product version constant.');
+  return next;
+}
 function synchronizeReliabilityAppText(source) {
   let next = source;
   const importStatement = "import { ReliabilityDock } from './components/ReliabilityDock';";
@@ -78,6 +91,7 @@ function main() {
   if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) throw new Error(`Invalid desktop UI version: ${version}`);
   verifyFile(path.join(UI_ROOT, 'src/App.tsx'), (source) => synchronizeReliabilityAppText(synchronizeAppText(source, version)));
   verifyFile(path.join(UI_ROOT, 'src/screens/AboutScreen.tsx'), (source) => synchronizeAboutVersion(source, version));
+  verifyFile(path.join(UI_ROOT, 'src/app/productVersion.ts'), (source) => synchronizeProductVersion(source, version));
   verifyFile(path.join(UI_ROOT, 'src/screens/WorkspaceScreen.tsx'), synchronizeWorkspaceRuntimeAdapters);
   verifyFile(path.join(UI_ROOT, 'src/screens/ComputerScreen.tsx'), synchronizeComputerScreenRuntimeAdapter);
   verifyFile(path.join(UI_ROOT, 'src/screens/ChatWorkspace.tsx'), synchronizeChatWorkspaceText);
@@ -86,6 +100,7 @@ if (require.main === module) main();
 module.exports = {
   synchronizeAppText,
   synchronizeAboutVersion,
+  synchronizeProductVersion,
   synchronizeReliabilityAppText,
   synchronizeWorkspaceRuntimeAdapters,
   synchronizeComputerScreenRuntimeAdapter,
