@@ -23,6 +23,9 @@ on:
         required: true
         default: true
         type: boolean
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -37,6 +40,9 @@ env:
   NPM_CONFIG_AUDIT: 'false'
   NPM_CONFIG_FUND: 'false'
   CARGO_TERM_COLOR: always
+  # Manual dispatch supplies inputs.version; a version tag supplies github.ref_name.
+  # Resolving once here keeps every downstream reference identical for both triggers.
+  RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
 
 jobs:
   verify-desktop-ui:
@@ -50,7 +56,7 @@ jobs:
         run: node scripts/finalize-v2.4.0-alpha.2.cjs
 
       - name: Persist deterministic source finalization
-        if: ${{ inputs.persist_source }}
+        if: ${{ github.event_name != 'push' && inputs.persist_source }}
         shell: bash
         run: |
           set -euo pipefail
@@ -294,7 +300,9 @@ jobs:
   publish-release:
     name: Create or update GitHub Release
     needs: build-macos
-    if: ${{ inputs.create_release }}
+    # A version tag always publishes its prerelease; a manual dispatch publishes
+    # only when the operator asked for it.
+    if: ${{ github.event_name == 'push' || inputs.create_release }}
     runs-on: ubuntu-latest
     steps:
       - name: Download macOS artifacts
@@ -310,10 +318,10 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.version }}
-          name: Chris Studio ${{ inputs.version }}
+          tag_name: ${{ env.RELEASE_VERSION }}
+          name: Chris Studio ${{ env.RELEASE_VERSION }}
           body: |
-            ## Chris Studio ${{ inputs.version }}
+            ## Chris Studio ${{ env.RELEASE_VERSION }}
 
             Chris Studio v2.4.0-alpha.2 delivers the Unified Agent Runtime in one conversation, content-aware local privacy classification, reviewed 2–3 provider comparison with structured disagreement analysis, reviewed multi-file transactions, scoped Git commits, bounded check presets, and approval-gated macOS Accessibility-first Computer Use. Alpha tags remain pre-releases and never replace the latest stable release. The workflow produces architecture-verified Developer ID signed/notarized packages when Apple secrets are configured; otherwise it publishes ad-hoc signed community packages with an APP ZIP fallback.
 
@@ -327,5 +335,8 @@ jobs:
           files: release/*
           fail_on_unmatched_files: true
           draft: false
-          prerelease: ${{ contains(inputs.version, '-') }}
-          make_latest: ${{ !contains(inputs.version, '-') && inputs.make_latest }}
+          # Alpha tags (a hyphen in the version) are always pre-releases and can
+          # never replace the latest stable release. Only an explicit manual
+          # dispatch with make_latest=true promotes a stable version.
+          prerelease: ${{ contains(env.RELEASE_VERSION, '-') }}
+          make_latest: ${{ !contains(env.RELEASE_VERSION, '-') && inputs.make_latest }}

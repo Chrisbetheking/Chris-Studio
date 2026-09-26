@@ -116,7 +116,9 @@ assert.doesNotMatch(workflow, /cargo generate-lockfile/,
 assert.match(workflow, /cargo check --locked --manifest-path apps\/desktop\/src-tauri\/Cargo\.toml/);
 assert.match(workflow, /cargo test --locked --manifest-path apps\/desktop\/src-tauri\/Cargo\.toml/);
 assert.match(workflow, /--nocapture/);
-assert.match(workflow, /prerelease: \$\{\{ contains\(inputs\.version, '-'\) \}\}/);
-assert.match(workflow, /make_latest: \$\{\{ !contains\(inputs\.version, '-'\) && inputs\.make_latest \}\}/);
+assert.match(workflow, /prerelease: \$\{\{ contains\(env\.RELEASE_VERSION, '-'\) \}\}/);
+assert.match(workflow, /make_latest: \$\{\{ !contains\(env\.RELEASE_VERSION, '-'\) && inputs\.make_latest \}\}/);
+assert.match(workflow, /RELEASE_VERSION: \$\{\{ inputs\.version \|\| github\.ref_name \}\}/,
+  'Manual dispatch and version tags must resolve to one release version.');
 
 console.log('v2.3 alpha.4 transactional coding session tests passed');

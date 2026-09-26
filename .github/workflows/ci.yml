@@ -2,7 +2,7 @@ name: Chris Studio CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'goal-loop/**']
   pull_request:
     branches: [main]
 

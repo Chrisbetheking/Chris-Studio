@@ -84,7 +84,9 @@ for (const item of versionChecks) checkContains(item.file, item.needle);
 
 section("Workflow version default");
 checkContains(".github/workflows/tokenfence-macos.yml", "default: v2.4.0-alpha.2", "release workflow default");
-checkContains(".github/workflows/tokenfence-macos.yml", "prerelease: ${{ contains(inputs.version, '-') }}", "prerelease guard");
+checkContains(".github/workflows/tokenfence-macos.yml", "RELEASE_VERSION: ${{ inputs.version || github.ref_name }}", "release version resolution");
+checkContains(".github/workflows/tokenfence-macos.yml", "prerelease: ${{ contains(env.RELEASE_VERSION, '-') }}", "prerelease guard");
+checkContains(".github/workflows/tokenfence-macos.yml", "make_latest: ${{ !contains(env.RELEASE_VERSION, '-') && inputs.make_latest }}", "latest-release guard");
 
 // ============================================================
 // 2. Developer identity surface.

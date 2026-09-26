@@ -220,7 +220,11 @@ checkContains(".github/workflows/tokenfence-macos.yml", "test:core", "core test 
 checkContains(".github/workflows/tokenfence-macos.yml", "cargo check --locked", "locked Rust check");
 checkContains(".github/workflows/tokenfence-macos.yml", "cargo test --locked", "locked Rust test");
 checkContains(".github/workflows/tokenfence-macos.yml", "bash scripts/package-macos-release.sh", "macOS packaging step");
-checkContains(".github/workflows/tokenfence-macos.yml", "prerelease: ${{ contains(inputs.version, '-' ) }}".replace(" )", ")"), "alpha prerelease guard");
+checkContains(".github/workflows/tokenfence-macos.yml", "workflow_dispatch:", "manual dispatch trigger");
+checkContains(".github/workflows/tokenfence-macos.yml", "      - 'v*'", "version tag trigger");
+checkContains(".github/workflows/tokenfence-macos.yml", "RELEASE_VERSION: ${{ inputs.version || github.ref_name }}", "release version resolution");
+checkContains(".github/workflows/tokenfence-macos.yml", "prerelease: ${{ contains(env.RELEASE_VERSION, '-') }}", "alpha prerelease guard");
+checkContains(".github/workflows/tokenfence-macos.yml", "make_latest: ${{ !contains(env.RELEASE_VERSION, '-') && inputs.make_latest }}", "stable latest guard");
 checkMissing(".github/workflows/tokenfence-macos.yml", "cargo generate-lockfile", "release workflow");
 
 section("CI workflow contract");

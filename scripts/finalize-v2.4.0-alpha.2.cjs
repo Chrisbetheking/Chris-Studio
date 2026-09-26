@@ -376,7 +376,9 @@ function verify() {
   if (!projects.includes('commitProjectChanges(commitMessage, reviewedPaths, true)')) throw new Error('Legacy commit is not scoped.');
   if (!workflow.includes('default: v2.4.0-alpha.2')) throw new Error('Release workflow does not default to v2.4.0-alpha.2.');
   if (workflow.includes('cargo generate-lockfile')) throw new Error('Release workflow still mutates Cargo.lock in CI.');
-  if (!workflow.includes("prerelease: ${{ contains(inputs.version, '-') }}")) throw new Error('Alpha Release protection is missing.');
+  if (!workflow.includes("prerelease: ${{ contains(env.RELEASE_VERSION, '-') }}")) throw new Error('Alpha Release protection is missing.');
+  if (!workflow.includes("RELEASE_VERSION: ${{ inputs.version || github.ref_name }}")) throw new Error('Release version resolution is missing.');
+  if (!workflow.includes("      - 'v*'")) throw new Error('Version tag trigger is missing from the release workflow.');
   const registry = read('apps/desktop/ui/src/features/unified-agent/toolRegistry.ts');
   const workspace = read('apps/desktop/ui/src/screens/WorkspaceScreen.tsx');
   if (!registry.includes("case 'models.compare'")) throw new Error('Structured multi-model comparison tool is missing.');
