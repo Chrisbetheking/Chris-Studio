@@ -104,7 +104,9 @@ export function classifyPrivacy(input: PrivacyAssessmentInput): PrivacyAssessmen
   }
   for (const customTerm of input.customTerms || []) {
     const term = String(customTerm || '').trim();
-    if (term.length < 2 || !text.toLocaleLowerCase().includes(term.toLocaleLowerCase())) continue;
+    // Locale-independent folding: a system-language dependency (e.g. tr-TR maps
+    // "I" to "ı") would silently drop matches and under-report privacy risk.
+    if (term.length < 2 || !text.toLowerCase().includes(term.toLowerCase())) continue;
     score += 24;
     matchedSignals += 1;
     reasons.push(`custom sensitive term: ${term.slice(0, 40)}`);

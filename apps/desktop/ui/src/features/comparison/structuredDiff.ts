@@ -48,7 +48,9 @@ function sentences(value: string): string[] {
 }
 
 function tokens(value: string): Set<string> {
-  const normalized = value.toLocaleLowerCase().replace(/[^\p{L}\p{N}%]+/gu, ' ');
+  // Locale-independent folding keeps comparison scores identical on every
+  // system language (tr-TR lowercases "I" to "ı" and would change token sets).
+  const normalized = value.toLowerCase().replace(/[^\p{L}\p{N}%]+/gu, ' ');
   const parts = normalized.split(/\s+/).filter((entry) => entry.length > 1 && !STOP_WORDS.has(entry));
   const chinese = normalized.match(/[\p{Script=Han}]{2,}/gu) || [];
   for (const group of chinese) {

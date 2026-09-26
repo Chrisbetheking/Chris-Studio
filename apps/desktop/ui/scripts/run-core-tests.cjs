@@ -27,6 +27,8 @@ const sourceFiles = [
   "src/features/computer/computerClientReliable.ts",
   "src/features/unified-agent/contextWindow.ts",
   "src/features/unified-agent/runtimeStore.ts",
+  "src/features/privacy/contentClassifier.ts",
+  "src/features/comparison/structuredDiff.ts",
 ];
 
 const compiledModuleTests = [
@@ -41,6 +43,7 @@ const compiledModuleTests = [
   // core-privacy-test.cjs removes that directory.
   "scripts/v2-4-context-window-test.cjs",
   "scripts/v2-4-unified-runtime-store-test.cjs",
+  "scripts/v2-4-locale-independence-test.cjs",
 ];
 
 // core-privacy-test.cjs is intentionally last among tests that consume the

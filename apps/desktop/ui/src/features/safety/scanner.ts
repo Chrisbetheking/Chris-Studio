@@ -163,8 +163,14 @@ export function scanText(input: string, customTerms: string[] = []): TextScanRes
 
   for (const term of normalizeCustomTerms(customTerms)) {
     let from = 0;
+    // Locale-independent folding: `toLocaleLowerCase()` without an explicit
+    // locale follows the host system, and under e.g. tr-TR it maps "I" to "ı",
+    // so a term like "pin" would silently stop matching "SECRET PIN NUMBER".
+    // A safety scanner must never depend on the operator's system language.
+    const haystack = input.toLowerCase();
+    const needle = term.toLowerCase();
     while (from < input.length) {
-      const index = input.toLocaleLowerCase().indexOf(term.toLocaleLowerCase(), from);
+      const index = haystack.indexOf(needle, from);
       if (index < 0) break;
       candidates.push({
         id: findingId(),
