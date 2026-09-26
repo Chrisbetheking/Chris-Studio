@@ -25,12 +25,76 @@ export interface InstalledModel {
 
 const STORAGE_KEY = "tokenfence.installedModels";
 
+const VALID_SOURCES: ReadonlySet<string> = new Set(["registry", "fetched", "custom"]);
+
+function text(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+/**
+ * Validate one persisted entry.
+ *
+ * The slot is read back from storage, so it must be treated as untrusted: a
+ * partially written or hand-edited value used to flow straight into the picker,
+ * where a `null` entry crashed the caller and an entry without an id could never
+ * be toggled, aliased or removed again.
+ */
+function normalizeEntry(entry: unknown): InstalledModel | undefined {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return undefined;
+  const row = entry as Record<string, unknown>;
+  const id = text(row.id);
+  const providerId = text(row.providerId) ?? text(row.provider);
+  const modelId = text(row.modelId) ?? text(row.model);
+  if (!id || !providerId || !modelId) return undefined;
+  const source = text(row.source);
+  const addedAt = Number(row.addedAt);
+  const lastUsedAt = Number(row.lastUsedAt);
+  return {
+    id,
+    providerId,
+    modelId,
+    displayName: text(row.displayName) ?? modelId,
+    alias: text(row.alias),
+    // Only an explicit `false` disables a model; a missing flag means usable.
+    enabled: row.enabled !== false,
+    isDefault: row.isDefault === true,
+    addedAt: Number.isFinite(addedAt) ? addedAt : Date.now(),
+    lastUsedAt: Number.isFinite(lastUsedAt) ? lastUsedAt : undefined,
+    source: source && VALID_SOURCES.has(source) ? (source as InstalledModelSource) : "registry",
+    customModelId: text(row.customModelId),
+  };
+}
+
+/**
+ * Keep the default flag consistent with the enabled set.
+ *
+ * Exactly one enabled model carries `isDefault` whenever anything is enabled:
+ * deleting the default used to leave the library with no default at all, and
+ * disabling it left the flag on a disabled entry while `getDefaultModel()`
+ * answered with a different model — the stored state and the returned value
+ * disagreed. When every model is disabled no entry may claim the flag.
+ */
+function repairDefaultFlag(models: InstalledModel[]): InstalledModel[] {
+  const enabled = models.filter((model) => model.enabled);
+  if (enabled.length === 0) {
+    return models.map((model) => (model.isDefault ? { ...model, isDefault: false } : model));
+  }
+  const preferred = enabled.find((model) => model.isDefault) ?? enabled[0];
+  return models.map((model) => {
+    const shouldBeDefault = model.id === preferred.id;
+    return model.isDefault === shouldBeDefault ? model : { ...model, isDefault: shouldBeDefault };
+  });
+}
+
 export function loadInstalledModels(): InstalledModel[] {
   try {
     const raw = storeGet(STORAGE_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return repairDefaultFlag(
+      parsed.map(normalizeEntry).filter((entry): entry is InstalledModel => Boolean(entry)),
+    );
   } catch {
     return [];
   }
@@ -78,7 +142,9 @@ export function installModel(
     displayName,
     alias,
     enabled: true,
-    isDefault: models.length === 0, // first model is default
+    // The first *usable* model becomes the default: when every existing model is
+    // disabled the repaired state has no default, so a fresh install must claim it.
+    isDefault: !models.some((entry) => entry.enabled),
     addedAt: Date.now(),
     source,
     customModelId,
