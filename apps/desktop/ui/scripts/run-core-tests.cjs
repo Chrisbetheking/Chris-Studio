@@ -26,6 +26,7 @@ const sourceFiles = [
   "src/features/computer-use/modelComputerProtocol.ts",
   "src/features/computer/computerClientReliable.ts",
   "src/features/unified-agent/contextWindow.ts",
+  "src/features/unified-agent/runtimeStore.ts",
 ];
 
 const compiledModuleTests = [
@@ -36,9 +37,10 @@ const compiledModuleTests = [
   "scripts/v2-2-provider-stream-session-test.cjs",
   "scripts/v2-3-collaboration-test.cjs",
   "scripts/v2-3-project-change-session-test.cjs",
-  // Consumes the temporary CommonJS build, so it must run before
+  // Consume the temporary CommonJS build, so they must run before
   // core-privacy-test.cjs removes that directory.
   "scripts/v2-4-context-window-test.cjs",
+  "scripts/v2-4-unified-runtime-store-test.cjs",
 ];
 
 // core-privacy-test.cjs is intentionally last among tests that consume the

@@ -111,7 +111,87 @@ export async function commitProjectChanges(
 `readModelList()` 帮助函数，对 `JSON.parse` 结果做元素级类型校验，
 避免损坏的历史数据进入运行时。
 
-## 5. 验证命令
+## 5. 失效的质量门禁：重建源码完整性守卫
+
+### 现象
+
+`npm run guard:source`（`scripts/source_guard.js`）长期返回 **19 项 FAIL**，
+`npm run release:sanity`（`scripts/release_sanity.js`）返回 **8 项 FAIL**。
+两处失败全部是 v1.5.5 / Windows 时代的固定断言，例如：
+
+- `App.tsx VERSION is NOT v1.5.5`（该常量在 v2.4 已由版本同步逻辑取代）
+- `main.rs MISSING ping_tauri`、`scan_project_directory not in handler`（命令已重命名/移除）
+- `AboutScreen.tsx MISSING chriswangjob@163.com`（联系信息已收敛到 `app/identity.ts`）
+- `Tauri version mismatch: Cargo=0 api=1 cli=1`（正则读不到 `version = "=1.8.3"` 的 `=` 前缀）
+- `README.md: MISSING TokenFence-Studio-Windows-*-portable.zip`（Windows 打包线已退役）
+
+由于两个脚本永远失败，**它们从未被 CI 或发布工作流调用**。这正是本次事故的直接原因：
+一个删掉 284 个源文件的提交能够合入 `main`，而没有任何门禁会因此变红。
+
+### 处置
+
+1. **重写 `scripts/source_guard.js`** 为 v2.4 真实契约（76 项检查，0 错误通过）：
+   - Overlay 完整性：列出 29 个被 UI / 原生 / 工作流直接依赖的文件，缺任何一个立即失败
+   - 核心源码体量下限
+   - 编码完整性：BOM、CR 字节、压缩成单行、U+FFFD
+   - 发布与 CI 工作流契约：`--locked` 原生命令、`test:core`、`package-macos-release.sh`、禁止 `cargo generate-lockfile`
+   - **原生命令注册表比对**：从 10 个前端客户端抽取全部 `invoke<...>('name')`，与 `generate_handler![...]` 比对，防"前端调用未注册命令"
+   - 受审查事务安全契约：禁止 `git add -A`、要求超时守卫与已审查路径白名单
+   - 统一 Agent 运行时契约：循环上限、有界上下文、必需工具、不可信输入规则
+   - Tauri 主版本对齐（修正了 `=1.8.3` 解析）、产品版本一致性、开发者身份、凭证模式扫描
+
+2. **重写 `scripts/release_sanity.js`**（59 项检查，0 错误通过）：版本一致性覆盖全部清单与 UI 标签、
+   macOS 资产命名（`Chris-Studio-macOS-<slug>.dmg` / `.app.zip` / `Install-*.command`）、
+   双语键树漂移检查（en 与 zh-CN 均为 582 键）、凭证模式扫描。
+
+3. **接入门禁**：
+   - `.github/workflows/ci.yml` 新增 `source-integrity` job，`desktop-ui` 通过 `needs` 依赖它
+   - `.github/workflows/tokenfence-macos.yml` 的 `verify-desktop-ui` 在安装依赖前先跑两个守卫
+
+4. **新增契约测试** `scripts/v2-4-guard-contract-test.cjs`：把两个守卫钉在工作流上，
+   并断言 v1.5.x 遗留断言不得回归（防止守卫再次退化成永远失败）。
+
+5. **重写 `docs/RELEASE_CHECKLIST.md`**：删除 Windows 安装路径与 `E:\Apps\...` 步骤，
+   改为 macOS DMG / `/Applications` / 公证与签名流程，并明确区分"发布前本地验证"与"工作流验证"。
+
+## 6. 运行时收据的持久化缺陷
+
+### 现象
+
+`features/unified-agent/runtimeStore.ts` 把整个运行收据数组（含 `screenshotDataUrl`）
+原样写入 `localStorage`。而 macOS 截图的 data URL 达 **3 MB 级**（本次取证截图
+2.4 MB PNG → base64 约 3.2 MB），而同源配额约 **5 MB**。
+
+后果具有欺骗性：`persist()` 捕获异常后静默返回，因此
+
+- 运行时收据历史会停止更新（用户看到"任务列表不再变化"）
+- 更严重的是"重启后把未完成任务恢复为 interrupted"这一安全语义会失效——
+  因为最后一次成功写入可能已是若干轮之前的状态
+
+### 处置
+
+1. **持久化投影**（`persistedProjection`）：写入前剥离全部 `screenshotDataUrl`。
+   截图只服务于"当前审批窗口"，安全模型本就在下一次动作后使其失效，持久化没有价值。
+2. **输出裁剪**：工具输出截断到 8 000 字符并附 `[truncated before persistence]` 标记；
+   紧凑模式截断到 1 000 字符。
+3. **配额降级**：投影超过 1.2 MB 预算时自动切换到紧凑投影（24 条收据 /
+   1 000 字符输出）；若 `setItem` 仍抛异常（配额或序列化），再用紧凑投影重试一次。
+   内存中的完整收据不受影响。
+4. **恢复时修复**（`normalizePersistedRun`）：hydrate 阶段清除历史遗留的
+   `data:` 截图字段，容忍 `events`/`approvals` 缺失或含空项，避免旧数据让整个存储解析失败。
+
+### 边界测试
+
+`scripts/v2-4-unified-runtime-store-test.cjs` 用可注入容量的假 `localStorage` 覆盖四个场景：
+
+| 场景 | 断言 |
+| --- | --- |
+| 截图剥离 | 落盘内容不含 `data:image` 与 `screenshotDataUrl`；内存中仍保留完整截图与输出 |
+| 配额降级 | 超容量时至少一次写入被拒，但最终仍收敛到可容纳的紧凑投影，且不丢收据 |
+| 恢复修复 | 未完成任务恢复为 `interrupted`，旧待审批被拒绝，历史截图被清除，已完成任务状态不变 |
+| 重置 | 内存与落盘同时清空 |
+
+## 7. 验证命令
 
 ```bash
 # 依赖
@@ -121,7 +201,7 @@ npm ci --prefix apps/desktop/ui --legacy-peer-deps --no-audit --no-fund
 # 类型与测试
 npm run typecheck                                   # web + shared + android
 npm --prefix apps/desktop/ui run typecheck          # 桌面 UI（含 overlay 定稿）
-npm --prefix apps/desktop/ui run test:core          # 15 个核心脚本
+npm --prefix apps/desktop/ui run test:core          # 17 个核心测试脚本
 
 # 构建
 npm --prefix apps/desktop/ui run build
