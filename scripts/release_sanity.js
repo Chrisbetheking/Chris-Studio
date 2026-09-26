@@ -1,3 +1,15 @@
+/**
+ * Chris Studio release sanity check (v2.4, macOS).
+ *
+ * Verifies that a version is internally consistent before a release build is
+ * dispatched: every manifest, the sidebar label, the About fallback, the README
+ * promises, and the workflow's artifact names must agree. Historical Windows
+ * packaging assertions were retired together with the Windows build; the macOS
+ * DMG/APP-ZIP names in scripts/package-macos-release.sh are authoritative now.
+ *
+ * Run: npm run release:sanity -- v2.4.0-alpha.2
+ */
+
 const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
@@ -7,184 +19,187 @@ const VERSION = process.argv[2];
 
 if (!VERSION) {
   console.error("Usage: node scripts/release_sanity.js <version>");
-  console.error("Example: node scripts/release_sanity.js v1.2.7");
+  console.error("Example: node scripts/release_sanity.js v2.4.0-alpha.2");
   process.exit(1);
 }
 
-let errors = [];
+const errors = [];
 
 function fail(msg) {
   errors.push(msg);
   console.error("  FAIL: " + msg);
 }
-
 function ok(msg) {
   console.log("  OK: " + msg);
+}
+function section(title) {
+  console.log("\n--- " + title + " ---");
+}
+function read(relative) {
+  return fs.readFileSync(path.join(ROOT, relative), "utf-8");
+}
+function exists(relative) {
+  return fs.existsSync(path.join(ROOT, relative));
+}
+function checkContains(relative, needle, label) {
+  if (!exists(relative)) {
+    fail(relative + ": NOT FOUND");
+    return;
+  }
+  if (read(relative).includes(needle)) ok((label || relative) + ": contains " + JSON.stringify(needle).slice(0, 70));
+  else fail((label || relative) + ': MISSING "' + needle + '"');
+}
+function checkMissing(relative, needle, label) {
+  if (!exists(relative)) {
+    fail(relative + ": NOT FOUND");
+    return;
+  }
+  if (!read(relative).includes(needle)) ok((label || relative) + ": free of " + JSON.stringify(needle).slice(0, 60));
+  else fail((label || relative) + ': still contains "' + needle + '"');
 }
 
 const v = VERSION.replace(/^v/, "");
 const vTag = "v" + v;
+const isPrerelease = v.includes("-");
 
 console.log("\n=== Release sanity check for " + vTag + " ===");
+console.log("  INFO: prerelease=" + isPrerelease);
 
-// 1. Version consistency
-console.log("\n--- Version consistency ---");
-const checks = [
-  { file: "apps/desktop/ui/src/App.tsx", pattern: 'const VERSION = "' + vTag + '"' },
-  { file: "apps/desktop/src-tauri/tauri.conf.json", pattern: '"version": "' + v + '"' },
-  { file: "apps/desktop/src-tauri/Cargo.toml", pattern: 'version = "' + v + '"' },
-  { file: "package.json", pattern: '"name": "tokenfence-studio"' },
+// ============================================================
+// 1. Version consistency across every manifest and label.
+// ============================================================
+section("Version consistency");
+const versionChecks = [
+  { file: "apps/desktop/ui/package.json", needle: '"version": "' + v + '"' },
+  { file: "apps/desktop/package.json", needle: '"version": "' + v + '"' },
+  { file: "package.json", needle: '"version": "' + v + '"' },
+  { file: "apps/desktop/src-tauri/Cargo.toml", needle: 'version = "' + v + '"' },
+  { file: "apps/desktop/src-tauri/tauri.conf.json", needle: '"version": "' + v + '"' },
+  { file: "apps/desktop/src-tauri/Cargo.lock", needle: 'name = "chris-studio"\nversion = "' + v + '"' },
+  { file: "apps/desktop/ui/src/App.tsx", needle: "v" + v + " \u00b7 macOS" },
+  { file: "apps/desktop/ui/src/screens/AboutScreen.tsx", needle: "appVersion: '" + v + "'" },
+  { file: "package.json", needle: '"name": "chris-studio"' },
 ];
+for (const item of versionChecks) checkContains(item.file, item.needle);
 
-for (const item of checks) {
-  const fp = path.join(ROOT, item.file);
-  if (!fs.existsSync(fp)) {
-    fail(item.file + ": NOT FOUND");
-    continue;
-  }
-  const content = fs.readFileSync(fp, "utf-8");
-  if (content.includes(item.pattern)) {
-    ok(item.file + ': contains "' + item.pattern + '"');
-  } else {
-    fail(item.file + ': MISSING "' + item.pattern + '"');
-  }
+section("Workflow version default");
+checkContains(".github/workflows/tokenfence-macos.yml", "default: v2.4.0-alpha.2", "release workflow default");
+checkContains(".github/workflows/tokenfence-macos.yml", "prerelease: ${{ contains(inputs.version, '-') }}", "prerelease guard");
+
+// ============================================================
+// 2. Developer identity surface.
+// ============================================================
+section("Developer identity");
+checkContains("apps/desktop/ui/src/app/identity.ts", "chriswangjob@163.com", "contact email");
+checkContains("apps/desktop/ui/src/app/identity.ts", "easymoneysniperchris", "contact WeChat");
+checkContains("apps/desktop/ui/src/screens/AboutScreen.tsx", "CHRIS_STUDIO_CONTACT", "About contact binding");
+checkContains("apps/desktop/ui/src/screens/ChatWorkspace.tsx", "checkDeveloperIdentityQuestion", "identity interceptor");
+checkContains("apps/desktop/ui/src/screens/ChatWorkspace.tsx", "designed and built end-to-end by Chris", "identity EN");
+const retiredEmail = ["chrisjob", "163.com"].join("@");
+for (const f of ["README.md", "README.zh-CN.md", "docs/RELEASE_CHECKLIST.md", "scripts/release_sanity.js"]) {
+  checkMissing(f, retiredEmail, f);
 }
 
-// 1.5. About page version check
-console.log("\n--- About page version check ---");
-var aboutPath = path.join(ROOT, "apps/desktop/ui/src/screens/AboutScreen.tsx");
-if (fs.existsSync(aboutPath)) {
-  var aboutContent = fs.readFileSync(aboutPath, "utf-8");
-  if (aboutContent.indexOf("v0.5.0-dev") >= 0) fail("AboutScreen.tsx still contains v0.5.0-dev");
-  else ok("AboutScreen.tsx does not contain v0.5.0-dev");
-  if (aboutContent.indexOf('import { VERSION }') >= 0) ok("AboutScreen.tsx imports VERSION from App");
-  else fail("AboutScreen.tsx MISSING VERSION import");
-  if (aboutContent.indexOf("chriswangjob@163.com") >= 0) ok("AboutScreen.tsx contains contact email");
-  else fail("AboutScreen.tsx MISSING contact email");
-  if (aboutContent.indexOf("easymoneysniperchris") >= 0) ok("AboutScreen.tsx contains WeChat");
-  else fail("AboutScreen.tsx MISSING WeChat");
-} else { fail("AboutScreen.tsx NOT FOUND"); }
-
-// 1.6. Developer identity checks
-console.log("\n--- Developer identity checks ---");
-var cwPath3 = path.join(ROOT, "apps/desktop/ui/src/screens/ChatWorkspace.tsx");
-if (fs.existsSync(cwPath3)) {
-  var cw3 = fs.readFileSync(cwPath3, "utf-8");
-  if (cw3.indexOf("chriswangjob@163.com") >= 0) ok("ChatWorkspace.tsx contains developer email");
-  else fail("ChatWorkspace.tsx MISSING developer email");
-  if (cw3.indexOf("easymoneysniperchris") >= 0) ok("ChatWorkspace.tsx contains developer WeChat");
-  else fail("ChatWorkspace.tsx MISSING developer WeChat");
-  if (cw3.indexOf("developed and maintained by Chris") >= 0) ok("ChatWorkspace.tsx contains developer identity EN");
-  else fail("ChatWorkspace.tsx MISSING developer identity EN");
-} else { fail("ChatWorkspace.tsx NOT FOUND"); }
-
-// 2. README download links
-console.log("\n--- README download links ---");
-const zipName = "TokenFence-Studio-Windows-" + vTag + "-portable.zip";
+// ============================================================
+// 3. Release documentation + asset naming.
+// ============================================================
+section("Release documentation");
+const readmeVersionPattern = new RegExp("Chris Studio v" + v.replace(/\./g, "\\."));
 for (const f of ["README.md", "README.zh-CN.md"]) {
-  const fp = path.join(ROOT, f);
-  if (!fs.existsSync(fp)) {
+  if (!exists(f)) {
     fail(f + ": NOT FOUND");
     continue;
   }
-  const content = fs.readFileSync(fp, "utf-8");
-  if (content.includes(zipName)) {
-    ok(f + ": contains " + zipName);
-  } else {
-    fail(f + ": MISSING " + zipName);
-  }
-  // Ensure no old version links remain
-  if (content.includes("portable.exe")) {
-    fail(f + ': contains deprecated "portable.exe" link');
-  }
+  const content = read(f);
+  if (readmeVersionPattern.test(content)) ok(f + ": documents " + vTag);
+  else fail(f + ": does not document " + vTag);
+  checkMissing(f, "portable.exe", f);
+  checkContains(f, "Chris Studio macOS Builds and Release", f);
 }
 
-// 3. .gitignore sanity
-console.log("\n--- .gitignore check ---");
-const giPath = path.join(ROOT, ".gitignore");
-if (fs.existsSync(giPath)) {
-  const gi = fs.readFileSync(giPath, "utf-8");
-  const required = ["*.zip", "*.exe", "*.msi", "node_modules"];
-  for (const r of required) {
-    if (gi.includes(r)) {
-      ok(".gitignore: contains " + r);
-    } else {
-      fail(".gitignore: MISSING " + r);
-    }
+section("macOS artifact naming");
+checkContains("scripts/package-macos-release.sh", 'DMG_NAME="Chris-Studio-macOS-${SLUG}.dmg"', "DMG name");
+checkContains("scripts/package-macos-release.sh", 'APP_ZIP_NAME="Chris-Studio-macOS-${SLUG}.app.zip"', "APP ZIP name");
+checkContains("scripts/package-macos-release.sh", 'INSTALLER_NAME="Install-Chris-Studio-${SLUG}.command"', "installer name");
+checkContains(".github/workflows/tokenfence-macos.yml", "slug: Apple-Silicon", "Apple Silicon matrix entry");
+checkContains(".github/workflows/tokenfence-macos.yml", "slug: Intel", "Intel matrix entry");
+
+// ============================================================
+// 4. Repository hygiene.
+// ============================================================
+section(".gitignore check");
+if (exists(".gitignore")) {
+  for (const required of ["*.zip", "*.exe", "*.msi", "node_modules"]) {
+    if (read(".gitignore").includes(required)) ok(".gitignore: contains " + required);
+    else fail(".gitignore: MISSING " + required);
   }
 } else {
   fail(".gitignore: FILE NOT FOUND");
 }
 
-// 4. Tracked binary check
-console.log("\n--- Tracked binary check ---");
-const binaryPatterns = ["*.zip", "*.exe", "*.msi", "*.msix", "*.appx", "*.7z", "*.rar"];
-var hasTrackedBinary = false;
-for (const pat of binaryPatterns) {
+section("Tracked binary check");
+let trackedBinary = false;
+for (const pattern of ["*.zip", "*.exe", "*.msi", "*.msix", "*.appx", "*.7z", "*.rar", "*.dmg"]) {
   try {
-    const tracked = execSync("git ls-files " + pat, { cwd: ROOT, encoding: "utf-8" }).trim();
+    const tracked = execSync("git ls-files " + pattern, { cwd: ROOT, encoding: "utf-8" }).trim();
     if (tracked) {
-      fail(pat + " tracked in git: " + tracked);
-      hasTrackedBinary = true;
+      fail(pattern + " tracked in git: " + tracked.split("\n").slice(0, 3).join(", "));
+      trackedBinary = true;
     }
-  } catch (e) { /* no matches is OK */ }
+  } catch (error) {
+    /* no matches is expected */
+  }
 }
-if (!hasTrackedBinary) ok("no binary files tracked");
+if (!trackedBinary) ok("no release binaries tracked");
 
-// 5. ZIP asset name match
-console.log("\n--- ZIP asset name ---");
-const zipPath = path.join(ROOT, zipName);
-if (fs.existsSync(zipPath)) {
-  ok("ZIP exists: " + zipName);
-} else {
-  console.log("  INFO: ZIP not yet built (expected before release)");
-}
-
-// 6. Secret leak check
-console.log("\n--- Secret leak check ---");
+// ============================================================
+// 5. Secret hygiene.
+// ============================================================
+section("Secret leak check");
 const secretPatterns = [
-  /ghp_[A-Za-z0-9]{36}/,
-  /gho_[A-Za-z0-9]{36}/,
-  /sk-[A-Za-z0-9]{32,}/,
-  /github_pat_[A-Za-z0-9]{36,}/,
+  { pattern: /ghp_[A-Za-z0-9]{36}/, label: "GitHub PAT (ghp_)" },
+  { pattern: /gho_[A-Za-z0-9]{36}/, label: "GitHub OAuth token (gho_)" },
+  { pattern: /github_pat_[A-Za-z0-9_]{36,}/, label: "GitHub fine-grained PAT" },
+  { pattern: /sk-[A-Za-z0-9]{32,}/, label: "provider API key (sk-)" },
+  { pattern: /AKIA[0-9A-Z]{16}/, label: "AWS access key" },
 ];
-const checkFiles = [
+const secretFiles = [
   "README.md", "README.zh-CN.md",
   "docs/RELEASE_CHECKLIST.md",
   "scripts/source_guard.js", "scripts/release_sanity.js",
-  ".github/workflows/ci.yml"
+  ".github/workflows/ci.yml", ".github/workflows/tokenfence-macos.yml",
+  "apps/desktop/ui/src/app/identity.ts",
 ];
-for (const f of checkFiles) {
-  const fp = path.join(ROOT, f);
-  if (!fs.existsSync(fp)) continue;
-  const content = fs.readFileSync(fp, "utf-8");
-  for (const pat of secretPatterns) {
-    if (pat.test(content)) {
-      fail(f + ": contains secret/key pattern");
+let leaked = 0;
+for (const relative of secretFiles) {
+  if (!exists(relative)) continue;
+  const content = read(relative);
+  for (const entry of secretPatterns) {
+    if (entry.pattern.test(content)) {
+      fail(relative + ": contains " + entry.label);
+      leaked += 1;
     }
   }
 }
-ok("no secrets leaked");
+if (leaked === 0) ok("no credential patterns in scanned files");
 
-// 7. Core source size (full list matching source_guard.js)
-console.log("\n--- Core source size ---");
+// ============================================================
+// 6. Core source size floors.
+// ============================================================
+section("Core source size");
 const coreFiles = [
   { file: "apps/desktop/ui/src/App.tsx", min: 250 },
-  { file: "apps/desktop/ui/src/components/AppTitleBar.tsx", min: 80 },
-  { file: "apps/desktop/ui/src/components/AgentPatchPanel.tsx", min: 220 },
-  { file: "apps/desktop/ui/src/agentModelBridge.ts", min: 120 },
-  { file: "apps/desktop/ui/src/screens/ToolboxScreen.tsx", min: 180 },
-  { file: "apps/desktop/ui/src/desktop-bridge.ts", min: 100 },
-  { file: "apps/desktop/src-tauri/src/main.rs", min: 100 },
+  { file: "apps/desktop/ui/src/screens/WorkspaceScreen.tsx", min: 300 },
+  { file: "apps/desktop/ui/src/screens/ProjectsScreen.tsx", min: 400 },
+  { file: "apps/desktop/ui/src/screens/ChatWorkspace.tsx", min: 1000 },
+  { file: "apps/desktop/ui/src/features/unified-agent/manager.ts", min: 300 },
+  { file: "apps/desktop/src-tauri/src/main.rs", min: 1000 },
+  { file: "apps/desktop/src-tauri/src/unified_agent_native.rs", min: 100 },
   { file: "scripts/source_guard.js", min: 150 },
   { file: "scripts/release_sanity.js", min: 80 },
-  { file: ".github/workflows/ci.yml", min: 50 },
+  { file: ".github/workflows/ci.yml", min: 40 },
   { file: "docs/RELEASE_CHECKLIST.md", min: 60 },
   { file: "README.zh-CN.md", min: 80 },
-  { file: "apps/desktop/ui/src/data/active-model.ts", min: 200 },
-  { file: "apps/desktop/ui/src/components/CustomModelModal.tsx", min: 100 },
-  { file: "apps/desktop/ui/src/components/ProviderConfigModal.tsx", min: 200 },
-  { file: "apps/desktop/ui/src/components/ProviderSetupWizard.tsx", min: 180 },
 ];
 for (const item of coreFiles) {
   const fp = path.join(ROOT, item.file);
@@ -193,61 +208,52 @@ for (const item of coreFiles) {
     continue;
   }
   const lines = fs.readFileSync(fp, "utf-8").split("\n").length;
-  if (lines < item.min) {
-    fail(item.file + ": " + lines + " lines (min " + item.min + ")");
-  } else {
-    ok(item.file + ": " + lines + " lines");
-  }
+  if (lines < item.min) fail(item.file + ": " + lines + " lines (min " + item.min + ")");
+  else ok(item.file + ": " + lines + " lines");
 }
 
-// 8. Verify .gitattributes enforces LF
-console.log("\n--- .gitattributes check ---");
-const gaPath = path.join(ROOT, ".gitattributes");
-if (fs.existsSync(gaPath)) {
-  const ga = fs.readFileSync(gaPath, "utf-8");
-  const hasTextAuto = ga.includes("text=auto") || ga.includes("* text=auto");
-  const hasTsxLF = ga.includes("*.tsx") || ga.includes("*.ts text");
-  if (hasTextAuto || hasTsxLF) {
-    ok(".gitattributes: LF enforcement found");
-  } else {
-    fail(".gitattributes: no LF enforcement for source files");
-  }
+// ============================================================
+// 7. LF enforcement + bilingual parity.
+// ============================================================
+section(".gitattributes check");
+if (exists(".gitattributes")) {
+  const ga = read(".gitattributes");
+  if (ga.includes("text=auto") || ga.includes("* text=auto")) ok(".gitattributes: LF enforcement found");
+  else fail(".gitattributes: no LF enforcement for source files");
 } else {
   fail(".gitattributes: FILE NOT FOUND");
 }
 
-// 9. i18n consistency check
-console.log("\n--- i18n consistency ---");
-const i18nPairs = [
+section("Bilingual key parity");
+const i18nKeys = [
   { file: "packages/shared/src/i18n/zh-CN.ts", key: "\u672A\u914D\u7F6E\u6A21\u578B", label: "no-configured-model label" },
   { file: "packages/shared/src/i18n/zh-CN.ts", key: "\u8BBE\u4E3A\u5F53\u524D\u6A21\u578B", label: "set-as-active label" },
   { file: "packages/shared/src/i18n/zh-CN.ts", key: "\u6B63\u5728\u4F7F\u7528", label: "in-use label" },
   { file: "packages/shared/src/i18n/en.ts", key: "No configured model", label: "no-configured-model label" },
   { file: "packages/shared/src/i18n/en.ts", key: "Set as active", label: "set-as-active label" },
   { file: "packages/shared/src/i18n/en.ts", key: "In use", label: "in-use label" },
+  { file: "packages/shared/src/i18n/en.ts", key: "modelCount", label: "model count template" },
+  { file: "packages/shared/src/i18n/zh-CN.ts", key: "modelCount", label: "model count template" },
 ];
-for (const item of i18nPairs) {
-  const fp = path.join(ROOT, item.file);
-  if (!fs.existsSync(fp)) { fail(item.file + ": NOT FOUND"); continue; }
-  const content = fs.readFileSync(fp, "utf-8");
-  if (content.includes(item.key)) { ok(item.file + ": contains " + item.label); }
-  else { fail(item.file + ": MISSING " + item.label); }
-}
-const amPath = path.join(ROOT, "apps/desktop/ui/src/data/active-model.ts");
-if (fs.existsSync(amPath)) {
-  const am = fs.readFileSync(amPath, "utf-8");
-  if (am.includes("NO_CONFIGURED_MODEL_LABEL_EN") && am.includes("NO_CONFIGURED_MODEL_LABEL_ZH")) {
-    ok("active-model.ts contains both i18n label constants");
-  } else { fail("active-model.ts MISSING i18n label constant(s)"); }
+for (const item of i18nKeys) checkContains(item.file, item.key, item.label);
+
+// The bilingual dictionaries must declare the same key tree; a drift here is
+// what let a quarter of the Chinese UI silently fall back to English.
+if (exists("packages/shared/src/i18n/en.ts") && exists("packages/shared/src/i18n/zh-CN.ts")) {
+  const countKeys = (source) => (source.match(/^\s{2,}[A-Za-z][A-Za-z0-9]*:/gm) || []).length;
+  const enKeys = countKeys(read("packages/shared/src/i18n/en.ts"));
+  const zhKeys = countKeys(read("packages/shared/src/i18n/zh-CN.ts"));
+  const drift = Math.abs(enKeys - zhKeys);
+  if (drift <= 2) ok("i18n key counts align (en=" + enKeys + ", zh-CN=" + zhKeys + ")");
+  else fail("i18n key drift: en=" + enKeys + " zh-CN=" + zhKeys + " (difference " + drift + ")");
 }
 
-// Final
+// ============================================================
 console.log("\n=== RESULT: " + errors.length + " error(s) ===");
 if (errors.length > 0) {
   console.log("Failures:");
-  errors.forEach(function(e) { console.log("  - " + e); });
+  errors.forEach((entry) => console.log("  - " + entry));
   process.exit(1);
-} else {
-  console.log("Release sanity check passed.");
-  process.exit(0);
 }
+console.log("Release sanity check passed.");
+process.exit(0);

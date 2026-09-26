@@ -83,6 +83,14 @@ jobs:
       - name: Verify public npm lockfile registries
         run: node scripts/verify-public-npm-locks.cjs
 
+      - name: Verify source completeness and release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/source_guard.js
+          VERSION="$(node -p "require('./apps/desktop/ui/package.json').version")"
+          node scripts/release_sanity.js "v${VERSION}"
+
       - name: Install desktop UI dependencies
         run: npm ci --prefix apps/desktop/ui --legacy-peer-deps --no-audit --no-fund
 

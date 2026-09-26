@@ -17,8 +17,26 @@ env:
   NPM_CONFIG_FUND: 'false'
 
 jobs:
+  source-integrity:
+    name: Source integrity guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Verify the source overlay is complete
+        run: node scripts/source_guard.js
+      - name: Verify release metadata consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./apps/desktop/ui/package.json').version")"
+          node scripts/release_sanity.js "v${VERSION}"
+
   desktop-ui:
     name: Desktop UI
+    needs: source-integrity
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

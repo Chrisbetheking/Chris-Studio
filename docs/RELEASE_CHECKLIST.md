@@ -1,69 +1,90 @@
-# TokenFence Studio Release Checklist
+# Chris Studio Release Checklist
 
 Use this checklist before every release to prevent source/release mismatches.
+
+The macOS release path is authoritative. The retired Windows packaging flow
+(`TokenFence-Studio-Windows-*.zip`, `E:\Apps\...` install targets) is no longer
+produced and its assertions were removed from the guards.
 
 ## 1. Before Build
 
 - [ ] `npm run guard:source` passes with 0 errors
-- [ ] `git ls-files *.zip` returns empty (no ZIPs tracked in git)
-- [ ] `README.md` and `README.zh-CN.md` are UTF-8, LF-only, CR=0, >=80 lines
-- [ ] All version strings match across App.tsx, tauri.conf.json, Cargo.toml, READMEs
-- [ ] No raw API keys, tokens, or secrets in committed files
-- [ ] Core source files pass line count thresholds:
-  - AgentPatchPanel.tsx >= 180
-  - ToolboxScreen.tsx >= 180
-  - desktop-bridge.ts >= 100
-  - main.rs >= 100
-
-## 2. Build
-
-- [ ] `npm run build` passes clean
-- [ ] `cd apps/desktop/src-tauri && cargo check` passes
-- [ ] `npm run desktop:build` passes
-- [ ] Portable ZIP created: `TokenFence-Studio-Windows-vX.Y.Z-portable.zip`
-- [ ] ZIP contains exactly: `TokenFence Studio.exe` + `WebView2Loader.dll`
-
-## 3. Verify Public Source (raw.githubusercontent.com)
-
-### 3a. Raw main branch
-
-- [ ] `curl` each file from `raw.githubusercontent.com/.../main/...` and confirm line counts:
-  - AgentPatchPanel.tsx >= 180 lines
-  - ToolboxScreen.tsx >= 180 lines
-  - desktop-bridge.ts >= 100 lines
-  - main.rs >= 100 lines
-  - source_guard.js >= 120 lines
-  - release_sanity.js >= 80 lines
-  - ci.yml >= 40 lines
-  - RELEASE_CHECKLIST.md >= 60 lines
-
-### 3b. Raw commit hash
-
-- [ ] Same 8 files verified against HEAD commit hash on raw.githubusercontent.com
-
-### 3c. Raw tag commit
-
-- [ ] Same 8 files verified against tag commit hash on raw.githubusercontent.com
-
-## 4. Release
-
+      (overlay completeness, native command registration, reviewed-transaction
+      safety, Unified Agent contract, Tauri major alignment, version consistency,
+      developer identity, secret hygiene)
 - [ ] `npm run release:sanity -- vX.Y.Z` passes with 0 errors
-- [ ] `gh release create` tag matches version, not prerelease, not draft
-- [ ] Asset name matches: `TokenFence-Studio-Windows-vX.Y.Z-portable.zip`
-- [ ] Release notes are clean, no typos, no leaked keys
+      (version consistency, macOS artifact names, bilingual key parity)
+- [ ] `git ls-files *.zip *.dmg *.exe *.msi` returns empty (no release binaries tracked in git)
+- [ ] `README.md` and `README.zh-CN.md` are UTF-8, LF-only, CR=0, >=80 lines
+- [ ] Version strings agree across `apps/desktop/ui/package.json`,
+      `apps/desktop/package.json`, `package.json`,
+      `apps/desktop/src-tauri/Cargo.toml`, `apps/desktop/src-tauri/tauri.conf.json`,
+      `apps/desktop/src-tauri/Cargo.lock`, the App sidebar label, and the
+      AboutScreen fallback
+- [ ] No raw API keys, tokens, or secrets in committed files
 
-## 5. Install & Run
+## 2. Local Verification
 
-- [ ] Install ZIP contents to `E:\Apps\TokenFenceStudio\vX.Y.Z`
-- [ ] Desktop shortcut Target is `E:\Apps\TokenFenceStudio\vX.Y.Z\TokenFence Studio.exe`
-- [ ] Kill any old TokenFence processes before launching
-- [ ] Launch from shortcut, verify process path is `E:\Apps\TokenFenceStudio\vX.Y.Z\...`
-- [ ] Bottom-left corner shows correct version `vX.Y.Z`
-- [ ] No `raw key` visible in Computer Use page
-- [ ] No `invoke undefined` errors in console
+- [ ] `npm ci --legacy-peer-deps --no-audit --no-fund`
+- [ ] `npm ci --prefix apps/desktop/ui --legacy-peer-deps --no-audit --no-fund`
+- [ ] `npm run typecheck` (web + shared + android)
+- [ ] `npm --prefix apps/desktop/ui run typecheck`
+- [ ] `npm --prefix apps/desktop/ui run test:core`
+- [ ] `npm --prefix apps/desktop/ui run build`
+- [ ] `cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml`
+- [ ] `cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml`
 
-## 6. Post-Release
+## 3. Source Overlay Verification
 
-- [ ] GitHub Actions CI workflow passes on main (source-guard + frontend-build)
-- [ ] Release sanity CI job triggered by tag passes
+- [ ] `node scripts/finalize-v2.4.0-alpha.2.cjs` prints
+      `CHRIS_STUDIO_V2_4_ALPHA2_OVERLAY_READY`
+- [ ] `node scripts/verify-public-npm-locks.cjs` prints
+      `PUBLIC_NPM_LOCKFILE_REGISTRIES_VERIFIED`
+- [ ] The four overlay entry points exist:
+      `apps/desktop/ui/src/App.tsx`,
+      `apps/desktop/src-tauri/src/main.rs`,
+      `apps/desktop/src-tauri/src/unified_agent_native.rs`,
+      `apps/desktop/ui/scripts/run-core-tests.cjs`
+- [ ] `apps/desktop/ui/tsconfig.json` includes `src/main.tsx` and does **not**
+      include the whole `src` directory
+
+## 4. Release Dispatch
+
+- [ ] Run **Chris Studio macOS Builds and Release** with:
+      ```text
+      version: vX.Y.Z
+      create_release: true
+      make_latest: false      # true only for a stable release
+      persist_source: true
+      ```
+- [ ] The `verify-desktop-ui` job passed the source guard and release sanity
+      check before dependency installation
+- [ ] Both matrix entries built: `Apple-Silicon` (arm64) and `Intel` (x86_64)
+- [ ] Alpha tags (`-` in the version) are published as pre-releases and never
+      replace the latest stable release
+
+## 5. Artifact Verification
+
+- [ ] Artifacts follow `scripts/package-macos-release.sh` naming:
+      - `Chris-Studio-macOS-<slug>.dmg`
+      - `Chris-Studio-macOS-<slug>.app.zip`
+      - `Install-Chris-Studio-<slug>.command`
+- [ ] Release assets match the artifacts produced by both matrix entries
+- [ ] Release notes contain no typos and no leaked credentials
+
+## 6. Install & Run
+
+- [ ] Open the DMG and move **Chris Studio.app** into `/Applications`
+- [ ] If macOS reports the community build as damaged, run:
+      `sudo xattr -rd com.apple.quarantine "/Applications/Chris Studio.app"`
+- [ ] Launch from `/Applications` and confirm the sidebar shows the release
+      version
+- [ ] Confirm no API key is visible in the Providers screen
+- [ ] Confirm no `invoke undefined` errors in the console
+
+## 7. Post-Release
+
+- [ ] `Chris Studio CI` passes on the release commit (source-integrity,
+      desktop-ui, macos-native-check)
 - [ ] `gh release view vX.Y.Z` confirms assets and metadata
+- [ ] In-app update check reports the new version
