@@ -191,7 +191,51 @@ export async function commitProjectChanges(
 | 恢复修复 | 未完成任务恢复为 `interrupted`，旧待审批被拒绝，历史截图被清除，已完成任务状态不变 |
 | 重置 | 内存与落盘同时清空 |
 
-## 7. 验证命令
+## 7. 持久化校验加固：一类系统性缺陷（第 22–30 轮）
+
+### 模式
+
+审计发现同一个缺陷模式在多个模块中重复出现：**从存储读回的数据被当作可信输入直接使用**。
+生产代码在写入路径上做了脱敏与规范化，但读取路径只做 `JSON.parse`，随后立刻把结果
+交给调用方或进行属性访问。由于 `localStorage` 中的内容可能来自旧版本、被手工编辑，
+或被上一次中断的写入截断，这会让"配置看起来正常"但运行时崩溃或显示错误数据。
+
+发现并修复的具体缺陷：
+
+| 模块 | 缺陷 | 后果 |
+| --- | --- | --- |
+| `app/store.ts` 的 `safeRead` | 把 `JSON.parse("null")` 的 `null` 当作有效值返回 | 启动路径上 6 个加载函数抛错（`Object.keys(null)`、`null.filter`、`null.localeCompare`） |
+| `app/store.ts` 的 `loadAgents` | 字符串的 `length` 为真，被当作列表 | `"oops".filter is not a function` |
+| `app/store.ts` 的 `loadProviderStatuses` / `loadRoutingRules` | 错误形状被原样返回 | 字符串被当作状态映射/规则列表，按字符取到错误值 |
+| `data/active-model.ts` 的 `loadActiveModel` | 身份字段未校验类型 | `42` → `"42"`、`{}` → `"[object Object]"`、`[]` → `"Unknown"`，活动模型指向不存在的提供商 |
+| `data/active-model.ts` | `source` 与 `lastSetAt` 原样透传 | 非法枚举值与 `"yesterday"` 进入调用方 |
+| `data/project-workspace.ts` 的 `loadActiveProject` | 缺少 `repairProjectInfo` 校验（与 `loadRecentProjects` 不对称） | 6/8 类损坏值返回无效对象，调用方 `path.trim()` 崩溃 |
+| `data/context-pack.ts` | 只校验顶层形状 | `null` 条目致添加/删除崩溃；非数值 `sizeBytes` 显示 `NaN MB`；`MAX_FILES` 上限对恢复数据失效 |
+| `data/computer-use.ts` | 审计日志与 Agent 状态无校验 | 非数组值致 `log.push is not a function`（审计记录静默停止）；`plan`/`logs` 非数组；`currentStepIndex` 为字符串 |
+| `features/agent-runtime/runtimeStore.ts` | hydration 仅按 `id` 接受条目 | 缺/错类型 `updatedAt` 致可靠性面板显示 `NaN` 且排序失效；非字符串 `status` 生成无效 CSS 类 |
+| `features/tokens/optimizer.ts` | `balanced` 压缩对整段文本做 `[ \t]{2,}` 折叠 | 围栏代码块内 Python/YAML/Makefile 缩进被压成单空格（语义被改写） |
+| `features/providers/providerTelemetry.ts` | 只读取 Responses API 的字段名 | 标准 OpenAI chat-completions 的 `usage.prompt_tokens_details` / `completion_tokens_details` 读不到，缓存与推理 token 恒为 0；推理 token 在 output 内重复计费 |
+| `features/files/fileProcessor.ts` | 内容截断到 150 万字符但不告知 | 大文档被切半而 UI 显示"已完整读取" |
+| `features/files/knowledge.ts` | 索引构建与检索无输入校验 | 坏附件中断整个索引；非字符串查询直接抛错；`limit` 无效值语义不可预测 |
+| `features/projects/projectChangeSession.ts` | diff 路径与变更计数解析 | 带空格路径被截断；非 ASCII 路径八进制转义解码为乱码；`++`/`--` 内容行被误判为文件头 |
+| `packages/shared/src/providers.ts` | 配置与别名加载无校验 | 非数组损坏值原样返回致调用方崩溃 |
+| `packages/shared/src/agent-runtime/executionLog.ts` | `JSON.parse` 直接赋给 `entries` | `entries is not iterable`；`addEntry` 停止记录；JSON 字符串被展开为逐字符行 |
+| `packages/shared/src/storage.ts` | `validatePath` 只删第一个冒号 | 接受 `..` 遍历、绝对路径、Windows 驱动/UNC 路径与 `~` 展开 |
+| `packages/shared/src/archive.ts` | `storeSanitizedOnly` 只清空 `original` | `findings[].match` 仍保留原始邮箱/密钥，"仅存脱敏内容"承诺被绕过 |
+
+### 处置原则
+
+1. **读取即校验**：每个跨进程边界的读取都经过一个 `normalizeX(entry: unknown)` 帮助函数，
+   校验必填字段的类型与取值域，丢弃无法描述真实对象的条目。
+2. **失败可预测**：无效的枚举值、时间戳、计数回退到文档化的默认值，而不是原样透传。
+3. **不静默降级**：无法持久化时把结果返回给调用方（如 `saveConversation` 返回布尔值），
+   由上层决定是否拒绝请求；截断/省略数据时通过 `warnings` 告知用户。
+4. **副本同步**：安全关键模块在 `packages/shared` 与 `apps/android/src/shared` 之间
+   必须字节一致，由 `scripts/v2-4-shared-mirror-test.cjs` 固定。
+5. **每个修复都配回归测试**：第 22–30 轮新增 9 个测试脚本，覆盖损坏值、类型错误、
+   边界与正常往返。
+
+### 验证命令
 
 ```bash
 # 依赖
@@ -201,7 +245,7 @@ npm ci --prefix apps/desktop/ui --legacy-peer-deps --no-audit --no-fund
 # 类型与测试
 npm run typecheck                                   # web + shared + android
 npm --prefix apps/desktop/ui run typecheck          # 桌面 UI（含 overlay 定稿）
-npm --prefix apps/desktop/ui run test:core          # 17 个核心测试脚本
+npm --prefix apps/desktop/ui run test:core          # 43 个核心测试脚本
 
 # 构建
 npm --prefix apps/desktop/ui run build
@@ -210,3 +254,10 @@ npm --prefix apps/desktop/ui run build
 cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
 cargo test  --manifest-path apps/desktop/src-tauri/Cargo.toml
 ```
+
+### 质量门禁
+
+`npm run guard:source` 与 `npm run release:sanity` 已接入 `Chris Studio CI` 与
+`Chris Studio macOS Builds and Release`，在安装依赖之前运行。前者覆盖 overlay 完整性、
+原生命令注册表比对、受审查事务安全契约与统一 Agent 运行时契约；后者覆盖版本一致性、
+macOS 资产命名与双语键树对齐。
