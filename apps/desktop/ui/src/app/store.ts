@@ -477,9 +477,40 @@ export function saveGitHubRepoUrl(url: string): void {
   window.dispatchEvent(new CustomEvent('tokenfence:github-updated'));
 }
 
+/**
+ * Accept a persisted usage entry only when it can be aggregated safely.
+ *
+ * The slot is read back from storage, so it must be treated as untrusted. A
+ * `null` entry, a bare string or an entry without a string `createdAt` used to
+ * crash the summary with a TypeError, and a non-numeric token count produced
+ * `NaN` — either way the whole token panel broke instead of showing the usage
+ * that was actually recorded.
+ */
+function normalizeTokenUsageEntry(entry: unknown): TokenUsageEntry | undefined {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return undefined;
+  const row = entry as Record<string, unknown>;
+  const createdAt = typeof row.createdAt === 'string' ? row.createdAt : '';
+  if (!createdAt) return undefined;
+  const count = (value: unknown): number => {
+    const numeric = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+  };
+  return {
+    ...(row as unknown as TokenUsageEntry),
+    createdAt,
+    inputTokens: count(row.inputTokens),
+    outputTokens: count(row.outputTokens),
+    savedTokens: count(row.savedTokens),
+  };
+}
+
 export function loadTokenUsage(): TokenUsageEntry[] {
-  const saved = safeRead<TokenUsageEntry[]>(KEYS.tokenUsage, []);
-  return Array.isArray(saved) ? saved.slice(0, 5_000) : [];
+  const saved = safeRead<unknown>(KEYS.tokenUsage, []);
+  if (!Array.isArray(saved)) return [];
+  return saved
+    .slice(0, 5_000)
+    .map(normalizeTokenUsageEntry)
+    .filter((entry): entry is TokenUsageEntry => Boolean(entry));
 }
 
 export function recordTokenUsage(entry: TokenUsageEntry): void {
@@ -488,12 +519,15 @@ export function recordTokenUsage(entry: TokenUsageEntry): void {
 }
 
 export function tokenUsageSummary(datePrefix = new Date().toISOString().slice(0, 10)): TokenUsageSummary {
-  return loadTokenUsage().filter((entry) => entry.createdAt.startsWith(datePrefix)).reduce<TokenUsageSummary>((summary, entry) => ({
-    inputTokens: summary.inputTokens + Math.max(0, entry.inputTokens || 0),
-    outputTokens: summary.outputTokens + Math.max(0, entry.outputTokens || 0),
-    savedTokens: summary.savedTokens + Math.max(0, entry.savedTokens || 0),
-    totalTokens: summary.totalTokens + Math.max(0, entry.inputTokens || 0) + Math.max(0, entry.outputTokens || 0),
-  }), { inputTokens: 0, outputTokens: 0, savedTokens: 0, totalTokens: 0 });
+  const prefix = typeof datePrefix === 'string' ? datePrefix : '';
+  return loadTokenUsage()
+    .filter((entry) => entry.createdAt.startsWith(prefix))
+    .reduce<TokenUsageSummary>((summary, entry) => ({
+      inputTokens: summary.inputTokens + entry.inputTokens,
+      outputTokens: summary.outputTokens + entry.outputTokens,
+      savedTokens: summary.savedTokens + entry.savedTokens,
+      totalTokens: summary.totalTokens + entry.inputTokens + entry.outputTokens,
+    }), { inputTokens: 0, outputTokens: 0, savedTokens: 0, totalTokens: 0 });
 }
 
 export function clearTokenUsage(): void {
