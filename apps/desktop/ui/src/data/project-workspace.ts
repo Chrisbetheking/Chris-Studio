@@ -191,11 +191,25 @@ export function setActiveProject(project: RecentProject): void {
   storeSet(ACTIVE_PROJECT_KEY, JSON.stringify(project));
 }
 
+/**
+ * Load the remembered active project.
+ *
+ * The slot is read back from storage, so it must be treated as untrusted. A
+ * cast used to hand the parsed value straight to callers: a stored number, an
+ * empty object or an entry without a path all came back as an "ActiveProject"
+ * whose `path` was undefined, and the project screen then threw on
+ * `path.trim()`. Values that cannot describe a real folder are repaired or
+ * rejected here instead.
+ */
 export function loadActiveProject(): RecentProject | null {
   try {
     const raw = storeGet(ACTIVE_PROJECT_KEY);
     if (!raw) return null;
-    const p = safeParseJson(raw); return p as RecentProject;
+    const parsed = safeParseJson(raw);
+    const repaired = repairProjectInfo(parsed);
+    if (!repaired) return null;
+    repaired.name = sanitizeProjectName(repaired.name, repaired.path);
+    return repaired;
   } catch {
     return null;
   }
