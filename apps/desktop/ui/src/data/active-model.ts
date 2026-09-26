@@ -138,13 +138,38 @@ export function normalizeRuntimeText<T>(value: T): T {
 
 const STORAGE_KEY = "tokenfence.activeModel";
 
+/** The only values `ActiveModelV2.source` may carry. */
+const ACTIVE_MODEL_SOURCES: ReadonlySet<string> = new Set(["installed", "custom", "library", "fallback"]);
+
+/**
+ * Accept a stored string only when it really is one.
+ *
+ * The previous pass ran `normalizeDisplayText` over whatever was in the slot, so
+ * a number, an object or an array was silently coerced: `42` became `"42"`,
+ * `{}` became `"[object Object]"` and `[]` resolved to `"Unknown"`. The active
+ * model then pointed at a provider that does not exist, and the mismatch only
+ * surfaced later as an unroutable request.
+ */
+function storedText(value: unknown): string {
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
+/** Accept a stored timestamp only when it is a usable positive number. */
+function storedTimestamp(value: unknown): number {
+  const numeric = typeof value === "number" ? value : Number.NaN;
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : Date.now();
+}
+
 export function loadActiveModel(): ActiveModelV2 | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    // Accept both v1 and v2 schemas
-    if (!parsed?.providerId || !parsed?.modelId) return null;
+    // Accept both v1 and v2 schemas, but only when the identity fields are
+    // genuine strings: a wrong-typed value must read as "nothing configured"
+    // rather than resolve to a provider the user never selected.
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    if (!storedText(parsed.providerId) || !storedText(parsed.modelId)) return null;
     return normalizeActiveModelV2(parsed);
   } catch {
     return null;
@@ -152,14 +177,15 @@ export function loadActiveModel(): ActiveModelV2 | null {
 }
 
 function normalizeActiveModelV2(parsed: any): ActiveModelV2 {
-  const providerId = normalizeDisplayText(canonicalizeProviderId(parsed.providerId));
-  const modelId = normalizeDisplayText(parsed.modelId);
+  const providerId = normalizeDisplayText(canonicalizeProviderId(storedText(parsed.providerId)));
+  const modelId = normalizeDisplayText(storedText(parsed.modelId));
   const providerDisplayName = normalizeDisplayText(
-    parsed.providerDisplayName || getProviderDisplayName(providerId)
+    storedText(parsed.providerDisplayName) || getProviderDisplayName(providerId)
   );
   const modelDisplayName = normalizeDisplayText(
-    parsed.modelDisplayName || parsed.displayName || modelId
+    storedText(parsed.modelDisplayName) || storedText(parsed.displayName) || modelId
   );
+  const source = storedText(parsed.source);
   return {
     schemaVersion: 2,
     providerId,
@@ -167,12 +193,14 @@ function normalizeActiveModelV2(parsed: any): ActiveModelV2 {
     providerDisplayName,
     modelDisplayName,
     displayLabel: normalizeDisplayText(
-      parsed.displayLabel || `${providerDisplayName} / ${modelDisplayName}`
+      storedText(parsed.displayLabel) || `${providerDisplayName} / ${modelDisplayName}`
     ),
-    source: parsed.source || "installed",
+    // An unknown source is normalized to the default instead of being carried
+    // into the receipt, where it would violate the declared union.
+    source: (ACTIVE_MODEL_SOURCES.has(source) ? source : "installed") as ActiveModelV2["source"],
     configured: !!parsed.configured,
     healthy: !!parsed.healthy,
-    lastSetAt: parsed.lastSetAt || Date.now(),
+    lastSetAt: storedTimestamp(parsed.lastSetAt),
   };
 }
 
@@ -240,7 +268,7 @@ export function migrateActiveModelStorageV2(): void {
         providerDisplayName: getProviderDisplayName(providerId),
         modelDisplayName: normalizeDisplayText(reg?.displayName || parsed.modelDisplayName || parsed.displayName || parsed.modelId),
         displayLabel: `${getProviderDisplayName(providerId)} / ${normalizeDisplayText(reg?.displayName || parsed.modelDisplayName || parsed.displayName || parsed.modelId)}`,
-        source: parsed.source || "installed",
+        source: (ACTIVE_MODEL_SOURCES.has(storedText(parsed.source)) ? storedText(parsed.source) : "installed") as ActiveModelV2["source"],
         configured: true,
         healthy: cfg.lastHealthStatus === "ok",
         lastSetAt: Date.now(),

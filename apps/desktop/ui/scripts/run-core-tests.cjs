@@ -79,6 +79,7 @@ const remainingTests = [
   "scripts/v2-4-context-pack-repair-test.cjs",
   "scripts/v2-4-sample-tree-paths-test.cjs",
   "scripts/v2-4-macos-diagnostics-test.cjs",
+  "scripts/v2-4-active-model-validation-test.cjs",
   "scripts/v2-4-unified-agent-test.cjs",
 ];
 
