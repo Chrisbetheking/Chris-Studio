@@ -82,7 +82,17 @@ function safeRead<T>(key: string, fallback: T, backupCorrupt = true): T {
   const raw = window.localStorage.getItem(key);
   if (!raw) return fallback;
   try {
-    return JSON.parse(raw) as T;
+    const parsed = JSON.parse(raw) as T;
+    // `JSON.parse("null")` and `JSON.parse("undefined")`-style payloads are
+    // syntactically valid but describe nothing. Returning them handed `null` to
+    // every loader, which then threw on the first property access
+    // (`Object.keys(null)`, `null.filter`, `null.localeCompare`) — including on
+    // the startup path where settings, conversations and agents are read.
+    if (parsed === null || parsed === undefined) {
+      window.localStorage.removeItem(key);
+      return fallback;
+    }
+    return parsed;
   } catch {
     if (backupCorrupt && !key.includes('provider')) {
       try {
@@ -231,9 +241,18 @@ export function loadActiveProvider(): ProviderProfile {
 
 export function loadProviderStatuses(): Record<string, ProviderStatus> {
   const saved = safeRead<Record<string, ProviderStatus>>(KEYS.providerStatuses, {}, false);
-  if (Object.keys(saved).length) return saved;
+  // `Object.keys` is truthy for a string and for an array, so a wrong-typed slot
+  // used to be returned as the status map and every `statuses[id]` lookup then
+  // answered with a character or an index instead of a status object.
+  const savedMap = saved && typeof saved === 'object' && !Array.isArray(saved)
+    ? saved
+    : {};
+  if (Object.keys(savedMap).length) return savedMap;
   const legacy = safeRead<ProviderStatus>(KEYS.legacyProviderStatus, { state: 'not-configured' }, false);
-  return { 'deepseek-primary': legacy };
+  const legacyStatus = legacy && typeof legacy === 'object' && typeof (legacy as ProviderStatus).state === 'string'
+    ? legacy
+    : { state: 'not-configured' as const };
+  return { 'deepseek-primary': legacyStatus };
 }
 
 export function loadProviderStatus(profileId: string): ProviderStatus {
@@ -260,7 +279,12 @@ export function clearProviderStatus(profileId: string): void {
 
 export function loadRoutingRules(): RoutingRule[] {
   const saved = safeRead<RoutingRule[]>(KEYS.routing, []);
-  if (saved.length) return saved;
+  // A bare string has a truthy `length`, so a wrong-typed slot was returned as
+  // the rule list and the routing grid mapped over its characters.
+  const savedRules = Array.isArray(saved)
+    ? saved.filter((rule) => rule && typeof rule === 'object' && typeof rule.id === 'string')
+    : [];
+  if (savedRules.length) return savedRules;
   const active = loadActiveProviderId();
   const defaults: RoutingRule[] = [
     { id: 'route-code', kind: 'code', providerProfileId: active, enabled: true, reasonEn: 'Coding and repository work', reasonZh: '代码与仓库任务' },
@@ -293,11 +317,15 @@ function normalizeAgentProfile(agent: AgentProfile): AgentProfile {
 
 export function loadAgents(): AgentProfile[] {
   const saved = safeRead<AgentProfile[]>(KEYS.agents, []);
-  const source = saved.length ? saved : DEFAULT_AGENTS;
+  // A syntactically valid but wrong-typed payload (a bare string, a number)
+  // must not be treated as a list: `saved.length` is truthy for a string, so the
+  // code below used to call `source.filter` on it and throw during startup.
+  const savedList = Array.isArray(saved) ? saved : [];
+  const source = savedList.length ? savedList : DEFAULT_AGENTS;
   const normalized = source
     .filter((agent) => agent && typeof agent.id === 'string')
     .map(normalizeAgentProfile);
-  if (!saved.length || JSON.stringify(saved) !== JSON.stringify(normalized)) saveAgents(normalized);
+  if (!savedList.length || JSON.stringify(savedList) !== JSON.stringify(normalized)) saveAgents(normalized);
   return normalized;
 }
 
