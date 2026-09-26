@@ -49,10 +49,16 @@ export function ConnectorsScreen({ language }: { language: Language }) {
   const save = async () => {
     if (!draft.name.trim() || !draft.url.trim()) return toast.show(copy(language, 'Name and endpoint are required.', '名称和接口地址不能为空。'), 'warning');
     let credentialStored = draft.credentialStored;
-    if (draft.token.trim()) {
-      const secret = await saveConnectorSecret(draft.id, draft.token.trim());
-      if (!secret.ok) return toast.show(secret.errorMessage ?? 'Credential store failed.', 'error');
-      credentialStored = true;
+    try {
+      if (draft.token.trim()) {
+        const secret = await saveConnectorSecret(draft.id, draft.token.trim());
+        if (!secret.ok) return toast.show(secret.errorMessage ?? 'Credential store failed.', 'error');
+        credentialStored = true;
+      }
+    } catch (cause) {
+      // The native call can reject (for example when no credential store is
+      // available). Report it instead of leaving the screen half-saved.
+      return toast.show(cause instanceof Error ? cause.message : String(cause), 'error');
     }
     const next = { ...draft, token: '', credentialStored, updatedAt: nowIso() };
     saveToolConnector(next);
@@ -65,7 +71,11 @@ export function ConnectorsScreen({ language }: { language: Language }) {
 
   const remove = async () => {
     if (!selected || !window.confirm(copy(language, 'Delete this connector and its stored credential?', '删除此连接器及其已保存凭证？'))) return;
-    await deleteConnectorSecret(selected.id);
+    try {
+      await deleteConnectorSecret(selected.id);
+    } catch {
+      // A missing credential entry must not block deleting the connector itself.
+    }
     deleteToolConnector(selected.id);
     const all = loadToolConnectors();
     setConnectors(all);
@@ -82,10 +92,19 @@ export function ConnectorsScreen({ language }: { language: Language }) {
     const confirmed = method !== 'tools/call' || window.confirm(copy(language, 'Run this reviewed MCP tool call?', '执行这次已审查的 MCP 工具调用？'));
     if (!confirmed) return;
     setBusy(true);
-    const response = await callMcp(draft, method, params, confirmed);
-    setResult(response);
-    setBusy(false);
-    toast.show(response.ok ? copy(language, 'Connector request completed.', '连接器请求已完成。') : (response.errorMessage ?? 'Connector request failed.'), response.ok ? 'success' : 'error');
+    try {
+      const response = await callMcp(draft, method, params, confirmed);
+      setResult(response);
+      toast.show(response.ok ? copy(language, 'Connector request completed.', '连接器请求已完成。') : (response.errorMessage ?? 'Connector request failed.'), response.ok ? 'success' : 'error');
+    } catch (cause) {
+      // Without this guard a rejected native call left `busy` set forever: the
+      // Run button stayed disabled and the screen looked frozen.
+      const message = cause instanceof Error ? cause.message : String(cause);
+      setResult({ ok: false, status: 0, errorCode: 'BRIDGE_FAILED', errorMessage: message, latencyMs: 0 });
+      toast.show(message, 'error');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return <main className="modern-page connectors-page">
